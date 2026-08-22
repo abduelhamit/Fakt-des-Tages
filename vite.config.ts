@@ -13,7 +13,10 @@ export default defineConfig({
 				runes: ({ filename }) =>
 					filename.split(/[/\\]/).includes('node_modules') ? undefined : true
 			},
-			adapter: adapter()
+			adapter: adapter(),
+			// Deployed as a GitHub Pages *project* site, so everything lives under a
+			// subpath. Runtime fetches must go through `base` from '$app/paths'.
+			paths: { base: '/Fakt-des-Tages' }
 		})
 	],
 	test: {

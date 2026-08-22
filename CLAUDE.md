@@ -109,21 +109,30 @@ Two things are configured there today:
 
 ## Static build / GitHub Pages
 
-`pnpm build` **currently fails** on a clean checkout: adapter-static rejects `src/routes/` as a
-dynamic route. Fix by adding `export const prerender = true` to a root `src/routes/+layout.ts` (or
-setting the adapter's `fallback` for SPA mode). This is expected to be resolved by the first real
-implementation work, not a broken environment.
+Deployed as a GitHub Pages **project** site, so everything lives under `/Fakt-des-Tages/`. Four
+pieces make that work; none is optional:
 
-Two more things GitHub Pages needs that nothing sets up yet:
+- [src/routes/+layout.ts](src/routes/+layout.ts) — `export const prerender = true`. Without it
+  adapter-static rejects `src/routes/` as a dynamic route and `pnpm build` fails outright.
+- `paths.base = '/Fakt-des-Tages'` in [vite.config.ts](vite.config.ts). Prerendered HTML happens to
+  use _relative_ asset paths (`paths.relative` defaults to true), so assets survive without it — but
+  `base` is what the browser bundle uses at runtime, so any runtime `fetch()` of a static asset must
+  go through `base` from `$app/paths` or it 404s in production while working locally.
+- [static/.nojekyll](static/.nojekyll) — insurance, not load-bearing today: an artifact deployed by
+  `actions/deploy-pages` is served as-is and never sees Jekyll. It matters only if Pages is ever
+  switched back to deploy-from-a-branch, where Jekyll would drop the `_app/` directory. Nothing in
+  the toolchain writes one, so it is checked in (0 bytes).
+- `packageManager` in [package.json](package.json) — pins pnpm so `pnpm/action-setup` resolves a
+  version in CI.
 
-- `paths.base = '/Fakt-des-Tages'` in the `sveltekit({...})` options — the remote is
-  `abduelhamit/Fakt-des-Tages`, so it deploys to a project subpath unless a custom domain is added.
-  With a base path set, the runtime `fetch()` of the facts file must go through `base` from
-  `$app/paths`, or it will 404 in production while working locally.
-- `static/.nojekyll` — neither the adapter nor SvelteKit writes one, and Jekyll drops the `_app/`
-  directory.
+`pnpm dev` and `pnpm preview` also serve under `/Fakt-des-Tages/`; a request to the bare root 404s.
+That is the base path working, not a bug.
 
-There is no deploy workflow in the repo (`.github/` does not exist).
+[.github/workflows/deploy.yml](.github/workflows/deploy.yml) builds on push to `main`: check → lint
+→ build → upload `build/`, then a separate job deploys. Browser tests are deliberately not in the
+gate — they would need `playwright install chromium` on every run. `actions/configure-pages` runs
+with `enablement: true`, so the first successful run switches Pages on by itself; Pages was still
+disabled on the repo when this was written, and that step is what flips it.
 
 ## Testing setup
 
