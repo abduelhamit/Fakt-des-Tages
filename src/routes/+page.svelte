@@ -1,45 +1,48 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { loadFakten, renderFakt, toIsoDate, type Fakten } from '$lib/fakten';
+	import { toIsoDate } from '$lib/fakten';
+	import type { PageProps } from './$types';
 
-	let fakten = $state<Fakten>();
-	let fehler = $state<string>();
+	let { data }: PageProps = $props();
 
-	const jetzt = new Date();
-	const heute = toIsoDate(jetzt);
-	const heuteLang = new Intl.DateTimeFormat('de-DE', { dateStyle: 'long' }).format(jetzt);
-	const fakt = $derived(fakten?.get(heute));
-
-	// Client-only on purpose: fetching at prerender time would bake the facts into the build and
-	// break publishing content by editing the YAML on GitHub.
-	onMount(async () => {
-		try {
-			fakten = await loadFakten();
-		} catch (e) {
-			fehler = e instanceof Error ? e.message : 'Die Fakten konnten nicht geladen werden.';
-		}
+	// The visitor's clock is unknowable at build time, so it is read only after hydration. Until
+	// then `jetzt` is undefined and nothing date-specific renders — that is what stops the build
+	// day's fact from flashing on screen before being corrected. No network is involved: the facts
+	// are already in the page.
+	let jetzt = $state<Date>();
+	onMount(() => {
+		jetzt = new Date();
 	});
+
+	const heute = $derived(jetzt && toIsoDate(jetzt));
+	const heuteLang = $derived(
+		jetzt && new Intl.DateTimeFormat('de-DE', { dateStyle: 'long' }).format(jetzt)
+	);
+	const fakt = $derived(heute && data.fakten.get(heute));
 </script>
 
 <svelte:head><title>Fakt des Tages</title></svelte:head>
 
 <main class="mx-auto max-w-2xl p-6">
 	<h1 class="text-3xl font-bold">Fakt des Tages</h1>
-	<p class="mt-1 text-sm text-gray-600">{heuteLang}</p>
 
-	<div class="mt-6">
-		{#if fehler}
-			<p role="alert" class="rounded border border-red-300 bg-red-50 p-4 text-red-800">{fehler}</p>
-		{:else if !fakten}
-			<p aria-busy="true" class="text-gray-600">Fakten werden geladen …</p>
-		{:else if fakt}
-			<!-- The YAML is a same-origin asset in this repo, so whoever can author a fact can
-			     already author this app's JavaScript — it is not a trust boundary and needs no
-			     sanitiser. Add one the moment facts come from anywhere but the repo. -->
-			<!-- eslint-disable-next-line svelte/no-at-html-tags -->
-			<article class="prose">{@html renderFakt(fakt)}</article>
-		{:else}
-			<p class="text-gray-600">Für heute gibt es keinen Fakt.</p>
-		{/if}
-	</div>
+	{#if heute}
+		<p class="mt-1 text-sm text-gray-600">{heuteLang}</p>
+
+		<div class="mt-6">
+			{#if fakt}
+				<!-- The YAML is a same-origin file in this repo, rendered at build time, so whoever can
+				     author a fact can already author this app's JavaScript — it is not a trust boundary
+				     and needs no sanitiser. Add one the moment facts come from anywhere but the repo. -->
+				<!-- eslint-disable-next-line svelte/no-at-html-tags -->
+				<article class="prose">{@html fakt}</article>
+			{:else}
+				<p class="text-gray-600">Für heute gibt es keinen Fakt.</p>
+			{/if}
+		</div>
+	{:else}
+		<!-- Shown from first paint until hydration reads the clock. Nothing is being fetched — the
+		     facts are already in the page — but the visitor's date is not knowable before then. -->
+		<p aria-busy="true" class="mt-6 text-gray-600">Fakten werden geladen …</p>
+	{/if}
 </main>

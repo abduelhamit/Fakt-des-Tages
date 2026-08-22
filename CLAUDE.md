@@ -14,11 +14,12 @@ Product rules that are easy to get wrong:
 - Entries are keyed to **exact ISO dates** (`2026-03-15`), not recurring year-agnostic `MM-DD`
   patterns.
 - Past and future dates behave identically — nothing is hidden or special-cased. "Today" is the
-  visitor's local `Date`; there is no server, so no server-side date logic exists.
+  visitor's local `Date`, read in the browser: nothing runs at request time, so the build can never
+  know what day it is for a visitor.
 
-## Content pipeline — the central constraint
+## Content pipeline — everything happens at build time
 
-Facts live in **one YAML file** under `static/` (`static/fakten.yaml`), mapping ISO date to a
+Facts live in **one YAML file**, [src/lib/fakten.yaml](src/lib/fakten.yaml), mapping ISO date to a
 **CommonMark** string, so entries can be written and formatted by hand:
 
 ```yaml
@@ -30,55 +31,57 @@ Facts live in **one YAML file** under `static/` (`static/fakten.yaml`), mapping 
 2026-03-16: Ein kurzer Fakt passt auch einzeilig.
 ```
 
-The file is **fetched at runtime** with `fetch()` in the browser, then parsed and rendered in the
-browser. Never `import` it, never read it in a `load` function that runs at prerender time, never
-inline it into the bundle, and never pre-render the Markdown to HTML at build time. The whole point
-is that editing the YAML through GitHub's web UI and pushing publishes the change without a rebuild
-— a build-time import silently breaks that, and the breakage is invisible until content stops
-updating.
+The site is fully static (SSG): [src/routes/+page.server.ts](src/routes/+page.server.ts) imports
+that file with Vite's `?raw`, parses the YAML and renders the Markdown **during prerendering**. The
+browser receives finished HTML strings as page data and fetches nothing at runtime.
 
-Because both parsers therefore have to run client-side, they are runtime `dependencies` (not dev),
-both zero-dependency themselves:
+**Do not move this to a runtime `fetch()` to avoid rebuilds.** Every push to `main`, including an
+edit made in GitHub's web UI, already triggers a full rebuild and deploy via
+[.github/workflows/deploy.yml](.github/workflows/deploy.yml), so there is nothing to buy.
 
-- **`yaml`** v2 — `YAML.parse(text)`. Not `js-yaml`, and not the `yaml@1` that pnpm has in its store
-  transitively; that one is not resolvable from app code.
-- **`marked`** — call it as `marked.parse(md, { async: false })`. Without the option the return type
-  is `string | Promise<string>`, which will not go into `{@html}` under `strict`. Chosen over
-  `markdown-it` purely on size (~470 KB unpacked vs ~2 MB); swap it if strict 100% CommonMark
-  conformance ever matters more than bundle weight.
+Consequences worth knowing before changing any of this:
 
-All of this lives in [src/lib/fakten.ts](src/lib/fakten.ts) — `loadFakten` (fetch + parse),
-`parseFakten` (pure, and therefore where the tests aim), `toIsoDate`, `renderFakt`. Use
-`await res.text()`, not `res.json()` — GitHub Pages' `Content-Type` for `.yaml` is not something
-to depend on. Handle a non-`res.ok` response too; a 404 on Pages returns an HTML error page that
-would otherwise parse as garbage YAML rather than throw. The fetch needs a loading state and a
-visible failure path, both in German.
+- **`yaml` and `marked` are `devDependencies`.** They must never reach the browser. That is enforced
+  structurally, not by convention: they are imported only from
+  [src/lib/server/fakten.ts](src/lib/server/fakten.ts), and SvelteKit fails the build outright on
+  `Cannot import $lib/server/… into code that runs in the browser`. Verified, not assumed.
+- **[src/lib/fakten.ts](src/lib/fakten.ts) must stay dependency-free.** It holds `toIsoDate` and the
+  `Fakten` type and is imported by the page component, so anything added there ships to the client.
+- **A malformed facts file fails `pnpm build`,** so broken content never deploys and the previous
+  version stays live. The UI has no runtime error state, and needs none.
+- **All facts are embedded in the page.** Accepted limitation: the payload grows with the archive,
+  roughly 70 KB of HTML per year of daily entries. If that ever bites, prerender one route per date
+  and keep only the date keys on the home page for the calendar.
 
-Rendering goes through `{@html marked.parse(text)}`, wrapped in Tailwind's `prose` class (the
-`@tailwindcss/typography` plugin is already loaded) so headings, lists and links get styling. No
-sanitiser is warranted: the YAML is a same-origin asset in this repo, so anyone who can write a fact
-can already write the app's JavaScript — it is not a trust boundary. That reasoning stops holding
-the moment facts come from anywhere but the repo; add sanitising then.
+### The visitor's clock cannot be known at build time
+
+This is the one thing SSG genuinely costs here. `new Date()` during prerendering is the _build_ date,
+so [src/routes/+page.svelte](src/routes/+page.svelte) deliberately reads the clock in `onMount`, and
+renders a placeholder rather than anything date-specific until then. Computing it at component init
+instead would bake the build day into the HTML and visibly flash the wrong fact before hydration
+corrected it. That placeholder is the point — do not "fix" it by moving the date out of `onMount`.
 
 ### YAML gotchas that bite silently
 
 - **Never add a `%YAML 1.1` directive.** Under 1.2 core (the `yaml` package default) a bare
   `2026-03-15` key stays the string `"2026-03-15"`. Under 1.1 it becomes a `Date`, which JS then
   stringifies as an object key to `"Sun Mar 15 2026 01:00:00 GMT+0100 (…)"` — every date lookup
-  misses and nothing throws. Verified, not theoretical. Quoting keys also works, but the default
-  schema already makes quoting unnecessary.
-- **An HTML error page parses as valid YAML, it does not throw.** `YAML.parse('<!DOCTYPE html>…')`
-  returns that markup as a plain _string_. So checking `res.ok` is not enough on its own — the
-  parsed result has to be type-checked as an object, or a 404 turns into a silently empty app.
+  misses and nothing throws. Verified, not theoretical.
 - A duplicated date key _does_ throw (`Map keys must be unique`), so that hand-editing mistake is
   caught for free.
 - **Malformed entries fail the whole file, by decision.** An entry that parses but has a bad date
-  key or a non-string value throws rather than being skipped, so one typo takes the site down until
-  it is fixed; in exchange the German error always names the offending key. Do not quietly switch
-  this to skip-and-continue.
+  key or a non-string value throws rather than being skipped; in exchange the German error always
+  names the offending key. Do not quietly switch this to skip-and-continue.
 - Multi-line facts need a `|` block scalar with consistent indentation. This is the main hand-editing
-  hazard in the GitHub web editor, so a parse failure should surface a clear German error rather than
-  an empty calendar.
+  hazard in the GitHub web editor.
+- `parseFakten` rejects a document that parses to a plain string rather than a map — a file
+  containing prose instead of entries, for instance.
+
+Rendering goes through `{@html}` on the already-rendered HTML, wrapped in Tailwind's `prose` class
+(the `@tailwindcss/typography` plugin is loaded). No sanitiser is warranted: the YAML is a file in
+this repo compiled into the build, so anyone who can write a fact can already write the app's
+JavaScript — it is not a trust boundary. That reasoning stops holding the moment facts come from
+anywhere but the repo; add sanitising then.
 
 ## Commands
 
@@ -129,11 +132,11 @@ pieces make that work; none is optional:
   adapter-static rejects `src/routes/` as a dynamic route and `pnpm build` fails outright.
 - `paths.base = '/Fakt-des-Tages'` in [vite.config.ts](vite.config.ts). Prerendered HTML happens to
   use _relative_ asset paths (`paths.relative` defaults to true), so assets survive without it — but
-  the base path is what the browser bundle uses at runtime, so any runtime `fetch()` of a static
-  asset must be resolved through `asset()` from `$app/paths` or it 404s in production while working
-  locally. Note `base` and `assets` are **deprecated** — `asset(file)` for things in `static/`,
-  `resolve(pathname)` for routes. `asset()` only autocompletes the filenames, it does not enforce
-  them, so a rename fails at runtime rather than in `pnpm check`.
+  the base path is what the browser bundle uses at runtime, which today means only links and
+  client-referenced assets. Should you add a runtime asset request, resolve it through `asset()`
+  from `$app/paths` — `base` and `assets` are **deprecated** (`asset(file)` for `static/`,
+  `resolve(pathname)` for routes), and `asset()` only autocompletes filenames rather than enforcing
+  them.
 - [static/.nojekyll](static/.nojekyll) — insurance, not load-bearing today: an artifact deployed by
   `actions/deploy-pages` is served as-is and never sees Jekyll. It matters only if Pages is ever
   switched back to deploy-from-a-branch, where Jekyll would drop the `_app/` directory. Nothing in
@@ -149,13 +152,12 @@ that 404 as a broken base path.
 [.github/workflows/deploy.yml](.github/workflows/deploy.yml) builds on push to `main`: check → lint
 → node tests → build → upload `build/`, then a separate job deploys. Only the **node** vitest
 project is in the gate; the browser and e2e layers are deliberately left out because both need a
-chromium download on every run. `actions/configure-pages` runs
-with `enablement: true`, so the first successful run switches Pages on by itself; Pages was still
-disabled on the repo when this was written, and that step is what flips it.
+chromium download on every run. `actions/configure-pages` runs with
+`enablement: true`, so it switches Pages on by itself rather than needing a manual repo setting.
 
 ## Testing setup
 
-Two layers, and deliberately **not** three:
+Two layers:
 
 - **Node unit tests** — `src/**/*.{test,spec}.{js,ts}`, a single vitest project, no browser.
   `expect.requireAssertions` is on: a test with no assertion is an error. This is the layer the
@@ -169,14 +171,14 @@ There is **no vitest browser project**, and re-adding one is not free. SvelteKit
 browser project then 404s, hangs for about a minute and errors. The only workaround is blanking
 `paths.base` under `process.env.VITEST`, which in turn blinds _every_ vitest test to the real base
 path. That trade was not worth it for component tests, so component and interaction behaviour is
-covered by the Playwright layer instead, where the real base path is exercised for free. If you do
-re-add a browser project, expect to pay that cost again.
+covered by the Playwright layer instead. If you do re-add a browser project, expect to pay that cost
+again.
 
-Because of that, the node spec can assert the production URL directly
-(`expect(fetcher).toHaveBeenCalledExactlyOnceWith('/Fakt-des-Tages/fakten.yaml')`) — cheaper than
-the e2e assertion that previously had to stand in for it.
+[src/routes/page.e2e.ts](src/routes/page.e2e.ts) is what pins the SSG guarantees end to end: that
+hydration fills the date in, and that **no `.yaml` request happens at runtime**. That second
+assertion is the regression guard for the whole build-time pipeline, so do not drop it.
 
-[src/lib/fakten.spec.ts](src/lib/fakten.spec.ts) parses the **real** `static/fakten.yaml`, not just
+[src/lib/server/fakten.spec.ts](src/lib/server/fakten.spec.ts) parses the **real** facts file, not just
 fixtures, and that test runs in the gate. It is what stops a typo pushed from GitHub's web editor
 from deploying green and taking the site down; verified to fail, naming the bad key. Do not weaken
 it to a fixture.
@@ -186,7 +188,13 @@ it to a fixture.
 - Tailwind v4 — configured via CSS (`@import`/`@plugin` in [src/routes/layout.css](src/routes/layout.css)),
   no `tailwind.config.js`. `typography` and `forms` plugins are loaded. Prettier sorts classes and
   is pointed at that stylesheet, so run `pnpm format` after touching class lists.
-- `/static/` is prettier-ignored, so the facts file is not reformatted.
+- The facts file is **deliberately not** prettier-ignored (only `/static/` is). Prettier has to parse
+  YAML to format it, so `pnpm lint` rejects a facts file that is syntactically broken — one step
+  earlier than the parse test, and a second independent signal. Prettier is silent on duplicate or
+  mis-typed date keys; those are the parse test's job. Reformatting is purely cosmetic — verified
+  that block scalars, quote styles and escape sequences all round-trip to identical parsed values.
+  The cost accepted for this: a web-editor edit whose whitespace differs from Prettier's preference
+  fails the gate and blocks the deploy until someone runs `pnpm format`.
 - [README.md](README.md) is **in German** and aimed at whoever maintains the facts: how to add an
   entry, the YAML rules, the commands. Architecture and rationale belong here in CLAUDE.md, not
   there — keep the two from drifting into duplicates.

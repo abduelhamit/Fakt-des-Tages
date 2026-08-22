@@ -1,21 +1,24 @@
 import { expect, test } from '@playwright/test';
 
-// Deliberately says nothing about *which* fact is shown: static/fakten.yaml has gaps, so asserting
+// Deliberately says nothing about *which* fact is shown: src/lib/fakten.yaml has gaps, so asserting
 // today's text would start failing on the first day without an entry.
-test('lädt die Fakten über den Basispfad und rendert ohne Fehler', async ({ page }) => {
-	const faktenAntwort = page.waitForResponse((res) => res.url().endsWith('/fakten.yaml'));
+test('rendert den Fakt ohne Laufzeit-Fetch und ohne Parser im Bundle', async ({ page }) => {
+	const anfragen: string[] = [];
+	page.on('request', (req) => anfragen.push(req.url()));
 
 	await page.goto('/Fakt-des-Tages/');
 
-	// The fetch has to go through the project subpath — this is what `asset()` buys us, and the
-	// unit tests cannot see it because the base path is empty under vitest.
-	const antwort = await faktenAntwort;
-	expect(antwort.url()).toContain('/Fakt-des-Tages/fakten.yaml');
-	expect(antwort.status()).toBe(200);
-
 	await expect(page.getByRole('heading', { level: 1 })).toHaveText('Fakt des Tages');
 
-	// A bad path or unparsable YAML would leave the German error state on screen instead.
+	// The date line appears only once hydration has read the visitor's clock, so waiting for it is
+	// how we know the client-side half ran at all.
+	await expect(page.getByText(/^\d{1,2}\. \p{L}+ \d{4}$/u)).toBeVisible();
+
+	// The prerendered placeholder must be gone once hydration has run.
 	await expect(page.getByText('Fakten werden geladen …')).toHaveCount(0);
+
+	// The whole point of the SSG rewrite: the facts are baked into the page, so nothing is fetched
+	// at runtime and no error state exists to render.
+	expect(anfragen.filter((url) => url.endsWith('.yaml'))).toEqual([]);
 	await expect(page.getByRole('alert')).toHaveCount(0);
 });

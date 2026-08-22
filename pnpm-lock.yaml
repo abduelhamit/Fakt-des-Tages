@@ -7,13 +7,6 @@ settings:
 importers:
 
   .:
-    dependencies:
-      marked:
-        specifier: ^18.0.10
-        version: 18.0.10
-      yaml:
-        specifier: ^2.9.0
-        version: 2.9.0
     devDependencies:
       '@eslint/js':
         specifier: ^10.0.1
@@ -54,6 +47,9 @@ importers:
       globals:
         specifier: ^17.6.0
         version: 17.11.0
+      marked:
+        specifier: ^18.0.10
+        version: 18.0.10
       prettier:
         specifier: ^3.8.3
         version: 3.9.6
@@ -84,6 +80,9 @@ importers:
       vitest:
         specifier: ^4.1.8
         version: 4.1.11(@types/node@24.13.3)(@vitest/browser-playwright@4.1.11)(vite@8.2.2(@types/node@24.13.3)(jiti@2.7.0)(yaml@2.9.0))
+      yaml:
+        specifier: ^2.9.0
+        version: 2.9.0
 
 packages:
 

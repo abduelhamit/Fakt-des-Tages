@@ -8,7 +8,7 @@ Nach dem ersten Deploy erreichbar unter <https://abduelhamit.github.io/Fakt-des-
 
 ## Einen Fakt hinzufügen
 
-Alle Fakten stehen in **einer** Datei: [`static/fakten.yaml`](static/fakten.yaml). Sie lässt sich
+Alle Fakten stehen in **einer** Datei: [`src/lib/fakten.yaml`](src/lib/fakten.yaml). Sie lässt sich
 direkt im GitHub-Webeditor bearbeiten — eine lokale Entwicklungsumgebung ist dafür nicht nötig.
 
 ```yaml
@@ -35,15 +35,16 @@ Regeln:
 
 Bitte beachten:
 
-- **Ein fehlerhafter Eintrag legt die gesamte Datei lahm.** Statt der Fakten erscheint dann eine
-  Fehlermeldung, die den betroffenen Schlüssel nennt. Lieber einmal mehr prüfen.
+- **Ein fehlerhafter Eintrag lässt den Build fehlschlagen.** Die Seite wird dann gar nicht erst
+  veröffentlicht — die bisherige Fassung bleibt online, und die Fehlermeldung in GitHub Actions
+  nennt den betroffenen Schlüssel. Kaputte Inhalte gehen also nie live.
 - **Jedes Datum darf nur einmal vorkommen.** Ein doppelter Schlüssel ist ein Fehler.
 - **Niemals eine `%YAML 1.1`-Zeile ergänzen.** Die Datumsschlüssel würden dadurch zu Datumsobjekten,
   und es würde stillschweigend kein einziger Fakt mehr gefunden.
 
 Nach einem Push auf `main` baut GitHub Actions die Seite neu und veröffentlicht sie (etwa eine
-Minute). Die Fakten werden dabei nicht in den Code eingebaut, sondern zur Laufzeit im Browser
-geladen — deshalb genügt zum Pflegen der Inhalte der Webeditor.
+Minute). Die Fakten werden dabei fest in die Seite eingebaut; im Browser wird nichts nachgeladen.
+Zum Pflegen der Inhalte genügt trotzdem der Webeditor — der Build läuft ja automatisch.
 
 ## Entwicklung
 
@@ -78,7 +79,7 @@ pnpm test:e2e                           # nur die Browser-Tests
 ```
 
 Für die Browser-Tests muss einmalig `pnpm exec playwright install chromium` ausgeführt werden.
-Die Node-Tests prüfen unter anderem, ob `static/fakten.yaml` fehlerfrei ist — sie laufen bei jedem
+Die Node-Tests prüfen unter anderem, ob `src/lib/fakten.yaml` fehlerfrei ist — sie laufen bei jedem
 Deploy und stoppen ihn bei einem Tippfehler.
 
 ## Deployment
