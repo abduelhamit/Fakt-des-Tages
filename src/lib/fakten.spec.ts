@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it, vi } from 'vitest';
 import { loadFakten, parseFakten, renderFakt, toIsoDate } from './fakten';
 
@@ -67,6 +68,17 @@ describe('parseFakten', () => {
 
 	it('rejects an empty entry', () => {
 		expect(() => parseFakten('2026-03-15: "   "')).toThrow(/leer/);
+	});
+});
+
+describe('static/fakten.yaml', () => {
+	// The real file, not a fixture. It is hand-edited in GitHub's web editor by someone without a
+	// local toolchain, and one bad entry takes the whole site down — so this runs in the deploy gate
+	// and is the last thing standing between a typo and a broken deploy.
+	it('parses and is not empty', () => {
+		const pfad = new URL('../../static/fakten.yaml', import.meta.url);
+		const fakten = parseFakten(readFileSync(pfad, 'utf8'));
+		expect(fakten.size).toBeGreaterThan(0);
 	});
 });
 
