@@ -1,6 +1,5 @@
 import tailwindcss from '@tailwindcss/vite';
 import { defineConfig } from 'vitest/config';
-import { playwright } from '@vitest/browser-playwright';
 import adapter from '@sveltejs/adapter-static';
 import { sveltekit } from '@sveltejs/kit/vite';
 
@@ -16,39 +15,15 @@ export default defineConfig({
 			adapter: adapter(),
 			// Deployed as a GitHub Pages *project* site, so everything lives under a subpath.
 			// Runtime fetches must be resolved through `asset()` from '$app/paths'.
-			//
-			// Zeroed under vitest: SvelteKit forces Vite's `base` to match, which also prefixes the
-			// browser runner's own /__vitest__/ assets, so they 404 and the browser project hangs
-			// then fails. The real base-path wiring is covered by src/routes/page.e2e.ts instead.
-			paths: { base: process.env.VITEST ? '' : '/Fakt-des-Tages' }
+			paths: { base: '/Fakt-des-Tages' }
 		})
 	],
 	test: {
 		expect: { requireAssertions: true },
-		projects: [
-			{
-				extends: './vite.config.ts',
-				test: {
-					name: 'client',
-					browser: {
-						enabled: true,
-						provider: playwright(),
-						instances: [{ browser: 'chromium', headless: true }]
-					},
-					include: ['src/**/*.svelte.{test,spec}.{js,ts}'],
-					exclude: ['src/lib/server/**']
-				}
-			},
-
-			{
-				extends: './vite.config.ts',
-				test: {
-					name: 'server',
-					environment: 'node',
-					include: ['src/**/*.{test,spec}.{js,ts}'],
-					exclude: ['src/**/*.svelte.{test,spec}.{js,ts}']
-				}
-			}
-		]
+		environment: 'node',
+		// Node only. Browser behaviour is covered by the Playwright e2e layer instead. A vitest
+		// browser project would force `paths.base` to be blanked here, because SvelteKit mirrors it
+		// onto Vite's `base`, which then 404s the runner's own /__vitest__/ assets.
+		include: ['src/**/*.{test,spec}.{js,ts}']
 	}
 });

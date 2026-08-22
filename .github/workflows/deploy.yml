@@ -38,9 +38,8 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm check
       - run: pnpm lint
-      # Node tests only. The browser and e2e layers both need a chromium download, which is not
-      # worth paying for on every deploy; this project is ~0.5s and needs no browser.
-      - run: pnpm vitest run --project=server
+      # The e2e layer is deliberately not in the gate: it needs a chromium download.
+      - run: pnpm vitest run
       - run: pnpm build
 
       - uses: actions/upload-pages-artifact@v3

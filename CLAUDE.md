@@ -91,20 +91,21 @@ pnpm preview              # serve the built output
 pnpm check                # svelte-kit sync + svelte-check (type errors in .svelte too)
 pnpm lint                 # prettier --check . && eslint .
 pnpm format               # prettier --write .
-pnpm test                 # both vitest projects, single run
+pnpm test                 # node tests, then e2e
+pnpm test:unit -- --run   # node tests only
+pnpm test:e2e             # Playwright only (builds and previews first)
 ```
 
 Single test / focused runs:
 
 ```sh
-pnpm vitest run --project=server                       # node tests only
-pnpm vitest run --project=client                       # browser tests only
-pnpm vitest run src/lib/foo.spec.ts                    # one file
-pnpm vitest run --project=server -t 'returns a greeting'   # one test by name
+pnpm vitest run src/lib/fakten.spec.ts                 # one file
+pnpm vitest run -t 'parses and is not empty'           # one test by name
+pnpm exec playwright test src/routes/page.e2e.ts       # one e2e file
 ```
 
-`--project=client` requires browsers: `pnpm exec playwright install chromium` (fails with
-"Executable doesn't exist" otherwise).
+Anything Playwright needs browsers: `pnpm exec playwright install chromium` (fails with
+"Executable doesn't exist" otherwise). `pnpm test` therefore needs them too, since it chains e2e.
 
 ## Config lives in vite.config.ts, not svelte.config.js
 
@@ -154,30 +155,31 @@ disabled on the repo when this was written, and that step is what flips it.
 
 ## Testing setup
 
-Vitest runs as two projects, selected purely by filename:
+Two layers, and deliberately **not** three:
 
-| Files                                             | Project  | Environment                                                                                                           |
-| ------------------------------------------------- | -------- | --------------------------------------------------------------------------------------------------------------------- |
-| `src/**/*.svelte.{test,spec}.{js,ts}`             | `client` | real chromium via `@vitest/browser-playwright`, `render` from `vitest-browser-svelte`, locators from `vitest/browser` |
-| everything else in `src/**/*.{test,spec}.{js,ts}` | `server` | node                                                                                                                  |
+- **Node unit tests** — `src/**/*.{test,spec}.{js,ts}`, a single vitest project, no browser.
+  `expect.requireAssertions` is on: a test with no assertion is an error. This is the layer the
+  deploy gate runs.
+- **Playwright end-to-end** — `*.e2e.ts`, run by `pnpm test:e2e` via
+  [playwright.config.ts](playwright.config.ts), which builds and previews the site first. Not in the
+  gate, because it needs `pnpm exec playwright install chromium`.
 
-So a component test **must** be named `Foo.svelte.spec.ts` — name it `Foo.spec.ts` and it runs in
-node and fails. `expect.requireAssertions` is on: a test with no assertion is an error.
+There is **no vitest browser project**, and re-adding one is not free. SvelteKit mirrors
+`paths.base` onto Vite's `base`, which also prefixes vitest's own `/__vitest__/` runner assets — the
+browser project then 404s, hangs for about a minute and errors. The only workaround is blanking
+`paths.base` under `process.env.VITEST`, which in turn blinds _every_ vitest test to the real base
+path. That trade was not worth it for component tests, so component and interaction behaviour is
+covered by the Playwright layer instead, where the real base path is exercised for free. If you do
+re-add a browser project, expect to pay that cost again.
 
-`paths.base` is **empty whenever `process.env.VITEST` is set**, and that is load-bearing: SvelteKit
-forces Vite's `base` to match it, which also prefixes vitest's own `/__vitest__/` runner assets, so
-the browser project 404s, hangs for a minute and then errors. Do not remove that condition. The
-consequence is that no vitest test can see the real base path, so the production URL is pinned by
-[src/routes/page.e2e.ts](src/routes/page.e2e.ts) instead — verified to fail if the loader stops
-going through `asset()`.
+Because of that, the node spec can assert the production URL directly
+(`expect(fetcher).toHaveBeenCalledExactlyOnceWith('/Fakt-des-Tages/fakten.yaml')`) — cheaper than
+the e2e assertion that previously had to stand in for it.
 
-Playwright end-to-end tests are a third, separate layer: `*.e2e.ts`, run by `pnpm test:e2e` via
-[playwright.config.ts](playwright.config.ts), which builds and previews the site first. They are not
-part of either vitest project. `pnpm test` runs unit then e2e, so it needs chromium
-(`pnpm exec playwright install chromium`) and, like the browser project, is not in the CI gate.
-
-`src/lib/vitest-examples/` is scaffold sample code demonstrating both project types. Delete it once
-real tests exist rather than building around it.
+[src/lib/fakten.spec.ts](src/lib/fakten.spec.ts) parses the **real** `static/fakten.yaml`, not just
+fixtures, and that test runs in the gate. It is what stops a typo pushed from GitHub's web editor
+from deploying green and taking the site down; verified to fail, naming the bad key. Do not weaken
+it to a fixture.
 
 ## Misc
 

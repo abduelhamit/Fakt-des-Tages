@@ -69,15 +69,17 @@ weitergeleitet.
 | `pnpm format`  | Formatierung schreiben                |
 | `pnpm test`    | Alle Tests einmalig ausführen         |
 
-Die Tests laufen in zwei Vitest-Projekten, die allein am Dateinamen unterschieden werden:
-`*.svelte.spec.ts` läuft im echten Browser, alles andere in Node.
+Es gibt zwei Testebenen: schnelle Node-Tests (`*.spec.ts`) und Playwright-Tests im echten Browser
+(`*.e2e.ts`). `pnpm test` führt beide aus, `pnpm test:unit -- --run` nur die schnellen.
 
 ```sh
-pnpm vitest run --project=server        # nur Node-Tests
-pnpm vitest run --project=client        # nur Browser-Tests
+pnpm vitest run                         # nur die Node-Tests
+pnpm test:e2e                           # nur die Browser-Tests
 ```
 
 Für die Browser-Tests muss einmalig `pnpm exec playwright install chromium` ausgeführt werden.
+Die Node-Tests prüfen unter anderem, ob `static/fakten.yaml` fehlerfrei ist — sie laufen bei jedem
+Deploy und stoppen ihn bei einem Tippfehler.
 
 ## Deployment
 

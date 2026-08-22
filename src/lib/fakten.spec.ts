@@ -86,9 +86,7 @@ describe('loadFakten', () => {
 	it('requests the facts file resolved through $app/paths', async () => {
 		const fetcher = stubFetch('2026-03-15: Ein Fakt.');
 		await loadFakten(fetcher);
-		// The base prefix is deliberately empty under vitest (see vite.config.ts), so this pins the
-		// filename only; that the production URL carries the base is asserted in page.e2e.ts.
-		expect(fetcher).toHaveBeenCalledExactlyOnceWith('/fakten.yaml');
+		expect(fetcher).toHaveBeenCalledExactlyOnceWith('/Fakt-des-Tages/fakten.yaml');
 	});
 
 	it('surfaces a network failure in German, not as the browser default', async () => {
