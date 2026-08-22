@@ -1,42 +1,92 @@
-# sv
+# Fakt des Tages
 
-Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
+Eine kleine Kalender-Webseite: Sie zeigt den Fakt des heutigen Tages und einen Kalender, über den
+sich die Fakten anderer Tage aufrufen lassen. Statische Seite, gehostet auf GitHub Pages, komplett
+auf Deutsch.
 
-## Creating a project
+Nach dem ersten Deploy erreichbar unter <https://abduelhamit.github.io/Fakt-des-Tages/>.
 
-If you're seeing this, you've probably already done this step. Congrats!
+## Einen Fakt hinzufügen
 
-```sh
-# create a new project
-npx sv create my-app
+Alle Fakten stehen in **einer** Datei: [`static/fakten.yaml`](static/fakten.yaml). Sie lässt sich
+direkt im GitHub-Webeditor bearbeiten — eine lokale Entwicklungsumgebung ist dafür nicht nötig.
+
+```yaml
+2026-08-22: Ein kurzer Fakt passt einzeilig.
+
+2026-08-23: |
+  Ein längerer Fakt mit **fettem** und *kursivem* Text sowie einem
+  [Link](https://example.com).
+
+  Ein zweiter Absatz ist ebenfalls möglich:
+
+  - erster Punkt
+  - zweiter Punkt
 ```
 
-To recreate this project with the same configuration:
+Regeln:
+
+- **Der Schlüssel ist immer ein exaktes Datum** im Format `JJJJ-MM-TT`. Ein Eintrag für
+  `2026-03-15` gilt nur für diesen einen Tag, nicht für jeden 15. März.
+- Der Wert ist **CommonMark**. Überschriften, Listen, Links und Hervorhebungen werden gestaltet.
+- Mehrzeilige Fakten brauchen einen `|`-Block, dessen Zeilen alle **gleich weit eingerückt** sind.
+  Das ist die häufigste Fehlerquelle beim Bearbeiten im Browser.
+- Tage ohne Eintrag sind im Kalender sichtbar, aber nicht anklickbar. Lücken sind also in Ordnung.
+
+Bitte beachten:
+
+- **Ein fehlerhafter Eintrag legt die gesamte Datei lahm.** Statt der Fakten erscheint dann eine
+  Fehlermeldung, die den betroffenen Schlüssel nennt. Lieber einmal mehr prüfen.
+- **Jedes Datum darf nur einmal vorkommen.** Ein doppelter Schlüssel ist ein Fehler.
+- **Niemals eine `%YAML 1.1`-Zeile ergänzen.** Die Datumsschlüssel würden dadurch zu Datumsobjekten,
+  und es würde stillschweigend kein einziger Fakt mehr gefunden.
+
+Nach einem Push auf `main` baut GitHub Actions die Seite neu und veröffentlicht sie (etwa eine
+Minute). Die Fakten werden dabei nicht in den Code eingebaut, sondern zur Laufzeit im Browser
+geladen — deshalb genügt zum Pflegen der Inhalte der Webeditor.
+
+## Entwicklung
+
+Voraussetzungen: Node ≥ 20 und pnpm (die Version ist in `package.json` unter `packageManager`
+festgelegt).
 
 ```sh
-# recreate this project
-pnpm dlx sv@0.17.0 create --template minimal --types ts --add prettier eslint vitest="usages:unit,component" sveltekit-adapter="adapter:static" ai-tools="ide:claude-code+delivery:plugin" tailwindcss="plugins:typography,forms" --install pnpm ./fakt-des-tages
+pnpm install
+pnpm dev        # http://localhost:5173/Fakt-des-Tages
 ```
 
-## Developing
+Die Seite läuft auch lokal unter dem Unterpfad `/Fakt-des-Tages`, weil sie auf GitHub Pages in einem
+Projektverzeichnis liegt. Ein Aufruf von `http://localhost:5173/` liefert deshalb einen 404 — das
+ist so gewollt.
 
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
+| Befehl         | Zweck                                 |
+| -------------- | ------------------------------------- |
+| `pnpm dev`     | Entwicklungsserver                    |
+| `pnpm build`   | Produktions-Build nach `build/`       |
+| `pnpm preview` | Den gebauten Stand lokal ausliefern   |
+| `pnpm check`   | Typprüfung, auch in `.svelte`-Dateien |
+| `pnpm lint`    | Prettier- und ESLint-Prüfung          |
+| `pnpm format`  | Formatierung schreiben                |
+| `pnpm test`    | Alle Tests einmalig ausführen         |
+
+Die Tests laufen in zwei Vitest-Projekten, die allein am Dateinamen unterschieden werden:
+`*.svelte.spec.ts` läuft im echten Browser, alles andere in Node.
 
 ```sh
-npm run dev
-
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
+pnpm vitest run --project=server        # nur Node-Tests
+pnpm vitest run --project=client        # nur Browser-Tests
 ```
 
-## Building
+Für die Browser-Tests muss einmalig `pnpm exec playwright install chromium` ausgeführt werden.
 
-To create a production version of your app:
+## Deployment
 
-```sh
-npm run build
-```
+Ein Push auf `main` startet [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml):
+`check` → `lint` → `build`, anschließend die Veröffentlichung auf GitHub Pages. Pages wird beim
+ersten erfolgreichen Durchlauf automatisch aktiviert.
 
-You can preview the production build with `npm run preview`.
+## Technisches
 
-> To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
+Aufbau, Konventionen und die Fallstricke des Projekts sind in [CLAUDE.md](CLAUDE.md) dokumentiert —
+unter anderem, warum es keine `svelte.config.js` gibt und warum die Fakten zur Laufzeit geladen
+werden.

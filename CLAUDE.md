@@ -170,7 +170,9 @@ real tests exist rather than building around it.
   no `tailwind.config.js`. `typography` and `forms` plugins are loaded. Prettier sorts classes and
   is pointed at that stylesheet, so run `pnpm format` after touching class lists.
 - `/static/` is prettier-ignored, so the facts file is not reformatted.
-- `README.md` is the untouched `sv` scaffold template and describes nothing project-specific.
+- [README.md](README.md) is **in German** and aimed at whoever maintains the facts: how to add an
+  entry, the YAML rules, the commands. Architecture and rationale belong here in CLAUDE.md, not
+  there — keep the two from drifting into duplicates.
 - `.claude/settings.json` enables the official `svelte@svelte` plugin (Svelte 5 / SvelteKit docs and
   skills) — prefer its guidance over recalled Svelte 4 patterns.
 - Per the user's global instructions, `.vscode/settings.json` holds local environment tweaks — never
