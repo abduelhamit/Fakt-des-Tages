@@ -146,8 +146,9 @@ is redirected there (dev answers 302, preview 307), but that redirect is conditi
 that 404 as a broken base path.
 
 [.github/workflows/deploy.yml](.github/workflows/deploy.yml) builds on push to `main`: check → lint
-→ build → upload `build/`, then a separate job deploys. Browser tests are deliberately not in the
-gate — they would need `playwright install chromium` on every run. `actions/configure-pages` runs
+→ node tests → build → upload `build/`, then a separate job deploys. Only the **node** vitest
+project is in the gate; the browser and e2e layers are deliberately left out because both need a
+chromium download on every run. `actions/configure-pages` runs
 with `enablement: true`, so the first successful run switches Pages on by itself; Pages was still
 disabled on the repo when this was written, and that step is what flips it.
 
