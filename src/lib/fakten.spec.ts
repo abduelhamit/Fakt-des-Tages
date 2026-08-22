@@ -1,15 +1,9 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { loadFakten, parseFakten, renderFakt, toIsoDate } from './fakten';
 
-/** A `fetch` stand-in that always answers with the given body/status, recording the URL asked for. */
-function stubFetch(body: string, init?: ResponseInit) {
-	const urls: string[] = [];
-	const fetcher = (async (input: RequestInfo | URL) => {
-		urls.push(String(input));
-		return new Response(body, init);
-	}) as unknown as typeof fetch;
-	return { fetcher, urls };
-}
+/** A `fetch` stand-in that always answers with the given body/status. */
+const stubFetch = (body: string, init?: ResponseInit) =>
+	vi.fn<typeof fetch>(async () => new Response(body, init));
 
 describe('toIsoDate', () => {
 	it('uses the local calendar day, not UTC', () => {
@@ -78,15 +72,15 @@ describe('parseFakten', () => {
 
 describe('loadFakten', () => {
 	it('requests the facts file resolved through $app/paths', async () => {
-		const { fetcher, urls } = stubFetch('2026-03-15: Ein Fakt.');
+		const fetcher = stubFetch('2026-03-15: Ein Fakt.');
 		await loadFakten(fetcher);
 		// The base prefix is deliberately empty under vitest (see vite.config.ts), so this pins the
 		// filename only; that the production URL carries the base is asserted in page.e2e.ts.
-		expect(urls).toEqual(['/fakten.yaml']);
+		expect(fetcher).toHaveBeenCalledExactlyOnceWith('/fakten.yaml');
 	});
 
 	it('surfaces a failed request in German with the status code', async () => {
-		const { fetcher } = stubFetch('Not found', { status: 404 });
+		const fetcher = stubFetch('Not found', { status: 404 });
 		await expect(loadFakten(fetcher)).rejects.toThrow(/nicht geladen werden \(HTTP 404\)/);
 	});
 });

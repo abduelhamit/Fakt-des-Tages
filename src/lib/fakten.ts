@@ -17,14 +17,12 @@ export function toIsoDate(date: Date): string {
 }
 
 /**
- * Shape *and* calendar validity. The round-trip rejects `2026-02-31` and `2026-02-29`, which a
- * regex alone would wave through — `T00:00` (no `Z`) so the parse is local and matches
- * `toIsoDate`.
+ * Shape *and* calendar validity in one round-trip: anything malformed either fails to parse (and
+ * formats as `NaN-NaN-NaN`) or normalises to a different string, so `2026-3-15`, `2026-02-31` and
+ * `2026-02-29` are all rejected. `T00:00` (no `Z`) keeps the parse local, matching `toIsoDate`.
  */
 function isIsoDate(key: string): boolean {
-	if (!/^\d{4}-\d{2}-\d{2}$/.test(key)) return false;
-	const date = new Date(`${key}T00:00`);
-	return !Number.isNaN(date.getTime()) && toIsoDate(date) === key;
+	return toIsoDate(new Date(`${key}T00:00`)) === key;
 }
 
 /**
