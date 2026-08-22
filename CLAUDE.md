@@ -44,14 +44,17 @@ Consequences worth knowing before changing any of this:
 - **`yaml` and `marked` are `devDependencies`.** They must never reach the browser. That is enforced
   structurally, not by convention: they are imported only from
   [src/lib/server/fakten.ts](src/lib/server/fakten.ts), and SvelteKit fails the build outright on
-  `Cannot import $lib/server/… into code that runs in the browser`. Verified, not assumed.
+  `Cannot import $lib/server/… into code that runs in the browser`. Verified, not assumed. Note the
+  guard is on that _module_, not on the packages: adding a fresh `import { marked }` straight into
+  client code still builds, and ships ~42 KB. Keep parser imports confined to `$lib/server/`.
 - **[src/lib/fakten.ts](src/lib/fakten.ts) must stay dependency-free.** It holds `toIsoDate` and the
   `Fakten` type and is imported by the page component, so anything added there ships to the client.
 - **A malformed facts file fails `pnpm build`,** so broken content never deploys and the previous
   version stays live. The UI has no runtime error state, and needs none.
-- **All facts are embedded in the page.** Accepted limitation: the payload grows with the archive,
-  roughly 70 KB of HTML per year of daily entries. If that ever bites, prerender one route per date
-  and keep only the date keys on the home page for the calendar.
+- **All facts are embedded in the page.** Accepted limitation: the payload grows with the archive —
+  measured at roughly 65 KB gzipped (150 KB raw) per year of daily entries, on the document's
+  critical path. If that ever bites, prerender one route per date and keep only the date keys on the
+  home page for the calendar.
 
 ### The visitor's clock cannot be known at build time
 

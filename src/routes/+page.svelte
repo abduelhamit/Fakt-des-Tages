@@ -7,18 +7,14 @@
 
 	// The visitor's clock is unknowable at build time, so it is read only after hydration. Until
 	// then `jetzt` is undefined and nothing date-specific renders — that is what stops the build
-	// day's fact from flashing on screen before being corrected. No network is involved: the facts
-	// are already in the page.
+	// day's fact from flashing on screen before being corrected.
 	let jetzt = $state<Date>();
 	onMount(() => {
 		jetzt = new Date();
 	});
 
-	const heute = $derived(jetzt && toIsoDate(jetzt));
-	const heuteLang = $derived(
-		jetzt && new Intl.DateTimeFormat('de-DE', { dateStyle: 'long' }).format(jetzt)
-	);
-	const fakt = $derived(heute && data.fakten.get(heute));
+	const heuteLang = $derived(jetzt?.toLocaleDateString('de-DE', { dateStyle: 'long' }));
+	const fakt = $derived(jetzt && data.fakten.get(toIsoDate(jetzt)));
 </script>
 
 <svelte:head><title>Fakt des Tages</title></svelte:head>
@@ -26,7 +22,7 @@
 <main class="mx-auto max-w-2xl p-6">
 	<h1 class="text-3xl font-bold">Fakt des Tages</h1>
 
-	{#if heute}
+	{#if jetzt}
 		<p class="mt-1 text-sm text-gray-600">{heuteLang}</p>
 
 		<div class="mt-6">
@@ -41,8 +37,8 @@
 			{/if}
 		</div>
 	{:else}
-		<!-- Shown from first paint until hydration reads the clock. Nothing is being fetched — the
-		     facts are already in the page — but the visitor's date is not knowable before then. -->
+		<!-- Shown from first paint until hydration reads the clock. Nothing is actually being
+		     fetched; only the visitor's date is unknown before then. -->
 		<p aria-busy="true" class="mt-6 text-gray-600">Fakten werden geladen …</p>
 	{/if}
 </main>

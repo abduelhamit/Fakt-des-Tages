@@ -23,10 +23,8 @@ describe('parseFakten', () => {
 		expect(parseFakten('2024-02-29: Schalttag.').has('2024-02-29')).toBe(true);
 	});
 
-	it('rejects an HTML document, which parses as a valid YAML string', () => {
-		expect(() => parseFakten('<!DOCTYPE html><html><body>404</body></html>')).toThrow(
-			/kein gültiges Format/
-		);
+	it('rejects a document that is prose rather than a map of entries', () => {
+		expect(() => parseFakten('Hier stehen noch keine Fakten.')).toThrow(/kein gültiges Format/);
 	});
 
 	it('rejects a duplicated date', () => {

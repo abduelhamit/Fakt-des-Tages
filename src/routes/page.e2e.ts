@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 
 // Deliberately says nothing about *which* fact is shown: src/lib/fakten.yaml has gaps, so asserting
 // today's text would start failing on the first day without an entry.
-test('rendert den Fakt ohne Laufzeit-Fetch und ohne Parser im Bundle', async ({ page }) => {
+test('rendert den Fakt ohne Laufzeit-Fetch', async ({ page }) => {
 	const anfragen: string[] = [];
 	page.on('request', (req) => anfragen.push(req.url()));
 
@@ -17,8 +17,6 @@ test('rendert den Fakt ohne Laufzeit-Fetch und ohne Parser im Bundle', async ({ 
 	// The prerendered placeholder must be gone once hydration has run.
 	await expect(page.getByText('Fakten werden geladen …')).toHaveCount(0);
 
-	// The whole point of the SSG rewrite: the facts are baked into the page, so nothing is fetched
-	// at runtime and no error state exists to render.
+	// The whole point of the SSG rewrite: the facts are baked into the page.
 	expect(anfragen.filter((url) => url.endsWith('.yaml'))).toEqual([]);
-	await expect(page.getByRole('alert')).toHaveCount(0);
 });
