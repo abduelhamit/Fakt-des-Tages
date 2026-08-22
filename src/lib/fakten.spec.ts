@@ -79,6 +79,13 @@ describe('loadFakten', () => {
 		expect(fetcher).toHaveBeenCalledExactlyOnceWith('/fakten.yaml');
 	});
 
+	it('surfaces a network failure in German, not as the browser default', async () => {
+		const fetcher = vi.fn<typeof fetch>(async () => {
+			throw new TypeError('Failed to fetch');
+		});
+		await expect(loadFakten(fetcher)).rejects.toThrow(/Internetverbindung/);
+	});
+
 	it('surfaces a failed request in German with the status code', async () => {
 		const fetcher = stubFetch('Not found', { status: 404 });
 		await expect(loadFakten(fetcher)).rejects.toThrow(/nicht geladen werden \(HTTP 404\)/);

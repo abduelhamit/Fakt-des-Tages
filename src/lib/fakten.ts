@@ -69,12 +69,26 @@ export async function loadFakten(fetcher: typeof fetch = fetch): Promise<Fakten>
 	// `asset()` rather than the deprecated `base`. Its `Asset` type only *autocompletes* the files
 	// in static/ (the union ends in `string & {}`), so a rename still fails at runtime, not in
 	// `pnpm check` — the spec below is what actually pins this path.
-	const res = await fetcher(asset('/fakten.yaml'));
+	let res: Response;
+	let text: string;
+	try {
+		res = await fetcher(asset('/fakten.yaml'));
+		// `.text()`, not `.json()`: the Content-Type GitHub Pages serves for .yaml is not dependable.
+		text = await res.text();
+	} catch (cause) {
+		// Offline and DNS failures reject with a browser `TypeError` whose message is English
+		// ("Failed to fetch"). The UI renders `error.message` verbatim, so it has to be German here.
+		throw new Error(
+			'Die Faktendatei konnte nicht geladen werden. Besteht eine Internetverbindung?',
+			{
+				cause
+			}
+		);
+	}
 	if (!res.ok) {
 		throw new Error(`Die Faktendatei konnte nicht geladen werden (HTTP ${res.status}).`);
 	}
-	// `.text()`, not `.json()`: the Content-Type GitHub Pages serves for .yaml is not dependable.
-	return parseFakten(await res.text());
+	return parseFakten(text);
 }
 
 /** CommonMark → HTML. `async: false` picks marked's synchronous overload, which returns `string`. */
