@@ -14,9 +14,13 @@ export default defineConfig({
 					filename.split(/[/\\]/).includes('node_modules') ? undefined : true
 			},
 			adapter: adapter(),
-			// Deployed as a GitHub Pages *project* site, so everything lives under a
-			// subpath. Runtime fetches must go through `base` from '$app/paths'.
-			paths: { base: '/Fakt-des-Tages' }
+			// Deployed as a GitHub Pages *project* site, so everything lives under a subpath.
+			// Runtime fetches must be resolved through `asset()` from '$app/paths'.
+			//
+			// Zeroed under vitest: SvelteKit forces Vite's `base` to match, which also prefixes the
+			// browser runner's own /__vitest__/ assets, so they 404 and the browser project hangs
+			// then fails. The real base-path wiring is covered by src/routes/page.e2e.ts instead.
+			paths: { base: process.env.VITEST ? '' : '/Fakt-des-Tages' }
 		})
 	],
 	test: {

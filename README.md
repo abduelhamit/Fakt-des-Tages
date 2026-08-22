@@ -56,8 +56,8 @@ pnpm dev        # http://localhost:5173/Fakt-des-Tages
 ```
 
 Die Seite läuft auch lokal unter dem Unterpfad `/Fakt-des-Tages`, weil sie auf GitHub Pages in einem
-Projektverzeichnis liegt. Ein Aufruf von `http://localhost:5173/` liefert deshalb einen 404 — das
-ist so gewollt.
+Projektverzeichnis liegt. Wer `http://localhost:5173/` aufruft, wird automatisch dorthin
+weitergeleitet.
 
 | Befehl         | Zweck                                 |
 | -------------- | ------------------------------------- |

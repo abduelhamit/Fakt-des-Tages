@@ -77,10 +77,12 @@ describe('parseFakten', () => {
 });
 
 describe('loadFakten', () => {
-	it('requests the facts file through the configured base path', async () => {
+	it('requests the facts file resolved through $app/paths', async () => {
 		const { fetcher, urls } = stubFetch('2026-03-15: Ein Fakt.');
 		await loadFakten(fetcher);
-		expect(urls).toEqual(['/Fakt-des-Tages/fakten.yaml']);
+		// The base prefix is deliberately empty under vitest (see vite.config.ts), so this pins the
+		// filename only; that the production URL carries the base is asserted in page.e2e.ts.
+		expect(urls).toEqual(['/fakten.yaml']);
 	});
 
 	it('surfaces a failed request in German with the status code', async () => {

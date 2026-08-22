@@ -140,8 +140,10 @@ pieces make that work; none is optional:
 - `packageManager` in [package.json](package.json) — pins pnpm so `pnpm/action-setup` resolves a
   version in CI.
 
-`pnpm dev` and `pnpm preview` also serve under `/Fakt-des-Tages/`; a request to the bare root 404s.
-That is the base path working, not a bug.
+`pnpm dev` and `pnpm preview` also serve under `/Fakt-des-Tages/`. A browser hitting the bare root
+is redirected there (dev answers 302, preview 307), but that redirect is conditional on an
+`Accept: text/html` header — `curl` without one gets a 404 and a hint string instead. Do not read
+that 404 as a broken base path.
 
 [.github/workflows/deploy.yml](.github/workflows/deploy.yml) builds on push to `main`: check → lint
 → build → upload `build/`, then a separate job deploys. Browser tests are deliberately not in the
@@ -160,6 +162,18 @@ Vitest runs as two projects, selected purely by filename:
 
 So a component test **must** be named `Foo.svelte.spec.ts` — name it `Foo.spec.ts` and it runs in
 node and fails. `expect.requireAssertions` is on: a test with no assertion is an error.
+
+`paths.base` is **empty whenever `process.env.VITEST` is set**, and that is load-bearing: SvelteKit
+forces Vite's `base` to match it, which also prefixes vitest's own `/__vitest__/` runner assets, so
+the browser project 404s, hangs for a minute and then errors. Do not remove that condition. The
+consequence is that no vitest test can see the real base path, so the production URL is pinned by
+[src/routes/page.e2e.ts](src/routes/page.e2e.ts) instead — verified to fail if the loader stops
+going through `asset()`.
+
+Playwright end-to-end tests are a third, separate layer: `*.e2e.ts`, run by `pnpm test:e2e` via
+[playwright.config.ts](playwright.config.ts), which builds and previews the site first. They are not
+part of either vitest project. `pnpm test` runs unit then e2e, so it needs chromium
+(`pnpm exec playwright install chromium`) and, like the browser project, is not in the CI gate.
 
 `src/lib/vitest-examples/` is scaffold sample code demonstrating both project types. Delete it once
 real tests exist rather than building around it.
