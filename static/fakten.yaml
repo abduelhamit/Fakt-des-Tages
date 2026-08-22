@@ -1,0 +1,29 @@
+# Fakt des Tages — ein Eintrag pro Kalendertag.
+#
+# Schlüssel ist immer ein exaktes ISO-Datum (JJJJ-MM-TT), der Wert ist CommonMark.
+# Mehrzeilige Fakten brauchen einen `|`-Block mit gleichmäßiger Einrückung.
+# Kein `%YAML 1.1` ergänzen — sonst werden die Datumsschlüssel zu Date-Objekten.
+#
+# Achtung: ein fehlerhafter Eintrag lässt die gesamte Datei fehlschlagen.
+
+2026-08-20: Platzhalter — kurzer Fakt, einzeilig.
+
+2026-08-22: |
+  Platzhalter — **fetter** Text, *kursiver* Text und ein
+  [Link](https://example.com).
+
+  Ein zweiter Absatz zeigt, dass mehrzeilige Einträge funktionieren:
+
+  - erster Punkt
+  - zweiter Punkt
+
+2026-08-23: Platzhalter — hier steht der Fakt für den 23. August.
+
+2026-08-26: |
+  Platzhalter — ein Fakt mit Zwischenüberschrift.
+
+  ## Hintergrund
+
+  Auch Überschriften werden über die `prose`-Klasse gestaltet.
+
+2026-08-31: Platzhalter — letzter Eintrag im August.

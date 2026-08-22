@@ -37,16 +37,19 @@ is that editing the YAML through GitHub's web UI and pushing publishes the chang
 — a build-time import silently breaks that, and the breakage is invisible until content stops
 updating.
 
-Because both parsers therefore have to run client-side, this needs two runtime dependencies (both
-zero-dependency themselves, neither installed yet):
+Because both parsers therefore have to run client-side, they are runtime `dependencies` (not dev),
+both zero-dependency themselves:
 
-- **`yaml`** (v2) — `YAML.parse(text)`. Not `js-yaml`, and not the `yaml@1` that pnpm has in its
-  store transitively; that one is not resolvable from app code.
-- **`marked`** — `marked.parse(md)`. Chosen over `markdown-it` purely on size (~470 KB unpacked vs
-  ~2 MB) for what is a handful of short paragraphs; swap it if strict 100% CommonMark conformance
-  ever matters more than bundle weight.
+- **`yaml`** v2 — `YAML.parse(text)`. Not `js-yaml`, and not the `yaml@1` that pnpm has in its store
+  transitively; that one is not resolvable from app code.
+- **`marked`** — call it as `marked.parse(md, { async: false })`. Without the option the return type
+  is `string | Promise<string>`, which will not go into `{@html}` under `strict`. Chosen over
+  `markdown-it` purely on size (~470 KB unpacked vs ~2 MB); swap it if strict 100% CommonMark
+  conformance ever matters more than bundle weight.
 
-Use `await res.text()`, not `res.json()` — GitHub Pages' `Content-Type` for `.yaml` is not something
+All of this lives in [src/lib/fakten.ts](src/lib/fakten.ts) — `loadFakten` (fetch + parse),
+`parseFakten` (pure, and therefore where the tests aim), `toIsoDate`, `renderFakt`. Use
+`await res.text()`, not `res.json()` — GitHub Pages' `Content-Type` for `.yaml` is not something
 to depend on. Handle a non-`res.ok` response too; a 404 on Pages returns an HTML error page that
 would otherwise parse as garbage YAML rather than throw. The fetch needs a loading state and a
 visible failure path, both in German.
@@ -64,6 +67,15 @@ the moment facts come from anywhere but the repo; add sanitising then.
   stringifies as an object key to `"Sun Mar 15 2026 01:00:00 GMT+0100 (…)"` — every date lookup
   misses and nothing throws. Verified, not theoretical. Quoting keys also works, but the default
   schema already makes quoting unnecessary.
+- **An HTML error page parses as valid YAML, it does not throw.** `YAML.parse('<!DOCTYPE html>…')`
+  returns that markup as a plain _string_. So checking `res.ok` is not enough on its own — the
+  parsed result has to be type-checked as an object, or a 404 turns into a silently empty app.
+- A duplicated date key _does_ throw (`Map keys must be unique`), so that hand-editing mistake is
+  caught for free.
+- **Malformed entries fail the whole file, by decision.** An entry that parses but has a bad date
+  key or a non-string value throws rather than being skipped, so one typo takes the site down until
+  it is fixed; in exchange the German error always names the offending key. Do not quietly switch
+  this to skip-and-continue.
 - Multi-line facts need a `|` block scalar with consistent indentation. This is the main hand-editing
   hazard in the GitHub web editor, so a parse failure should surface a clear German error rather than
   an empty calendar.
@@ -116,8 +128,11 @@ pieces make that work; none is optional:
   adapter-static rejects `src/routes/` as a dynamic route and `pnpm build` fails outright.
 - `paths.base = '/Fakt-des-Tages'` in [vite.config.ts](vite.config.ts). Prerendered HTML happens to
   use _relative_ asset paths (`paths.relative` defaults to true), so assets survive without it — but
-  `base` is what the browser bundle uses at runtime, so any runtime `fetch()` of a static asset must
-  go through `base` from `$app/paths` or it 404s in production while working locally.
+  the base path is what the browser bundle uses at runtime, so any runtime `fetch()` of a static
+  asset must be resolved through `asset()` from `$app/paths` or it 404s in production while working
+  locally. Note `base` and `assets` are **deprecated** — `asset(file)` for things in `static/`,
+  `resolve(pathname)` for routes. `asset()` only autocompletes the filenames, it does not enforce
+  them, so a rename fails at runtime rather than in `pnpm check`.
 - [static/.nojekyll](static/.nojekyll) — insurance, not load-bearing today: an artifact deployed by
   `actions/deploy-pages` is served as-is and never sees Jekyll. It matters only if Pages is ever
   switched back to deploy-from-a-branch, where Jekyll would drop the `_app/` directory. Nothing in
