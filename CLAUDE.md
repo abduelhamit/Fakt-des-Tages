@@ -103,7 +103,7 @@ pnpm check                # svelte-kit sync + svelte-check (type errors in .svel
 pnpm lint                 # prettier --check . && eslint .
 pnpm format               # prettier --write .
 pnpm test                 # node tests, then e2e
-pnpm test:unit -- --run   # node tests only
+pnpm test:unit --run      # node tests only
 pnpm test:e2e             # Playwright only (builds and previews first)
 ```
 

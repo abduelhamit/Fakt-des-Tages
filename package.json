@@ -17,7 +17,7 @@
 		"lint": "prettier --check . && eslint .",
 		"format": "prettier --write .",
 		"test:e2e": "playwright install chromium && playwright test",
-		"test": "npm run test:unit -- --run && npm run test:e2e",
+		"test": "pnpm run test:unit --run && pnpm run test:e2e",
 		"test:unit": "vitest"
 	},
 	"devDependencies": {

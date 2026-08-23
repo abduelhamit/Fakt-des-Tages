@@ -72,7 +72,7 @@ weitergeleitet.
 | `pnpm test`    | Alle Tests einmalig ausführen         |
 
 Es gibt zwei Testebenen: schnelle Node-Tests (`*.spec.ts`) und Playwright-Tests im echten Browser
-(`*.e2e.ts`). `pnpm test` führt beide aus, `pnpm test:unit -- --run` nur die schnellen.
+(`*.e2e.ts`). `pnpm test` führt beide aus, `pnpm test:unit --run` nur die schnellen.
 
 ```sh
 pnpm vitest run                         # nur die Node-Tests
