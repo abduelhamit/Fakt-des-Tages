@@ -246,6 +246,21 @@ test.describe('Faktenpfeile', () => {
 		expect(await page.evaluate(() => window.scrollY)).toBe(0);
 	});
 
+	// The bar has to reach the edges of the viewport, not just the text column — see the iOS section
+	// in CLAUDE.md. Chromium cannot see the Safari behaviour that depends on it, so this pins the
+	// geometry instead: the bar's `-mx-6` cancels `main`'s `p-6`, making it exactly as wide as
+	// `main`'s border box. Drop `-mx-6` and it comes out 48px narrower.
+	test('zieht die Datumsleiste über die volle Breite', async ({ page }) => {
+		await page.goto('/Fakt-des-Tages/#2026-08-23');
+		await expect(page.getByText('23. August 2026', { exact: true })).toBeVisible();
+
+		const breiten = await page.getByRole('button', { name: 'Vorheriger Fakt' }).evaluate((el) => ({
+			leiste: (el.parentElement as HTMLElement).getBoundingClientRect().width,
+			main: el.closest('main')!.getBoundingClientRect().width
+		}));
+		expect(breiten.leiste).toBe(breiten.main);
+	});
+
 	// Runs at the default viewport, which only works because the fixture's 2026-08-23 is deliberately
 	// long. Shorten that entry and this test keeps passing while proving nothing.
 	test('hält die Datumsleiste beim Scrollen in Sichtweite', async ({ page }) => {

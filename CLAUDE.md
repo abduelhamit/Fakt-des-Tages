@@ -131,6 +131,41 @@ number with itself and passes with the feature deleted. Wrapping the bar in a st
 does not work either: the wrapper becomes sticky's containing block and caps its travel at its own
 height.
 
+#### The bar is full-bleed because of iOS, and that is load-bearing
+
+`-mx-6 px-6` on the bar cancels `main`'s `p-6`, so its background reaches both edges of the screen
+while the date and arrows stay exactly where the padding put them. It looks like a no-op on a desktop
+— white on white — and it is the only reason the bar works on an iPhone. There is an e2e test on it,
+because the behaviour it buys cannot be tested here.
+
+Without it, scrolling on iOS puts one or two lines of the fact _above_ the pinned bar, dimmed, behind
+the status bar, splitting a sentence in half. The cause is not a safe-area inset. Measured on the
+device: `leiste.getBoundingClientRect().top` is `0` while the bar renders ~67 px down the screen, and
+the article reports a negative `top` and paints anyway. The viewport origin simply sits below the
+status bar, and Safari 26 paints page content into the strip above it.
+
+What fixes it is that Safari will instead fill that strip with a **flat colour sampled from the top
+row of the viewport** — but only when that row is uniform across the _whole width_. Inside `main`'s
+padding the row is 24 px of canvas, then bar, then 24 px of canvas, so no sample is taken and the
+live pixels show through. Full-bleed, the sample succeeds and the strip goes solid white. The
+gradient is fine as it is; a solid `background-color` on the bar is _not_ required — both were tried.
+
+Tried, and observed on-device to do nothing. Do not spend an evening on these again:
+
+- `env(safe-area-inset-*)` is `0px` in every toolbar state, with _and_ without `viewport-fit=cover`.
+  Nothing keyed on `env()` can see this strip.
+- `<meta name="theme-color">`, which Safari 26 ignores for Liquid Glass tinting.
+- An explicit `background-color` on `html` and `body` — the sample comes from the top row, not the root.
+- A `fixed` mask at a negative `top`. Safari clips fixed subtrees to the inner viewport even at a
+  negative offset; sticky subtrees are _not_ clipped, which is why the bar itself can be seen up
+  there. Same bug as [react-spectrum#8888](https://github.com/adobe/react-spectrum/pull/8888).
+- A 1 px sticky strip carrying the colour. The sample needs area; at 1 px it only lands if you scroll
+  through the moment slowly enough, and then it sticks until reload.
+
+Accepted limitation: on a viewport wider than `max-w-2xl` plus its padding — an iPad in portrait —
+`main` no longer reaches the edges, the row stops being uniform, and the strip shows content again.
+Only phones are covered, which is where the bar is pinned often enough to matter.
+
 All four arrows on the page come from one `{#snippet pfeil(...)}`. The snippet is what keeps the
 shared class list inside a `class="..."` attribute, where Prettier's Tailwind plugin still sorts it —
 a hoisted `const` is silently skipped by the sorter. Verified both ways.

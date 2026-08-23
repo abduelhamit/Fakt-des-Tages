@@ -183,7 +183,7 @@
 		     only once pinned, which CSS alone cannot tell — a fade is honest at every offset. -->
 		<div
 			bind:this={leiste}
-			class="sticky top-0 mt-6 flex items-center justify-between bg-linear-to-b from-white from-60% to-transparent pt-2 pb-8"
+			class="sticky top-0 -mx-6 mt-6 flex items-center justify-between bg-linear-to-b from-white from-60% to-transparent px-6 pt-2 pb-8"
 		>
 			{@render pfeil('‹', 'Vorheriger Fakt', !nachbarn.vorheriger, () =>
 				springe(nachbarn.vorheriger)
