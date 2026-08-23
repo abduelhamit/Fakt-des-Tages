@@ -1,0 +1,60 @@
+# Testdaten für die Playwright-Tests — NICHT der Inhalt der Website.
+#
+# Sie ersetzt src/lib/fakten.yaml nur beim Bauen für die Tests — wie, steht bei `FAKTEN_PROBE` in
+# vite.config.ts. `pnpm build` rührt sie nicht an, sie kann also nie online gehen.
+#
+# Die Tests in src/routes/page.e2e.ts hängen an dieser Form: drei Monate, Lücken innerhalb des
+# Augusts und ein bewusst langer Eintrag am 23. Wer hier etwas ändert, ändert die Tests.
+# Die echten Fakten stehen nebenan in fakten.yaml und dürfen frei bearbeitet werden.
+
+2026-07-30: Testdaten — einziger Eintrag im Juli, damit der Pfeil ‹ eine Grenze hat.
+
+2026-08-20: Testdaten — kurzer Fakt, einzeilig.
+
+2026-08-22: Testdaten — **fetter** Text, *kursiver* Text und ein [Link](https://example.com).
+
+2026-08-23: |
+  Testdaten — bewusst lang, damit die Seite über eine Bildschirmhöhe hinauswächst und sich das
+  Kleben der Datumsleiste überhaupt beobachten lässt.
+
+  Der zweite Absatz trägt zur Höhe bei. Wird dieser Eintrag gekürzt, prüft der Scroll-Test nichts
+  mehr, obwohl er weiterhin grün ist.
+
+  ## Zwischenüberschrift
+
+  Ein Absatz darunter, damit auch eine Überschrift im Text vorkommt.
+
+  - erster Punkt
+  - zweiter Punkt
+  - dritter Punkt
+
+  > Ein Zitat, das ebenfalls Höhe beisteuert.
+
+  Noch ein Absatz. Und weil das immer noch nicht reicht, um bei 720 Pixeln Fensterhöhe sicher über
+  den Rand zu kommen, folgt hier ein weiterer.
+
+  Ab hier geht es nur noch um Höhe. Der Scroll-Test verlangt, dass die Seite bei 1280 × 720 Pixeln
+  weit genug scrollt, damit die Datumsleiste oben ankommt und dort kleben bleibt.
+
+  Reicht die Höhe nicht, sitzt die Leiste am Seitenende immer noch unterhalb des oberen Rands, und
+  der Test misst einen zu großen Wert, statt still durchzugehen.
+
+  Deshalb stehen hier mehr Absätze, als für die Darstellung nötig wären. Sie sind Testmaterial, kein
+  Beispieltext für echte Einträge.
+
+  Ein weiterer Absatz derselben Sorte, damit auch bei größeren Fenstern noch Reserve bleibt.
+
+  Und noch einer, denn die Reserve kostet nichts: die Datei wird nie ausgeliefert.
+
+  Ein letzter Absatz, damit der untere Rand des Textblocks tief genug liegt.
+
+2026-08-26: |
+  Testdaten — Fakt mit Zwischenüberschrift.
+
+  ## Hintergrund
+
+  Ein Absatz, damit die Überschrift nicht allein steht.
+
+2026-08-31: Testdaten — letzter Eintrag im August.
+
+2026-09-02: Testdaten — einziger Eintrag im September, damit der Pfeil › eine Grenze hat.

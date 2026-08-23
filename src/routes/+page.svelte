@@ -56,16 +56,36 @@
 		if (zielMonat >= grenzen.von && zielMonat <= grenzen.bis) monat = ziel;
 	}
 
-	// How far the arrows reach. Today and the selection count alongside the facts, so a visitor who
-	// lands on a month outside the archive — which is every month, once the entries are all in the
-	// past — still has a way back rather than two dead arrows.
+	/** Jump to another day. Guarded here for the same reason `verschiebe` is: the button is only
+	 * `aria-disabled`, so it stays clickable. */
+	function springe(ziel: string | undefined) {
+		if (ziel) location.hash = ziel;
+	}
+
+	// The archive in date order. The YAML is in whatever order it was written in, and ISO dates sort
+	// lexicographically, so this one `sort` is all the ordering the page needs.
+	const chronologisch = $derived([...data.fakten.keys()].sort());
+	// Both neighbours in one pass. The local `tag` is not ceremony: `gewaehlt` is reassignable, so
+	// TypeScript drops the narrowing inside the callbacks without it.
+	const nachbarn = $derived.by((): { vorheriger?: string; naechster?: string } => {
+		const tag = gewaehlt;
+		if (!tag) return {};
+		return {
+			vorheriger: chronologisch.findLast((datum) => datum < tag),
+			naechster: chronologisch.find((datum) => datum > tag)
+		};
+	});
+
+	// How far the month arrows reach. Today and the selection count alongside the facts, so a
+	// visitor who lands on a month outside the archive — which is every month, once the entries are
+	// all in the past — still has a way back rather than two dead arrows.
 	const grenzen = $derived.by(() => {
-		const monate = [...data.fakten.keys(), heute, gewaehlt]
+		// Only the outermost dates can decide the bounds, so four candidates settle it.
+		const monate = [chronologisch[0], chronologisch.at(-1), heute, gewaehlt]
 			.filter((datum) => datum !== undefined)
 			.map((datum) => datum.slice(0, 7))
 			.sort();
-		// `YYYY-MM` sorts lexicographically the same way it sorts chronologically, so the arrows
-		// need no date arithmetic. Empty strings disable both, which is right for an empty archive.
+		// Empty strings disable both arrows, which is right for an empty archive.
 		return { von: monate[0] ?? '', bis: monate.at(-1) ?? '' };
 	});
 
@@ -90,21 +110,9 @@
 	{#if gewaehlt && raster}
 		<section class="mt-6" aria-label="Kalender">
 			<div class="flex items-center justify-between">
-				<button
-					onclick={() => verschiebe(-1)}
-					aria-disabled={angezeigt <= grenzen.von}
-					aria-label="Vorheriger Monat"
-					class="rounded px-3 py-1 text-xl leading-none text-sky-800 hover:bg-sky-50 aria-disabled:text-gray-400 aria-disabled:hover:bg-transparent"
-					>‹</button
-				>
+				{@render pfeil('‹', 'Vorheriger Monat', angezeigt <= grenzen.von, () => verschiebe(-1))}
 				<h2 class="font-semibold">{monatsName}</h2>
-				<button
-					onclick={() => verschiebe(1)}
-					aria-disabled={angezeigt >= grenzen.bis}
-					aria-label="Nächster Monat"
-					class="rounded px-3 py-1 text-xl leading-none text-sky-800 hover:bg-sky-50 aria-disabled:text-gray-400 aria-disabled:hover:bg-transparent"
-					>›</button
-				>
+				{@render pfeil('›', 'Nächster Monat', angezeigt >= grenzen.bis, () => verschiebe(1))}
 			</div>
 
 			<!-- Six day rows are always in the template, not just the ones this month fills: a grid is
@@ -152,26 +160,51 @@
 			</div>
 		</section>
 
-		<p class="mt-10 text-sm text-gray-600">{langesDatum}</p>
-
-		<div class="mt-6">
-			{#if fakt}
-				<!-- The YAML is a same-origin file in this repo, rendered at build time, so whoever can
-				     author a fact can already author this app's JavaScript — it is not a trust boundary
-				     and needs no sanitiser. Add one the moment facts come from anywhere but the repo. -->
-				<!-- eslint-disable-next-line svelte/no-at-html-tags -->
-				<article class="prose">{@html fakt}</article>
-			{:else}
-				<p class="text-gray-600">
-					{gewaehlt === heute
-						? 'Für heute gibt es keinen Fakt.'
-						: 'Für diesen Tag gibt es keinen Fakt.'}
-				</p>
-			{/if}
+		<!-- Sticky, so a fact longer than the screen keeps its date and its navigation on screen.
+		     The gradient is why there is no border under it: the text fades as it passes behind the
+		     bar rather than being clipped at an invisible edge. A border would also have to appear
+		     only once pinned, which CSS alone cannot tell — a fade is honest at every offset. -->
+		<div
+			class="sticky top-0 mt-6 flex items-center justify-between bg-linear-to-b from-white from-60% to-transparent pt-2 pb-8"
+		>
+			{@render pfeil('‹', 'Vorheriger Fakt', !nachbarn.vorheriger, () =>
+				springe(nachbarn.vorheriger)
+			)}
+			<p class="text-sm text-gray-600">{langesDatum}</p>
+			{@render pfeil('›', 'Nächster Fakt', !nachbarn.naechster, () => springe(nachbarn.naechster))}
 		</div>
+
+		{#if fakt}
+			<!-- The YAML is a same-origin file in this repo, rendered at build time, so whoever can
+			     author a fact can already author this app's JavaScript — it is not a trust boundary
+			     and needs no sanitiser. Add one the moment facts come from anywhere but the repo. -->
+			<!-- eslint-disable-next-line svelte/no-at-html-tags -->
+			<article class="prose">{@html fakt}</article>
+		{:else}
+			<p class="text-gray-600">
+				{gewaehlt === heute
+					? 'Für heute gibt es keinen Fakt.'
+					: 'Für diesen Tag gibt es keinen Fakt.'}
+			</p>
+		{/if}
 	{:else}
 		<!-- Shown from first paint until hydration reads the clock. Nothing is actually being
 		     fetched; only the visitor's date is unknown before then. -->
 		<p aria-busy="true" class="mt-6 text-gray-600">Fakten werden geladen …</p>
 	{/if}
 </main>
+
+<!--
+	Every arrow on the page: the two that page the calendar and the two beside the fact. They carry
+	`aria-disabled` rather than the native attribute for the reason spelled out on `verschiebe`,
+	which is why each caller passes a handler that re-checks its own bound.
+-->
+{#snippet pfeil(zeichen: string, beschriftung: string, gesperrt: boolean, betaetige: () => void)}
+	<button
+		onclick={betaetige}
+		aria-disabled={gesperrt}
+		aria-label={beschriftung}
+		class="rounded px-3 py-1 text-xl leading-none text-sky-800 hover:bg-sky-50 aria-disabled:text-gray-400 aria-disabled:hover:bg-transparent"
+		>{zeichen}</button
+	>
+{/snippet}

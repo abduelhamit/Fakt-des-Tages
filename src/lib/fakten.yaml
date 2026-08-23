@@ -19,7 +19,75 @@
   - erster Punkt
   - zweiter Punkt
 
-2026-08-23: Platzhalter — hier steht der Fakt für den 23. August.
+2026-08-23: |
+  Platzhalter — ein bewusst langer Eintrag, an dem sich das Verhalten bei viel Text ablesen lässt:
+  Die Pfeile links und rechts bleiben beim Scrollen stehen, statt mit dem Text nach oben zu wandern.
+
+  Der erste Absatz steht hier, damit die Seite überhaupt über eine Bildschirmhöhe hinauswächst. Ein
+  echter Fakt darf natürlich deutlich kürzer sein — die meisten Einträge sind es auch.
+
+  ## Eine Zwischenüberschrift
+
+  Überschriften, **fetter** und *kursiver* Text, `Code` und [Links](https://example.com) werden alle
+  über die `prose`-Klasse gestaltet. Wer einen Eintrag schreibt, muss sich um das Aussehen nicht
+  kümmern.
+
+  Aufzählungen funktionieren ebenfalls:
+
+  - ein erster Punkt, der zeigt, dass Listen eingerückt und mit Aufzählungszeichen erscheinen
+  - ein zweiter Punkt, etwas länger, damit auch der Zeilenumbruch innerhalb eines Punktes sichtbar
+    wird und nicht nur die kurze Variante geprüft ist
+  - ein dritter Punkt
+
+  > Auch Zitate haben eine eigene Gestaltung und heben sich vom Fließtext ab.
+
+  ## Noch eine Zwischenüberschrift
+
+  Ab hier geht es nur noch darum, Höhe zu erzeugen. Wer die Seite jetzt scrollt, sollte die beiden
+  Pfeile am oberen Rand kleben sehen, solange der Fakt noch weiterläuft. Sobald sein Ende erreicht
+  ist, wandern sie mit hinaus.
+
+  Ein weiterer Absatz, der dasselbe noch einmal mit anderen Worten sagt, weil ein Platzhalter genau
+  dafür da ist: Platz zu halten. Sobald hier ein echter Fakt steht, kann dieser Text ersatzlos
+  verschwinden.
+
+  Und ein letzter Absatz zum Abschluss, damit auch der untere Rand des Textblocks weit genug unten
+  liegt, um das Loslösen der Pfeile beobachten zu können.
+
+2026-08-24: |
+  Platzhalter — ein bewusst langer Eintrag, an dem sich das Verhalten bei viel Text ablesen lässt:
+  Die Pfeile links und rechts bleiben beim Scrollen stehen, statt mit dem Text nach oben zu wandern.
+
+  Der erste Absatz steht hier, damit die Seite überhaupt über eine Bildschirmhöhe hinauswächst. Ein
+  echter Fakt darf natürlich deutlich kürzer sein — die meisten Einträge sind es auch.
+
+  ## Eine Zwischenüberschrift
+
+  Überschriften, **fetter** und *kursiver* Text, `Code` und [Links](https://example.com) werden alle
+  über die `prose`-Klasse gestaltet. Wer einen Eintrag schreibt, muss sich um das Aussehen nicht
+  kümmern.
+
+  Aufzählungen funktionieren ebenfalls:
+
+  - ein erster Punkt, der zeigt, dass Listen eingerückt und mit Aufzählungszeichen erscheinen
+  - ein zweiter Punkt, etwas länger, damit auch der Zeilenumbruch innerhalb eines Punktes sichtbar
+    wird und nicht nur die kurze Variante geprüft ist
+  - ein dritter Punkt
+
+  > Auch Zitate haben eine eigene Gestaltung und heben sich vom Fließtext ab.
+
+  ## Noch eine Zwischenüberschrift
+
+  Ab hier geht es nur noch darum, Höhe zu erzeugen. Wer die Seite jetzt scrollt, sollte die beiden
+  Pfeile am oberen Rand kleben sehen, solange der Fakt noch weiterläuft. Sobald sein Ende erreicht
+  ist, wandern sie mit hinaus.
+
+  Ein weiterer Absatz, der dasselbe noch einmal mit anderen Worten sagt, weil ein Platzhalter genau
+  dafür da ist: Platz zu halten. Sobald hier ein echter Fakt steht, kann dieser Text ersatzlos
+  verschwinden.
+
+  Und ein letzter Absatz zum Abschluss, damit auch der untere Rand des Textblocks weit genug unten
+  liegt, um das Loslösen der Pfeile beobachten zu können.
 
 2026-08-26: |
   Platzhalter — ein Fakt mit Zwischenüberschrift.

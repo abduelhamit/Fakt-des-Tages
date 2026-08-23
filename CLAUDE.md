@@ -105,6 +105,22 @@ inactive arrows are allowed to stay faint, because inactive controls are exempt.
 The July and September entries in the facts file exist so the arrows have somewhere to go — without
 them every fact sits in one month and the navigation is both invisible and untestable.
 
+### Moving between facts
+
+The arrows either side of the date step to the next and previous **entry**, skipping the days that
+have none. They write the hash like everything else, so the calendar follows them into another month
+for free — there is no second navigation path to keep in sync.
+
+The date and its two arrows are one `sticky top-0` bar, so a fact longer than the screen keeps both
+in view. It ends in a downward fade (`bg-linear-to-b from-white from-60% to-transparent` over a
+`pb-8` tail) rather than a border, because a border only looks right once the bar is pinned and CSS
+alone cannot tell whether it is. Tailwind interpolates the gradient `in oklab`, which is what stops a
+white-to-transparent fade greying in the middle.
+
+All four arrows on the page come from one `{#snippet pfeil(...)}`. The snippet is what keeps the
+shared class list inside a `class="..."` attribute, where Prettier's Tailwind plugin still sorts it —
+a hoisted `const` is silently skipped by the sorter. Verified both ways.
+
 ### YAML gotchas that bite silently
 
 - **Never add a `%YAML 1.1` directive.** Under 1.2 core (the `yaml` package default) a bare
@@ -223,9 +239,36 @@ path. That trade was not worth it for component tests, so component and interact
 covered by the Playwright layer instead. If you do re-add a browser project, expect to pay that cost
 again.
 
+**The e2e suite builds against a fixture, not the real facts.**
+[playwright.config.ts](playwright.config.ts) sets `FAKTEN_PROBE=1`, and the small `fakten-fixture`
+plugin in [vite.config.ts](vite.config.ts) swaps `src/lib/fakten.yaml` for
+[src/lib/fakten.probe.yaml](src/lib/fakten.probe.yaml). That file is content-shaped on purpose —
+three months, gaps inside August, one deliberately long entry — and the tests name its dates
+outright. The point is that **editing the site's content can break the build but never a test**:
+verified by swapping the real file for two entries in 2030 with no gaps and no long entry, after
+which every test still passed. The real file's validity is covered instead by the node test below,
+and by `pnpm build` itself.
+
+Two traps if you ever touch that swap. It cannot be keyed on `vite --mode`: SvelteKit runs a second
+build pass for prerendering that reports mode `production`, and that is the pass which reads the
+YAML. And it cannot be a `resolve.alias`: by the time an alias could fire, `$lib` has already become
+an absolute path, so no `$lib/fakten.yaml` pattern ever matches. Both were tried and observed to
+silently do nothing.
+
+Changing `fakten.probe.yaml` _does_ change the tests. Shortening its 2026-08-23 entry in particular
+leaves the sticky-bar test passing while proving nothing, because the page stops scrolling far
+enough for `sticky` to engage.
+
 [src/routes/page.e2e.ts](src/routes/page.e2e.ts) is what pins the SSG guarantees end to end: that
 hydration fills the date in, and that **no `.yaml` request happens at runtime**. That second
 assertion is the regression guard for the whole build-time pipeline, so do not drop it.
+
+Playwright's `boundingBox()` **scrolls the element into view before measuring**, so it cannot test
+sticky positioning — an earlier version of the sticky test passed with `sticky` removed for exactly
+that reason. Read `getBoundingClientRect()` through `page.evaluate` instead. The same test also needs
+a fact taller than the viewport, which is what the long placeholder on 2026-08-23 is for — shorten
+that entry and the page stops scrolling far enough for `sticky` to engage, and the test proves
+nothing while still passing.
 
 The first test runs on the real clock and deliberately asserts nothing about _which_ fact is shown.
 Everything calendar-related instead pins the clock with `page.clock.setFixedTime` under

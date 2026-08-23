@@ -1,5 +1,9 @@
 import { expect, test } from '@playwright/test';
 
+// Shared by both pinned suites below, so the two cannot drift apart: a Saturday the fixture gives a
+// fact, sitting between its July and September entries, in a month that starts on a Saturday.
+const HEUTE = new Date('2026-08-22T10:00:00Z');
+
 // Deliberately says nothing about *which* fact is shown: src/lib/fakten.yaml has gaps, so asserting
 // today's text would start failing on the first day without an entry.
 test('rendert den Fakt ohne Laufzeit-Fetch', async ({ page }) => {
@@ -21,14 +25,15 @@ test('rendert den Fakt ohne Laufzeit-Fetch', async ({ page }) => {
 	expect(anfragen.filter((url) => url.endsWith('.yaml'))).toEqual([]);
 });
 
-// The calendar is a pure function of the visitor's clock, so these pin the clock instead of hedging
-// around it. Everything asserted below is stated relative to Saturday 22 August 2026 — a day that
-// has a fact, sits between the July and September entries, and starts its month on a Saturday.
+// Everything below runs against src/lib/fakten.probe.yaml, not the site's real content — see the
+// `FAKTEN_PROBE` note in vite.config.ts. Dates may therefore be named outright. The clock is pinned
+// to Saturday 22 August 2026: a day the fixture gives a fact, sitting between its July and
+// September entries, in a month that starts on a Saturday.
 test.describe('Kalender', () => {
 	test.use({ timezoneId: 'Europe/Berlin' });
 
 	test.beforeEach(async ({ page }) => {
-		await page.clock.setFixedTime(new Date('2026-08-22T10:00:00Z'));
+		await page.clock.setFixedTime(HEUTE);
 	});
 
 	test('öffnet auf heute', async ({ page }) => {
@@ -148,5 +153,83 @@ test.describe('Kalender', () => {
 
 		// Moving the month must not move the selection — the fact still belongs to today.
 		await expect(page.getByText('22. August 2026', { exact: true })).toBeVisible();
+	});
+});
+
+// The fixture holds 2026-07-30, -08-20, -08-22, -08-23, -08-26, -08-31 and 2026-09-02. The gaps
+// between them are the point: these arrows step from fact to fact, not from day to day.
+test.describe('Faktenpfeile', () => {
+	test.use({ timezoneId: 'Europe/Berlin' });
+
+	test.beforeEach(async ({ page }) => {
+		await page.clock.setFixedTime(HEUTE);
+	});
+
+	test('überspringt die Tage ohne Fakt', async ({ page }) => {
+		await page.goto('/Fakt-des-Tages/#2026-08-23');
+
+		await page.getByRole('button', { name: 'Nächster Fakt' }).click();
+
+		// The 24th and 25th are empty in the fixture, so the next fact is the 26th.
+		await expect(page.getByText('26. August 2026', { exact: true })).toBeVisible();
+		await expect(page.getByRole('article')).toContainText('Zwischenüberschrift');
+	});
+
+	test('nimmt den Kalender in den Nachbarmonat mit', async ({ page }) => {
+		await page.goto('/Fakt-des-Tages/#2026-08-20');
+
+		await page.getByRole('button', { name: 'Vorheriger Fakt' }).click();
+
+		await expect(page.getByText('30. Juli 2026', { exact: true })).toBeVisible();
+		await expect(page.getByRole('heading', { level: 2 })).toHaveText('Juli 2026');
+	});
+
+	test('führt auch von einem Tag ohne Fakt weiter', async ({ page }) => {
+		await page.goto('/Fakt-des-Tages/#2026-08-21');
+		await expect(page.getByText('Für diesen Tag gibt es keinen Fakt.')).toBeVisible();
+
+		await page.getByRole('button', { name: 'Nächster Fakt' }).click();
+		await expect(page.getByText('22. August 2026', { exact: true })).toBeVisible();
+
+		await page.goBack();
+		await page.getByRole('button', { name: 'Vorheriger Fakt' }).click();
+		await expect(page.getByText('20. August 2026', { exact: true })).toBeVisible();
+	});
+
+	for (const [hash, name, datum] of [
+		['#2026-07-30', 'Vorheriger Fakt', '30. Juli 2026'],
+		['#2026-09-02', 'Nächster Fakt', '2. September 2026']
+	]) {
+		test(`sperrt „${name}“ am Rand des Archivs`, async ({ page }) => {
+			await page.goto(`/Fakt-des-Tages/${hash}`);
+
+			const pfeil = page.getByRole('button', { name });
+			await expect(pfeil).toHaveAttribute('aria-disabled', 'true');
+
+			// Inert but still focusable, like the month arrows — see the guard in `springe`.
+			await pfeil.click({ force: true });
+			await expect(page.getByText(datum, { exact: true })).toBeVisible();
+		});
+	}
+
+	// Runs at the default viewport, which only works because the fixture's 2026-08-23 is deliberately
+	// long. Shorten that entry and this test keeps passing while proving nothing.
+	test('hält die Datumsleiste beim Scrollen in Sichtweite', async ({ page }) => {
+		await page.goto('/Fakt-des-Tages/#2026-08-23');
+		// Wait for hydration before scrolling: the calendar only renders then, and measuring against
+		// a page that is still growing underneath makes this test flaky rather than wrong.
+		await expect(page.getByText('23. August 2026', { exact: true })).toBeVisible();
+
+		await page.evaluate(() => window.scrollTo(0, 99999));
+		expect(await page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
+
+		// `locator.evaluate` and not `boundingBox()`: the latter scrolls the element into view before
+		// measuring, which is the very effect under test — it made an earlier version of this test
+		// pass with `sticky` removed. Pinned, the bar's contents sit at its `pt-2`; without `sticky`
+		// they ride up with the text and measure negative.
+		const oben = await page
+			.getByRole('button', { name: 'Vorheriger Fakt' })
+			.evaluate((el) => el.getBoundingClientRect().top);
+		expect(oben).toBe(8);
 	});
 });

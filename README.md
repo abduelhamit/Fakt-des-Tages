@@ -36,6 +36,8 @@ Regeln:
 - Die Pfeile über dem Kalender führen nur zu Monaten, in denen es Einträge gibt — und immer bis zum
   heutigen Tag zurück. Stehen alle Fakten im selben Monat wie heute, sind deshalb beide Pfeile
   ausgegraut.
+- Die Pfeile neben dem Datum springen zum nächsten bzw. vorherigen **Eintrag** und überspringen
+  dabei die Tage ohne Fakt. Der Kalender wandert mit, notfalls in einen anderen Monat.
 - Ein angehängtes Datum öffnet direkt diesen Tag, etwa
   <https://abduelhamit.github.io/Fakt-des-Tages/#2026-08-22>. So lässt sich ein einzelner Fakt
   verlinken.
