@@ -6,6 +6,8 @@
 #
 # Achtung: ein fehlerhafter Eintrag lässt die gesamte Datei fehlschlagen.
 
+2026-07-30: Platzhalter — ein Eintrag im Vormonat, damit der Pfeil ‹ etwas zu tun hat.
+
 2026-08-20: Platzhalter — kurzer Fakt, einzeilig.
 
 2026-08-22: |
@@ -27,3 +29,5 @@
   Auch Überschriften werden über die `prose`-Klasse gestaltet.
 
 2026-08-31: Platzhalter — letzter Eintrag im August.
+
+2026-09-02: Platzhalter — ein Eintrag im Folgemonat, damit der Pfeil › etwas zu tun hat.

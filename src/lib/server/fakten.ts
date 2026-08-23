@@ -1,19 +1,10 @@
 import { marked } from 'marked';
 import YAML from 'yaml';
-import { toIsoDate, type FaktHtml } from '$lib/fakten';
+import { isIsoDate, type FaktHtml } from '$lib/fakten';
 
 // Everything here runs at build time only. It lives under `$lib/server/` so that SvelteKit *fails
 // the build* if it is ever imported from client code — which is what keeps `yaml` and `marked` out
 // of the browser bundle, rather than relying on tree-shaking to notice.
-
-/**
- * Shape *and* calendar validity in one round-trip: anything malformed either fails to parse (and
- * formats as `NaN-NaN-NaN`) or normalises to a different string, so `2026-3-15`, `2026-02-31` and
- * `2026-02-29` are all rejected. `T00:00` (no `Z`) keeps the parse local, matching `toIsoDate`.
- */
-function isIsoDate(key: string): boolean {
-	return toIsoDate(new Date(`${key}T00:00`)) === key;
-}
 
 /**
  * Parse the facts file. Throws a German `Error` on anything malformed: per the project's chosen

@@ -41,9 +41,11 @@ edit made in GitHub's web UI, already triggers a full rebuild and deploy via
 
 Consequences worth knowing before changing any of this:
 
-- **[src/lib/fakten.ts](src/lib/fakten.ts) must stay dependency-free.** It holds `toIsoDate` and the
-  `Fakten`/`FaktHtml` types and is imported by the page component, so anything added there ships to
-  the client.
+- **[src/lib/fakten.ts](src/lib/fakten.ts) must stay dependency-free.** It holds the
+  `Fakten`/`FaktHtml` types and the pure date helpers (`toIsoDate`, `fromIsoDate`, `isIsoDate`,
+  `monatsRaster`) and is imported by the page component, so anything added there ships to the
+  client. `isIsoDate` lives here rather than in `$lib/server/` because the calendar validates the
+  location hash with it — that _is_ a trust boundary, unlike the facts file.
 - **`FaktHtml` is a branded string, and the brand needs an anchor.** `renderFakt` is the only place
   it is applied, so a load that returns `parseFakten`'s output unrendered fails to compile. That
   only works because [+page.server.ts](src/routes/+page.server.ts) pins the output type as
@@ -63,6 +65,45 @@ so [src/routes/+page.svelte](src/routes/+page.svelte) deliberately reads the clo
 renders a placeholder rather than anything date-specific until then. Computing it at component init
 instead would bake the build day into the HTML and visibly flash the wrong fact before hydration
 corrected it. That placeholder is the point — do not "fix" it by moving the date out of `onMount`.
+
+### The calendar
+
+[src/routes/+page.svelte](src/routes/+page.svelte) holds the whole thing; there is no separate
+component, and it needs none at this size. Five decisions in it are not obvious from the code:
+
+- **The location hash is the single source of truth for the selection.** Clicking a day only writes
+  `location.hash`; the `hashchange` handler is what actually moves the state, and `onMount` calls the
+  same function. Back/forward and shared links therefore work without a second code path. Do not
+  "simplify" it by also setting the state in the click handler — that is how the two get out of sync.
+- **The arrows are bounded by the content, and the bounds include today and the selection.** Bounding
+  on the fact keys alone strands a visitor: once the whole archive is in the past, both arrows go
+  dead in the current month. Comparison is on `YYYY-MM` strings, which sort chronologically, so no
+  date arithmetic is involved.
+- **Today stays clickable even with no fact of its own.** A deliberate exception to the "days without
+  a fact are non-interactive" rule, because today is the cell you navigate back to. It has its own
+  e2e test, since the ordinary "not clickable" test cannot catch it.
+- **Monday is column one.** `getDay()` counts from Sunday, so `monatsRaster` rotates it with
+  `(getDay() + 6) % 7`. Verified against a month that starts on a Sunday, which is the case a bare
+  `getDay()` gets wrong.
+
+- **Accessibility is carried by the day buttons, not by grid semantics.** This is a CSS grid, not
+  an ARIA `grid`, so each button's `aria-label` is its full German date; the `Mo Di Mi …` row is
+  `aria-hidden`, and so are the days without a fact, since a bare number carries no date context of
+  its own. Two details there are deliberate and easy to undo by accident. The month arrows use
+  `aria-disabled` rather than the native attribute — a natively disabled button drops keyboard focus
+  to `<body>` the instant it is disabled, stranding the visitor who just pressed it — which is why
+  `verschiebe` enforces the bound itself rather than trusting the attribute. And the selected day is
+  named in its `aria-label` (`… (angezeigt)`) instead of carrying `aria-pressed`, which would claim
+  toggle semantics that a single-select set does not have. Both have e2e tests, both verified to
+  fail when reverted. Note Playwright honours `aria-disabled` in its actionability checks, so a test
+  that clicks a bounded arrow on purpose needs `{ force: true }`.
+
+Watch the muted greys: Tailwind's `gray-300` is 1.47:1 against white and `gray-400` is 2.6:1, both
+far below the 4.5:1 that WCAG AA wants for text. The day numbers use `gray-600` (7.6:1). Only the
+inactive arrows are allowed to stay faint, because inactive controls are exempt.
+
+The July and September entries in the facts file exist so the arrows have somewhere to go — without
+them every fact sits in one month and the navigation is both invisible and untestable.
 
 ### YAML gotchas that bite silently
 
@@ -185,6 +226,11 @@ again.
 [src/routes/page.e2e.ts](src/routes/page.e2e.ts) is what pins the SSG guarantees end to end: that
 hydration fills the date in, and that **no `.yaml` request happens at runtime**. That second
 assertion is the regression guard for the whole build-time pipeline, so do not drop it.
+
+The first test runs on the real clock and deliberately asserts nothing about _which_ fact is shown.
+Everything calendar-related instead pins the clock with `page.clock.setFixedTime` under
+`timezoneId: 'Europe/Berlin'`, which is what lets those tests name concrete dates. Keep the two
+apart: the unpinned test is the only one that proves the page works on a clock nobody chose.
 
 [src/lib/server/fakten.spec.ts](src/lib/server/fakten.spec.ts) parses the **real** facts file, not just
 fixtures, and that test runs in the gate. It is what stops a typo pushed from GitHub's web editor

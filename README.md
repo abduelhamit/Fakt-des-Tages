@@ -32,6 +32,13 @@ Regeln:
 - Mehrzeilige Fakten brauchen einen `|`-Block, dessen Zeilen alle **gleich weit eingerückt** sind.
   Das ist die häufigste Fehlerquelle beim Bearbeiten im Browser.
 - Tage ohne Eintrag sind im Kalender sichtbar, aber nicht anklickbar. Lücken sind also in Ordnung.
+  Einzige Ausnahme ist der heutige Tag — er bleibt anklickbar, damit man immer zu ihm zurückfindet.
+- Die Pfeile über dem Kalender führen nur zu Monaten, in denen es Einträge gibt — und immer bis zum
+  heutigen Tag zurück. Stehen alle Fakten im selben Monat wie heute, sind deshalb beide Pfeile
+  ausgegraut.
+- Ein angehängtes Datum öffnet direkt diesen Tag, etwa
+  <https://abduelhamit.github.io/Fakt-des-Tages/#2026-08-22>. So lässt sich ein einzelner Fakt
+  verlinken.
 
 Bitte beachten:
 
@@ -92,5 +99,5 @@ ersten erfolgreichen Durchlauf automatisch aktiviert.
 ## Technisches
 
 Aufbau, Konventionen und die Fallstricke des Projekts sind in [CLAUDE.md](CLAUDE.md) dokumentiert —
-unter anderem, warum es keine `svelte.config.js` gibt und warum die Fakten zur Laufzeit geladen
-werden.
+unter anderem, warum es keine `svelte.config.js` gibt und warum die Fakten schon beim Build fest
+in die Seite eingebaut werden.
