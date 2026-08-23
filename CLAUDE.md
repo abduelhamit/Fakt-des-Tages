@@ -41,14 +41,14 @@ edit made in GitHub's web UI, already triggers a full rebuild and deploy via
 
 Consequences worth knowing before changing any of this:
 
-- **`yaml` and `marked` are `devDependencies`.** They must never reach the browser. That is enforced
-  structurally, not by convention: they are imported only from
-  [src/lib/server/fakten.ts](src/lib/server/fakten.ts), and SvelteKit fails the build outright on
-  `Cannot import $lib/server/… into code that runs in the browser`. Verified, not assumed. Note the
-  guard is on that _module_, not on the packages: adding a fresh `import { marked }` straight into
-  client code still builds, and ships ~42 KB. Keep parser imports confined to `$lib/server/`.
 - **[src/lib/fakten.ts](src/lib/fakten.ts) must stay dependency-free.** It holds `toIsoDate` and the
-  `Fakten` type and is imported by the page component, so anything added there ships to the client.
+  `Fakten`/`FaktHtml` types and is imported by the page component, so anything added there ships to
+  the client.
+- **`FaktHtml` is a branded string, and the brand needs an anchor.** `renderFakt` is the only place
+  it is applied, so a load that returns `parseFakten`'s output unrendered fails to compile. That
+  only works because [+page.server.ts](src/routes/+page.server.ts) pins the output type as
+  `PageServerLoad<{ fakten: Fakten }>` — a bare `PageServerLoad` accepts any serialisable shape, and
+  the page would simply infer whatever load returned. Do not drop that type argument.
 - **A malformed facts file fails `pnpm build`,** so broken content never deploys and the previous
   version stays live. The UI has no runtime error state, and needs none.
 - **All facts are embedded in the page.** Accepted limitation: the payload grows with the archive —
@@ -208,5 +208,3 @@ it to a fixture.
   there — keep the two from drifting into duplicates.
 - `.claude/settings.json` enables the official `svelte@svelte` plugin (Svelte 5 / SvelteKit docs and
   skills) — prefer its guidance over recalled Svelte 4 patterns.
-- Per the user's global instructions, `.vscode/settings.json` holds local environment tweaks — never
-  stage it without asking first.

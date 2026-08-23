@@ -1,10 +1,12 @@
 /**
- * ISO date (`2026-08-22`) → that day's fact.
- *
- * The value is CommonMark as authored, and HTML once the build-time load in
- * `src/routes/+page.server.ts` has rendered it.
+ * A fact rendered to HTML. Branded so it is not interchangeable with the CommonMark it came from:
+ * without this, dropping the render step from the build-time load would still type-check and feed
+ * raw Markdown into `{@html}`. The brand exists only at compile time — at runtime it is a string.
  */
-export type Fakten = Map<string, string>;
+export type FaktHtml = string & { readonly __faktHtml: true };
+
+/** ISO date (`2026-08-22`) → that day's fact, rendered. */
+export type Fakten = Map<string, FaktHtml>;
 
 /**
  * A `Date` as `YYYY-MM-DD` in the *visitor's* timezone.

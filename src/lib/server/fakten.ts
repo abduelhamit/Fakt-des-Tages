@@ -1,6 +1,6 @@
 import { marked } from 'marked';
 import YAML from 'yaml';
-import { toIsoDate, type Fakten } from '$lib/fakten';
+import { toIsoDate, type FaktHtml } from '$lib/fakten';
 
 // Everything here runs at build time only. It lives under `$lib/server/` so that SvelteKit *fails
 // the build* if it is ever imported from client code — which is what keeps `yaml` and `marked` out
@@ -20,7 +20,7 @@ function isIsoDate(key: string): boolean {
  * policy a single bad entry fails the whole load, so the message always names what to fix. Since
  * this runs during prerendering, that failure stops the build instead of reaching a visitor.
  */
-export function parseFakten(text: string): Fakten {
+export function parseFakten(text: string): Map<string, string> {
 	let data: unknown;
 	try {
 		data = YAML.parse(text);
@@ -37,7 +37,7 @@ export function parseFakten(text: string): Fakten {
 		throw new Error('Die Faktendatei hat kein gültiges Format.');
 	}
 
-	const fakten: Fakten = new Map();
+	const fakten = new Map<string, string>();
 	for (const [datum, fakt] of Object.entries(data)) {
 		if (!isIsoDate(datum)) {
 			throw new Error(`Ungültiges Datum in der Faktendatei: „${datum}“ (erwartet: JJJJ-MM-TT).`);
@@ -51,6 +51,6 @@ export function parseFakten(text: string): Fakten {
 }
 
 /** CommonMark → HTML. `async: false` picks marked's synchronous overload, which returns `string`. */
-export function renderFakt(markdown: string): string {
-	return marked.parse(markdown, { async: false });
+export function renderFakt(markdown: string): FaktHtml {
+	return marked.parse(markdown, { async: false }) as FaktHtml;
 }
