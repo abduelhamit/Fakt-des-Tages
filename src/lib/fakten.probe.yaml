@@ -4,7 +4,7 @@
 # vite.config.ts. `pnpm build` rührt sie nicht an, sie kann also nie online gehen.
 #
 # Die Tests in src/routes/page.e2e.ts hängen an dieser Form: drei Monate, Lücken innerhalb des
-# Augusts und ein bewusst langer Eintrag am 23. Wer hier etwas ändert, ändert die Tests.
+# Augusts und zwei bewusst lange Einträge am 23. und 26. Wer hier etwas ändert, ändert die Tests.
 # Die echten Fakten stehen nebenan in fakten.yaml und dürfen frei bearbeitet werden.
 
 2026-07-30: Testdaten — einziger Eintrag im Juli, damit der Pfeil ‹ eine Grenze hat.
@@ -49,11 +49,38 @@
   Ein letzter Absatz, damit der untere Rand des Textblocks tief genug liegt.
 
 2026-08-26: |
-  Testdaten — Fakt mit Zwischenüberschrift.
+  Testdaten — Fakt mit Zwischenüberschrift, ebenfalls bewusst lang.
 
   ## Hintergrund
 
-  Ein Absatz, damit die Überschrift nicht allein steht.
+  Der zweite lange Eintrag. Er wird gebraucht, damit ein Sprung von einem langen Fakt zu einem
+  langen Fakt geprüft werden kann: Ist das Ziel kürzer als die Seitenhöhe, kappt der Browser die
+  Scrollposition auf 0, und der Test misst das Kappen statt den Sprung.
+
+  Ein weiterer Absatz für die nötige Höhe.
+
+  - eine Aufzählung, die sich von der des 23. unterscheidet
+  - damit beim Überfliegen der Datei klar ist, dass hier zwei Einträge stehen
+  - und nicht versehentlich zweimal derselbe
+
+  > Ein zweites Zitat, mit anderem Wortlaut als das weiter oben.
+
+  Und noch ein Absatz, damit auch nach dem Sprung genug Seite unter der Leiste übrig bleibt.
+
+  ## Noch eine Zwischenüberschrift
+
+  Ab hier geht es wieder nur um Höhe. Der Sprungtest verlangt, dass diese Seite mindestens bis zum
+  Klebepunkt der Leiste scrollbar bleibt — sonst kappt der Browser die Zielposition, und gemessen
+  wird das Kappen statt der Sprung.
+
+  Deshalb steht hier reichlich Reserve, statt die Länge auf den Pixel genau auszureizen: eine andere
+  Schriftgröße oder Fensterhöhe soll den Test nicht wieder auf die Kante schieben.
+
+  Ein weiterer Absatz dieser Sorte.
+
+  Und noch einer, denn die Datei wird ohnehin nie ausgeliefert.
+
+  Ein letzter Absatz zum Abschluss.
 
 2026-08-31: Testdaten — letzter Eintrag im August.
 

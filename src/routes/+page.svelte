@@ -56,10 +56,27 @@
 		if (zielMonat >= grenzen.von && zielMonat <= grenzen.bis) monat = ziel;
 	}
 
+	// Both measured by `springe`: the bar for its height, the fact for where it sits in normal flow.
+	// `fakttext` is bound in each branch of the `{#if}` rather than on a wrapper — verified that the
+	// ref survives the swap. A wrapper round the *bar* would not work at all: it would become
+	// sticky's containing block and cap the bar's travel at its own height.
+	let leiste = $state<HTMLElement>();
+	let fakttext = $state<HTMLElement>();
+
 	/** Jump to another day. Guarded here for the same reason `verschiebe` is: the button is only
 	 * `aria-disabled`, so it stays clickable. */
 	function springe(ziel: string | undefined) {
-		if (ziel) location.hash = ziel;
+		if (!ziel) return;
+		location.hash = ziel;
+		if (!leiste || !fakttext) return;
+		// Where the bar comes to rest. Asking the bar itself is useless: `offsetTop` on a *stuck*
+		// sticky element reports where it is stuck — literally the scroll position — not where it
+		// belongs, so the comparison below would always be false. The fact underneath it never
+		// moves out of normal flow, so its top minus the bar's height is the honest answer.
+		const anfang = fakttext.offsetTop - leiste.offsetHeight;
+		// Upwards only. Scrolling unconditionally would shove the calendar off screen for a visitor
+		// who was already at the top, which is the opposite of helpful.
+		if (window.scrollY > anfang) window.scrollTo(0, anfang);
 	}
 
 	// The archive in date order. The YAML is in whatever order it was written in, and ISO dates sort
@@ -165,6 +182,7 @@
 		     bar rather than being clipped at an invisible edge. A border would also have to appear
 		     only once pinned, which CSS alone cannot tell — a fade is honest at every offset. -->
 		<div
+			bind:this={leiste}
 			class="sticky top-0 mt-6 flex items-center justify-between bg-linear-to-b from-white from-60% to-transparent pt-2 pb-8"
 		>
 			{@render pfeil('‹', 'Vorheriger Fakt', !nachbarn.vorheriger, () =>
@@ -176,12 +194,12 @@
 
 		{#if fakt}
 			<!-- The YAML is a same-origin file in this repo, rendered at build time, so whoever can
-			     author a fact can already author this app's JavaScript — it is not a trust boundary
-			     and needs no sanitiser. Add one the moment facts come from anywhere but the repo. -->
+				     author a fact can already author this app's JavaScript — it is not a trust boundary
+				     and needs no sanitiser. Add one the moment facts come from anywhere but the repo. -->
 			<!-- eslint-disable-next-line svelte/no-at-html-tags -->
-			<article class="prose">{@html fakt}</article>
+			<article bind:this={fakttext} class="prose">{@html fakt}</article>
 		{:else}
-			<p class="text-gray-600">
+			<p bind:this={fakttext} class="text-gray-600">
 				{gewaehlt === heute
 					? 'Für heute gibt es keinen Fakt.'
 					: 'Für diesen Tag gibt es keinen Fakt.'}

@@ -212,6 +212,40 @@ test.describe('Faktenpfeile', () => {
 		});
 	}
 
+	// Both halves matter: it must move up when the bar has pinned, and stay put when it has not.
+	// An unconditional scroll would shove the calendar off screen for someone reading from the top.
+	test('holt den Anfang des Fakts zurück, wenn die Leiste klebt', async ({ page }) => {
+		await page.goto('/Fakt-des-Tages/#2026-08-23');
+		await expect(page.getByText('23. August 2026', { exact: true })).toBeVisible();
+
+		// Read at rest, and that is the whole trick: `offsetTop` on a stuck sticky element returns
+		// the scroll position, so measuring after scrolling would compare a number with itself and
+		// pass no matter what the code does.
+		const klebepunkt = await page
+			.getByRole('button', { name: 'Vorheriger Fakt' })
+			.evaluate((el) => (el.parentElement as HTMLElement).offsetTop);
+		expect(klebepunkt).toBeGreaterThan(0);
+
+		await page.evaluate(() => window.scrollTo(0, 99999));
+		expect(await page.evaluate(() => window.scrollY)).toBeGreaterThan(klebepunkt);
+
+		await page.getByRole('button', { name: 'Nächster Fakt' }).click();
+		await expect(page.getByText('26. August 2026', { exact: true })).toBeVisible();
+
+		expect(await page.evaluate(() => window.scrollY)).toBe(klebepunkt);
+	});
+
+	test('lässt die Seite in Ruhe, wenn noch nichts klebt', async ({ page }) => {
+		await page.goto('/Fakt-des-Tages/#2026-08-23');
+		await expect(page.getByText('23. August 2026', { exact: true })).toBeVisible();
+
+		await page.getByRole('button', { name: 'Nächster Fakt' }).click();
+		await expect(page.getByText('26. August 2026', { exact: true })).toBeVisible();
+
+		// Still at the top, with the calendar in view — not pushed down to the bar's offset.
+		expect(await page.evaluate(() => window.scrollY)).toBe(0);
+	});
+
 	// Runs at the default viewport, which only works because the fixture's 2026-08-23 is deliberately
 	// long. Shorten that entry and this test keeps passing while proving nothing.
 	test('hält die Datumsleiste beim Scrollen in Sichtweite', async ({ page }) => {

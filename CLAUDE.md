@@ -117,6 +117,20 @@ in view. It ends in a downward fade (`bg-linear-to-b from-white from-60% to-tran
 alone cannot tell whether it is. Tailwind interpolates the gradient `in oklab`, which is what stops a
 white-to-transparent fade greying in the middle.
 
+Stepping to another fact from below the point where the bar pins scrolls back up to it, so the next
+fact opens at its top instead of somewhere in its middle. Upwards only: scrolling unconditionally
+would shove the calendar off screen for a visitor who was already at the top.
+
+**Do not compute that offset from the bar.** `offsetTop` on a _stuck_ sticky element reports where it
+is stuck — literally the scroll position — not where it belongs: scroll to 500 and it reports 500,
+whatever it read at rest. Any `scrollY > bar.offsetTop` test is therefore never true while pinned, and the
+jump silently never happens; that shipped once and two tests missed it. The fact underneath stays in
+normal flow, so `fakttext.offsetTop - leiste.offsetHeight` is the honest answer. The e2e test has to
+read the resting offset _before_ scrolling for the same reason — measured afterwards it compares a
+number with itself and passes with the feature deleted. Wrapping the bar in a static box to measure
+does not work either: the wrapper becomes sticky's containing block and caps its travel at its own
+height.
+
 All four arrows on the page come from one `{#snippet pfeil(...)}`. The snippet is what keeps the
 shared class list inside a `class="..."` attribute, where Prettier's Tailwind plugin still sorts it —
 a hoisted `const` is silently skipped by the sorter. Verified both ways.
@@ -243,8 +257,9 @@ again.
 [playwright.config.ts](playwright.config.ts) sets `FAKTEN_PROBE=1`, and the small `fakten-fixture`
 plugin in [vite.config.ts](vite.config.ts) swaps `src/lib/fakten.yaml` for
 [src/lib/fakten.probe.yaml](src/lib/fakten.probe.yaml). That file is content-shaped on purpose —
-three months, gaps inside August, one deliberately long entry — and the tests name its dates
-outright. The point is that **editing the site's content can break the build but never a test**:
+three months, gaps inside August, two deliberately long entries — and the tests name its dates
+outright. Two long ones, because the jump test steps between them: land on a fact shorter than the
+viewport and the browser clamps the scroll, so the test measures the clamping instead of the jump. The point is that **editing the site's content can break the build but never a test**:
 verified by swapping the real file for two entries in 2030 with no gaps and no long entry, after
 which every test still passed. The real file's validity is covered instead by the node test below,
 and by `pnpm build` itself.
@@ -255,9 +270,9 @@ YAML. And it cannot be a `resolve.alias`: by the time an alias could fire, `$lib
 an absolute path, so no `$lib/fakten.yaml` pattern ever matches. Both were tried and observed to
 silently do nothing.
 
-Changing `fakten.probe.yaml` _does_ change the tests. Shortening its 2026-08-23 entry in particular
-leaves the sticky-bar test passing while proving nothing, because the page stops scrolling far
-enough for `sticky` to engage.
+Changing `fakten.probe.yaml` _does_ change the tests. Shortening its 2026-08-23 or 2026-08-26 entry
+in particular leaves the sticky-bar and jump tests passing while proving nothing, because the page
+stops scrolling far enough for `sticky` to engage.
 
 [src/routes/page.e2e.ts](src/routes/page.e2e.ts) is what pins the SSG guarantees end to end: that
 hydration fills the date in, and that **no `.yaml` request happens at runtime**. That second
