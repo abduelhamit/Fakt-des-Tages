@@ -79,6 +79,43 @@ renders a placeholder rather than anything date-specific until then. Computing i
 instead would bake the build day into the HTML and visibly flash the wrong fact before hydration
 corrected it. That placeholder is the point — do not "fix" it by moving the date out of `onMount`.
 
+That placeholder is a mock of the finished page rather than a bare line of text. The calendar and the
+date bar sit _outside_ the `{#if}`s that need a selection, so before hydration they render themselves:
+every arrow bounded, both text slots a grey bar, six full rows of stand-in days in the archive's own
+rhythm — Mo–Fr shaped like a day with a fact, Sa/So like one without. This is why the month arrows
+test `!monat` as well as their month bound: `angezeigt` is `''` before hydration, which happens to
+fall below `grenzen.von` but not above `grenzen.bis`, so the forward arrow would otherwise come up
+looking live. Both arrows carry it rather than only that one: it mirrors `verschiebe`'s own `!monat`
+return instead of leaning on the accident that `''` sorts below every date, and it short-circuits
+before `grenzen`, so the archive is never sorted during prerendering. The stand-in cells are `h-8`, a
+day cell's height to the pixel, so the page arrives at its final size — the e2e test compares the
+date bar's resting offset with JavaScript switched off against the same offset once hydrated, and a
+one-step change to that height fails it. `aria-busy` belongs on `<main>` and not on the
+"Fakten werden geladen …" line, because the calendar and the bar are provisional too and a screen
+reader reaches them first; both states are asserted.
+
+**Keep the mock in step when you restyle the calendar.** Most of that is free — the mock _is_ the
+real section, grid and sticky bar with different leaves, so anything changed on those elements
+applies to both. Four things are not shared, and the test only half-covers the first:
+
+- **The day cell's height** — `h-8` in the mock, against `py-1.5` plus the grid's `text-sm` on the
+  real day button _and_ on the `<span>` that a day without a fact renders as. 32 px all round. The
+  e2e test fails on any change to the mock's `h-8`, but on the real side only if button and span
+  move together: `1fr` sizes each row to its tallest cell, and every month in the archive has a
+  factless day left holding the old height. Verified by mutation both ways — changing only the
+  button passes green.
+- **The six-row count**, written twice: `repeat(6,1fr)` on the grid, `6 * WOCHENTAGE.length` in the
+  mock's loop.
+- **The colours.** A day with a fact is `bg-sky-50`, and the mock's weekday cell repeats that literal.
+  Nothing tests it, so a restyled calendar leaves the placeholder on the old palette.
+- **The two grey bars** (`h-4 w-28`), duplicated on purpose: nothing couples the size of the month
+  heading's placeholder to the date line's, so changing one is a decision about the other rather than
+  a bug. Do not fold them into a `{#snippet}` — unlike `pfeil` below, both are already literal
+  `class="..."` attributes that Prettier sorts, so the snippet would be pure overhead.
+
+To look at the thing, switch JavaScript off and reload; hydration is far too quick to catch it
+otherwise. That is exactly what the `Ladezustand` e2e test does, in a second browser context.
+
 ### The calendar
 
 [src/routes/+page.svelte](src/routes/+page.svelte) holds the whole thing; there is no separate

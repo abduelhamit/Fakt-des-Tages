@@ -1,8 +1,15 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 
 // Shared by both pinned suites below, so the two cannot drift apart: a Saturday the fixture gives a
 // fact, sitting between its July and September entries, in a month that starts on a Saturday.
 const HEUTE = new Date('2026-08-22T10:00:00Z');
+
+// Where the date bar comes to rest: the height of everything above it in one number. Always read it
+// before scrolling — on a *stuck* sticky element `offsetTop` reports the scroll position instead.
+const leistenkante = (seite: Page) =>
+	seite
+		.getByRole('button', { name: 'Vorheriger Fakt' })
+		.evaluate((el) => (el.parentElement as HTMLElement).offsetTop);
 
 // Deliberately says nothing about *which* fact is shown: src/lib/fakten.yaml has gaps, so asserting
 // today's text would start failing on the first day without an entry.
@@ -218,12 +225,9 @@ test.describe('Faktenpfeile', () => {
 		await page.goto('/Fakt-des-Tages/#2026-08-23');
 		await expect(page.getByText('23. August 2026', { exact: true })).toBeVisible();
 
-		// Read at rest, and that is the whole trick: `offsetTop` on a stuck sticky element returns
-		// the scroll position, so measuring after scrolling would compare a number with itself and
-		// pass no matter what the code does.
-		const klebepunkt = await page
-			.getByRole('button', { name: 'Vorheriger Fakt' })
-			.evaluate((el) => (el.parentElement as HTMLElement).offsetTop);
+		// Read at rest, and that is the whole trick — see `leistenkante`. Measured after scrolling it
+		// would compare a number with itself and pass no matter what the code does.
+		const klebepunkt = await leistenkante(page);
 		expect(klebepunkt).toBeGreaterThan(0);
 
 		await page.evaluate(() => window.scrollTo(0, 99999));
@@ -280,5 +284,45 @@ test.describe('Faktenpfeile', () => {
 			.getByRole('button', { name: 'Vorheriger Fakt' })
 			.evaluate((el) => el.getBoundingClientRect().top);
 		expect(oben).toBe(8);
+	});
+});
+
+// The prerendered page: what every visitor sees for the moment before hydration, and what someone
+// browsing without JavaScript keeps for good. It stands in for the finished page without naming a
+// single date, because the build's clock is not the visitor's.
+test.describe('Ladezustand', () => {
+	test.use({ timezoneId: 'Europe/Berlin' });
+
+	test('steht schon vor der Hydration in seiner endgültigen Größe da', async ({
+		page,
+		browser,
+		baseURL
+	}) => {
+		await page.clock.setFixedTime(HEUTE);
+		await page.goto('/Fakt-des-Tages/');
+		await expect(page.getByText('22. August 2026', { exact: true })).toBeVisible();
+		await expect(page.locator('main')).toHaveAttribute('aria-busy', 'false');
+		const fertig = await leistenkante(page);
+
+		// Hydration is far too quick to catch mid-flight, so the placeholder is held still by taking
+		// JavaScript away entirely.
+		const ohneJs = await browser.newContext({ javaScriptEnabled: false, baseURL });
+		const platzhalter = await ohneJs.newPage();
+		await platzhalter.goto('/Fakt-des-Tages/');
+
+		await expect(platzhalter.getByText('Fakten werden geladen …')).toBeVisible();
+		// The whole of `main` is provisional here, not just the line that says so.
+		await expect(platzhalter.locator('main')).toHaveAttribute('aria-busy', 'true');
+		// Nothing may look actionable yet: with no month and no selection there is nowhere to go, which
+		// is why the month arrows test `!monat` and not only their month bound.
+		await expect(platzhalter.locator('button:not([aria-disabled="true"])')).toHaveCount(0);
+		// Not one digit inside `main`: no date, no day number, nothing carried over from the build's
+		// clock — which is the whole reason the clock is only read in `onMount`.
+		await expect(platzhalter.locator('main').getByText(/\d/)).toHaveCount(0);
+		// Six full rows of stand-in days, sized like real ones, so the calendar cannot change height
+		// under the visitor the moment the actual month arrives.
+		expect(await leistenkante(platzhalter)).toBe(fertig);
+
+		await ohneJs.close();
 	});
 });

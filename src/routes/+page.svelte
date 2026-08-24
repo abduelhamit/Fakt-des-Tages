@@ -121,27 +121,42 @@
 <svelte:head><title>Fakt des Tages</title></svelte:head>
 <svelte:window onhashchange={ausHash} />
 
-<main class="mx-auto max-w-2xl p-6">
+<!-- `aria-busy` sits here and not on the paragraph below: until hydration reads the clock the
+     calendar and the date bar are stand-ins too, and a visitor hears them long before they
+     reach the line that says so. -->
+<main class="mx-auto max-w-2xl p-6" aria-busy={!gewaehlt}>
 	<h1 class="text-3xl font-bold">Fakt des Tages</h1>
 
-	{#if gewaehlt && raster}
-		<section class="mt-6" aria-label="Kalender">
-			<div class="flex items-center justify-between">
-				{@render pfeil('‹', 'Vorheriger Monat', angezeigt <= grenzen.von, () => verschiebe(-1))}
+	<!-- The calendar and the date bar sit outside the `{#if}`s below on purpose. Until hydration has
+	     read the clock there is no month and no selection, so both render as their own placeholder —
+	     every arrow bounded, every text slot a grey bar — and the page comes up at the size it will
+	     keep, instead of growing under the visitor a moment later. -->
+	<section class="mt-6" aria-label="Kalender">
+		<div class="flex items-center justify-between">
+			{@render pfeil('‹', 'Vorheriger Monat', !monat || angezeigt <= grenzen.von, () =>
+				verschiebe(-1)
+			)}
+			{#if monatsName}
 				<h2 class="font-semibold">{monatsName}</h2>
-				{@render pfeil('›', 'Nächster Monat', angezeigt >= grenzen.bis, () => verschiebe(1))}
-			</div>
+			{:else}
+				<div class="h-4 w-28 rounded bg-gray-200"></div>
+			{/if}
+			{@render pfeil('›', 'Nächster Monat', !monat || angezeigt >= grenzen.bis, () =>
+				verschiebe(1)
+			)}
+		</div>
 
-			<!-- Six day rows are always in the template, not just the ones this month fills: a grid is
-			     four to six rows deep depending on where the 1st lands, and letting that vary would
-			     shove the fact below up and down as the visitor pages through the months. `1fr`
-			     sizes the empty rows to match the filled ones without naming a pixel height. -->
-			<div class="mt-3 grid grid-cols-7 grid-rows-[auto_repeat(6,1fr)] gap-1 text-center text-sm">
-				{#each WOCHENTAGE as tag (tag)}
-					<!-- Decorative: every day carries its full date in `aria-label`, so a screen reader
-					     never has to pair a bare number with a column heading. -->
-					<div aria-hidden="true" class="pb-1 text-xs font-medium text-gray-500">{tag}</div>
-				{/each}
+		<!-- Six day rows are always in the template, not just the ones this month fills: a grid is
+		     four to six rows deep depending on where the 1st lands, and letting that vary would
+		     shove the fact below up and down as the visitor pages through the months. `1fr`
+		     sizes the empty rows to match the filled ones without naming a pixel height. -->
+		<div class="mt-3 grid grid-cols-7 grid-rows-[auto_repeat(6,1fr)] gap-1 text-center text-sm">
+			{#each WOCHENTAGE as tag (tag)}
+				<!-- Decorative: every day carries its full date in `aria-label`, so a screen reader
+				     never has to pair a bare number with a column heading. -->
+				<div aria-hidden="true" class="pb-1 text-xs font-medium text-gray-500">{tag}</div>
+			{/each}
+			{#if raster}
 				<!-- Leading blanks push the 1st into its weekday column. Cheaper to read than a
 				     `grid-column-start` on the first day, and there are at most six of them. -->
 				{#each { length: raster.versatz }}
@@ -174,41 +189,56 @@
 						<span aria-hidden="true" class="py-1.5 text-gray-600">{i + 1}</span>
 					{/if}
 				{/each}
-			</div>
-		</section>
-
-		<!-- Sticky, so a fact longer than the screen keeps its date and its navigation on screen.
-		     The gradient is why there is no border under it: the text fades as it passes behind the
-		     bar rather than being clipped at an invisible edge. A border would also have to appear
-		     only once pinned, which CSS alone cannot tell — a fade is honest at every offset. -->
-		<div
-			bind:this={leiste}
-			class="sticky top-0 -mx-6 mt-6 flex items-center justify-between bg-linear-to-b from-white from-60% to-transparent px-6 pt-2 pb-8"
-		>
-			{@render pfeil('‹', 'Vorheriger Fakt', !nachbarn.vorheriger, () =>
-				springe(nachbarn.vorheriger)
-			)}
-			<p class="text-sm text-gray-600">{langesDatum}</p>
-			{@render pfeil('›', 'Nächster Fakt', !nachbarn.naechster, () => springe(nachbarn.naechster))}
+			{:else}
+				<!-- The stand-in month: every row full, no leading blanks — there is no 1st to indent
+				     for — in the archive's own rhythm of weekdays that carry a fact and weekends that
+				     do not. `h-8` is a day cell's height to the pixel, so the grid below the heading
+				     is the same size before and after hydration. -->
+				{#each { length: 6 * WOCHENTAGE.length }, i}
+					{@const werktag = i % WOCHENTAGE.length < 5}
+					<div class={['flex h-8 items-center justify-center rounded', werktag && 'bg-sky-50']}>
+						<div class={['h-2 w-4 rounded-full', werktag ? 'bg-sky-200' : 'bg-gray-200']}></div>
+					</div>
+				{/each}
+			{/if}
 		</div>
+	</section>
 
-		{#if fakt}
-			<!-- The YAML is a same-origin file in this repo, rendered at build time, so whoever can
-				     author a fact can already author this app's JavaScript — it is not a trust boundary
-				     and needs no sanitiser. Add one the moment facts come from anywhere but the repo. -->
-			<!-- eslint-disable-next-line svelte/no-at-html-tags -->
-			<article bind:this={fakttext} class="prose">{@html fakt}</article>
+	<!-- Sticky, so a fact longer than the screen keeps its date and its navigation on screen.
+	     The gradient is why there is no border under it: the text fades as it passes behind the
+	     bar rather than being clipped at an invisible edge. A border would also have to appear
+	     only once pinned, which CSS alone cannot tell — a fade is honest at every offset. -->
+	<div
+		bind:this={leiste}
+		class="sticky top-0 -mx-6 mt-6 flex items-center justify-between bg-linear-to-b from-white from-60% to-transparent px-6 pt-2 pb-8"
+	>
+		{@render pfeil('‹', 'Vorheriger Fakt', !nachbarn.vorheriger, () =>
+			springe(nachbarn.vorheriger)
+		)}
+		{#if langesDatum}
+			<p class="text-sm text-gray-600">{langesDatum}</p>
 		{:else}
-			<p bind:this={fakttext} class="text-gray-600">
-				{gewaehlt === heute
-					? 'Für heute gibt es keinen Fakt.'
-					: 'Für diesen Tag gibt es keinen Fakt.'}
-			</p>
+			<div class="h-4 w-28 rounded bg-gray-200"></div>
 		{/if}
+		{@render pfeil('›', 'Nächster Fakt', !nachbarn.naechster, () => springe(nachbarn.naechster))}
+	</div>
+
+	{#if fakt}
+		<!-- The YAML is a same-origin file in this repo, rendered at build time, so whoever can
+			     author a fact can already author this app's JavaScript — it is not a trust boundary
+			     and needs no sanitiser. Add one the moment facts come from anywhere but the repo. -->
+		<!-- eslint-disable-next-line svelte/no-at-html-tags -->
+		<article bind:this={fakttext} class="prose">{@html fakt}</article>
+	{:else if gewaehlt}
+		<p bind:this={fakttext} class="text-gray-600">
+			{gewaehlt === heute
+				? 'Für heute gibt es keinen Fakt.'
+				: 'Für diesen Tag gibt es keinen Fakt.'}
+		</p>
 	{:else}
 		<!-- Shown from first paint until hydration reads the clock. Nothing is actually being
 		     fetched; only the visitor's date is unknown before then. -->
-		<p aria-busy="true" class="mt-6 text-gray-600">Fakten werden geladen …</p>
+		<p class="text-gray-600">Fakten werden geladen …</p>
 	{/if}
 </main>
 
