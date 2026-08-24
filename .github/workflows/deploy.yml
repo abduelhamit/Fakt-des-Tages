@@ -21,7 +21,12 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
+      # `lfs: true` is load-bearing: the fact images are in Git LFS, and the default
+      # checkout would hand the build 130-byte pointer files to copy into build/fakten/,
+      # deploying 25 broken images with everything green.
       - uses: actions/checkout@v4
+        with:
+          lfs: true
 
       # Fail fast if Pages cannot be enabled, before spending time on a build.
       - uses: actions/configure-pages@v5

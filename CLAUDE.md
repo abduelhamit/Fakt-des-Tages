@@ -54,9 +54,22 @@ Consequences worth knowing before changing any of this:
 - **A malformed facts file fails `pnpm build`,** so broken content never deploys and the previous
   version stays live. The UI has no runtime error state, and needs none.
 - **All facts are embedded in the page.** Accepted limitation: the payload grows with the archive —
-  measured at roughly 65 KB gzipped (150 KB raw) per year of daily entries, on the document's
-  critical path. If that ever bites, prerender one route per date and keep only the date keys on the
-  home page for the calendar.
+  measured at 30 KB gzipped (76 KB raw) for the 118 entries of Feb–Aug 2026, so roughly 65 KB
+  gzipped per year of weekdays, on the document's critical path. If that ever bites, prerender one
+  route per date and keep only the date keys on the home page for the calendar.
+- **Images live in [static/fakten/](static/fakten/)** and are referenced relatively —
+  `![…](fakten/2026-03-06-1.jpg)`. Relative and not `/Fakt-des-Tages/…` because the home page is the
+  only route, so the path resolves against it and the base path stays in one place. They are exempt
+  from the payload note above: only the selected day's `{@html}` is in the DOM, so a visitor
+  downloads the images of the day they are looking at and no others.
+- **Those images are in Git LFS** ([.gitattributes](.gitattributes) tracks `static/fakten/*.jpg` and
+  `*.gif`), so the repo carries ~3 KB of pointers instead of 8.7 MB of binaries. Two consequences,
+  both load-bearing:
+  - `actions/checkout` in [deploy.yml](.github/workflows/deploy.yml) needs **`lfs: true`**. Without
+    it the build gets 130-byte pointer files, copies them into `build/fakten/` and deploys 25 broken
+    images — with every check green. That is why the gate test below reads the file headers.
+  - Adding or replacing an image needs a local clone with `git lfs install`. Editing the _text_ of
+    a fact in GitHub's web editor is unaffected.
 
 ### The visitor's clock cannot be known at build time
 
@@ -102,8 +115,9 @@ Watch the muted greys: Tailwind's `gray-300` is 1.47:1 against white and `gray-4
 far below the 4.5:1 that WCAG AA wants for text. The day numbers use `gray-600` (7.6:1). Only the
 inactive arrows are allowed to stay faint, because inactive controls are exempt.
 
-The July and September entries in the facts file exist so the arrows have somewhere to go — without
-them every fact sits in one month and the navigation is both invisible and untestable.
+The facts run weekdays only, with gaps for holidays, so the calendar is mostly non-interactive days
+by design — and the arrows, which skip to the next _entry_, are the primary way through the archive
+rather than a convenience.
 
 ### Moving between facts
 
@@ -328,7 +342,11 @@ apart: the unpinned test is the only one that proves the page works on a clock n
 [src/lib/server/fakten.spec.ts](src/lib/server/fakten.spec.ts) parses the **real** facts file, not just
 fixtures, and that test runs in the gate. It is what stops a typo pushed from GitHub's web editor
 from deploying green and taking the site down; verified to fail, naming the bad key. Do not weaken
-it to a fixture.
+it to a fixture. It also walks every `fakten/…` path a fact references and reads the first bytes of
+each file, which catches both a mistyped path and an LFS pointer left behind by a checkout without
+`lfs: true` — the one failure mode that is otherwise completely silent. Both verified by mutation.
+Note it scans the _parsed_ entries rather than the raw YAML, because the file's header comment
+contains an example image path that any regex over the raw text will happily match.
 
 ## Misc
 

@@ -56,6 +56,26 @@ describe('src/lib/fakten.yaml', () => {
 		const pfad = new URL('../fakten.yaml', import.meta.url);
 		expect(parseFakten(readFileSync(pfad, 'utf8')).size).toBeGreaterThan(0);
 	});
+
+	// The images are in Git LFS, and a checkout without it substitutes a ~130-byte pointer file for
+	// each one. That builds and deploys perfectly green, and the first sign of trouble is 25 broken
+	// images on the live site — so the gate has to be what notices. Covers a mistyped path too.
+	it('references images that exist and are real files, not LFS pointers', () => {
+		// Over the parsed entries, not the raw file: the header comment carries an example path.
+		const fakten = [
+			...parseFakten(readFileSync(new URL('../fakten.yaml', import.meta.url), 'utf8')).values()
+		];
+		const pfade = fakten.flatMap((f) =>
+			[...f.matchAll(/!\[[^\]]*\]\((fakten\/[^)]+)\)/g)].map((t) => t[1])
+		);
+		expect(pfade.length).toBeGreaterThan(0);
+
+		for (const pfad of new Set(pfade)) {
+			const datei = new URL(`../../../static/${pfad}`, import.meta.url);
+			const kopf = readFileSync(datei).subarray(0, 42).toString('binary');
+			expect(kopf, `${pfad} ist eine LFS-Zeigerdatei`).not.toContain('git-lfs.github.com');
+		}
+	});
 });
 
 describe('renderFakt', () => {

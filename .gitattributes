@@ -1,0 +1,5 @@
+# Die Bilder der Fakten liegen in Git LFS — sie sind binär, groß und ändern sich nie.
+# Wichtig: actions/checkout in .github/workflows/deploy.yml braucht dafür `lfs: true`,
+# sonst landen die Zeigerdateien statt der Bilder im Build.
+static/fakten/*.jpg filter=lfs diff=lfs merge=lfs -text
+static/fakten/*.gif filter=lfs diff=lfs merge=lfs -text

@@ -42,6 +42,25 @@ Regeln:
   <https://abduelhamit.github.io/Fakt-des-Tages/#2026-08-22>. So lässt sich ein einzelner Fakt
   verlinken.
 
+### Bilder
+
+Bilder liegen in [`static/fakten/`](static/fakten/) und werden relativ eingebunden:
+
+```yaml
+2026-03-06: |
+  Ein Fakt mit Bild.
+
+  ![Was auf dem Bild zu sehen ist](fakten/2026-03-06-1.jpg)
+```
+
+- **Der Text in den eckigen Klammern ist die Bildbeschreibung** für Menschen, die die Seite
+  vorgelesen bekommen. Bitte beschreiben, was zu sehen ist, statt „Bild“ zu schreiben.
+- **Neue Bilder brauchen einen lokalen Klon mit [Git LFS](https://git-lfs.com/).** Die Dateien
+  liegen dort und nicht direkt im Repository. Am Text eines Fakts ändert das nichts — der bleibt
+  im Webeditor bearbeitbar.
+- Fehlt eine Bilddatei oder stimmt der Pfad nicht, schlägt der Build fehl. Auch hier geht also
+  nichts Kaputtes online.
+
 Bitte beachten:
 
 - **Ein fehlerhafter Eintrag lässt den Build fehlschlagen.** Die Seite wird dann gar nicht erst
