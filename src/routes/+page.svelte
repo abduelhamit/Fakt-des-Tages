@@ -1,6 +1,16 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { fromIsoDate, isIsoDate, monatsRaster, toIsoDate } from '$lib/fakten';
+	import {
+		fromIsoDate,
+		isIsoDate,
+		KUERZESTE_SUCHE,
+		monatsRaster,
+		suchbegriff,
+		suchterme,
+		toIsoDate,
+		worte
+	} from '$lib/fakten';
+	import type MiniSearch from 'minisearch';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
@@ -113,8 +123,124 @@
 	const monatsName = $derived(
 		monat?.toLocaleDateString('de-DE', { month: 'long', year: 'numeric' })
 	);
-	const langesDatum = $derived(
-		gewaehlt && fromIsoDate(gewaehlt).toLocaleDateString('de-DE', { dateStyle: 'long' })
+	const langDatum = (iso: string) =>
+		fromIsoDate(iso).toLocaleDateString('de-DE', { dateStyle: 'long' });
+	const langesDatum = $derived(gewaehlt && langDatum(gewaehlt));
+
+	// --- Suche ---------------------------------------------------------------------------------
+
+	type Dokument = { datum: string; text: string };
+
+	/** How many hits the list shows. Beyond this the list is longer than the calendar under it, and
+	 *  a query that vague is better narrowed than scrolled. */
+	const TREFFERGRENZE = 8;
+
+	let suche = $state('');
+	let treffer = $state<{ datum: string; ausschnitt: string }[]>([]);
+
+	/**
+	 * The index, built once on first contact with the input.
+	 *
+	 * MiniSearch is the only third-party code this page ships, so it stays behind a dynamic import:
+	 * a visitor who never searches never downloads it, and it stays off the critical path. The text
+	 * is recovered from the rendered HTML rather than shipped a second time — `DOMParser` gets
+	 * entities and nested tags right, and searching the HTML itself would match `strong` and every
+	 * `href` in the archive.
+	 */
+	let index: Promise<MiniSearch<Dokument>> | undefined;
+
+	function baueIndex() {
+		return (index ??= (async () => {
+			const { default: Mini } = await import('minisearch');
+			const mini = new Mini<Dokument>({
+				fields: ['text'],
+				storeFields: ['text'],
+				idField: 'datum',
+				// Applied to the stored terms and the query alike, so both sides fold the same way.
+				processTerm: suchbegriff,
+				// Indexing only — a query is tokenised with `worte`. See `suchterme`.
+				tokenize: suchterme
+			});
+			mini.addAll([...data.fakten].map(([datum, html]) => ({ datum, text: nurText(html) })));
+			return mini;
+		})());
+	}
+
+	// `parseFromString` is stateless, so one parser serves all 119 facts. Built on first use and not
+	// here at the top: this script runs during prerendering too, where `DOMParser` does not exist —
+	// an eager `new DOMParser()` fails the build outright with `DOMParser is not defined`.
+	let leser: DOMParser | undefined;
+
+	/**
+	 * The readable text of one fact.
+	 *
+	 * The images are replaced by their `alt` text rather than dropped: `textContent` ignores
+	 * attributes, so 3,656 characters of German description across 16 entries — written for screen
+	 * readers — never reached the index, and `Bühnenturm` and `Hauptturm` could not be found at all.
+	 * `doc.images` is a live collection, hence the copy before mutating it. The padding spaces are
+	 * not cosmetic: the archive has seven places where two images sit back to back, and without them
+	 * the last word of one description welds onto the first word of the next.
+	 */
+	function nurText(html: string) {
+		leser ??= new DOMParser();
+		const doc = leser.parseFromString(html, 'text/html');
+		for (const bild of [...doc.images]) bild.replaceWith(` ${bild.alt} `);
+		return doc.body.textContent ?? '';
+	}
+
+	/**
+	 * A window around the first term that matched, so a hit is recognisable without opening it.
+	 * Falls back to the start of the fact when no term can be located — a fuzzy hit, or a soft
+	 * hyphen inside the word, means the text does not always contain the query verbatim.
+	 */
+	function ausschnitt(text: string, terme: string[]) {
+		const klein = text.toLowerCase();
+		const stellen = terme.map((t) => klein.indexOf(t)).filter((i) => i >= 0);
+		const von = Math.max(0, (stellen.length ? Math.min(...stellen) : 0) - 30);
+		const bis = Math.min(text.length, von + 140);
+		let stueck = text.slice(von, bis);
+		// Both ends land mid-word otherwise, and the snippet reads as noise: „… berschrift, ebenfalls“.
+		if (von > 0) stueck = stueck.replace(/^\S+\s*/, '');
+		if (bis < text.length) stueck = stueck.replace(/\s*\S+$/, '');
+		return (von > 0 ? '… ' : '') + stueck.trim() + (bis < text.length ? ' …' : '');
+	}
+
+	async function suchen(frage: string) {
+		const gesucht = frage.trim();
+		if (gesucht.length < KUERZESTE_SUCHE) {
+			treffer = [];
+			return;
+		}
+		const mini = await baueIndex();
+		// Loading the module is asynchronous, so an earlier keystroke can land after a later one.
+		// Reading `suche` here is deliberately outside the effect's tracking — it is a guard, not a
+		// dependency: only the query still in the box may write the list.
+		if (suche.trim() !== gesucht) return;
+		// Every hit, ranked by score and capped at `TREFFERGRENZE`. Substring matching does let a short
+		// query pick up unrelated tails — `turm` reaches `Kultur`, `Herzogtum` — but they score around
+		// 3 against 15–17 for the real matches, so they sort to the bottom rather than into the way.
+		treffer = mini
+			.search(gesucht, { fuzzy: 0.2, prefix: true, tokenize: worte })
+			.slice(0, TREFFERGRENZE)
+			.map((t) => ({ datum: String(t.id), ausschnitt: ausschnitt(t.text, t.terms) }));
+	}
+
+	// Driven by an effect rather than `oninput`, so it cannot race `bind:value`: the effect runs
+	// once the state has already moved.
+	$effect(() => void suchen(suche));
+
+	/** Emptying the box is what closes the list — the hash stays the only selection state. */
+	function waehle(datum: string) {
+		location.hash = datum;
+		suche = '';
+	}
+
+	const meldung = $derived(
+		suche.trim().length < KUERZESTE_SUCHE
+			? ''
+			: treffer.length === 0
+				? 'Keine Treffer'
+				: `${treffer.length} Treffer`
 	);
 </script>
 
@@ -126,6 +252,56 @@
      reach the line that says so. -->
 <main class="mx-auto max-w-2xl p-6" aria-busy={!gewaehlt}>
 	<h1 class="text-3xl font-bold">Fakt des Tages</h1>
+
+	<!-- `disabled` until hydration, unlike the calendar below it: the search needs no clock, but it
+	     does need JavaScript. See CLAUDE.md, under "The search". -->
+	<search class="relative mt-6 block">
+		<label class="block text-sm font-medium text-gray-700" for="suche">Fakt suchen</label>
+		<input
+			id="suche"
+			type="search"
+			bind:value={suche}
+			onfocus={baueIndex}
+			onkeydown={(e) => {
+				// The list covers the calendar, so it needs a way out that is not the mouse.
+				if (e.key === 'Escape') suche = '';
+			}}
+			disabled={!gewaehlt}
+			placeholder="z. B. Fernsehturm"
+			class="mt-1 block w-full rounded border-gray-500 disabled:bg-gray-50"
+		/>
+
+		<!-- Out of sight but always in the DOM, or the count is not reliably announced; the visible
+		     copy in the panel is `aria-hidden` so it is not read twice. See CLAUDE.md. -->
+		<p role="status" class="sr-only">{meldung}</p>
+
+		{#if meldung}
+			<!-- Absolutely positioned, so nothing here moves the calendar: the panel is laid over the
+			     page rather than wedged into it. `top-full` is the bottom edge of this `search`, which
+			     is the input, because the only other children are out of flow. -->
+			<div
+				class="absolute inset-x-0 top-full z-10 mt-2 overflow-hidden rounded border border-gray-200 bg-white shadow-lg"
+			>
+				<p aria-hidden="true" class="px-3 py-2 text-sm text-gray-600">{meldung}</p>
+				{#if treffer.length > 0}
+					<!-- Capped and scrollable: eight hits are taller than a phone screen. -->
+					<ul class="max-h-80 divide-y divide-gray-200 overflow-y-auto border-t border-gray-200">
+						{#each treffer as t (t.datum)}
+							<li>
+								<button
+									onclick={() => waehle(t.datum)}
+									class="block w-full px-3 py-2 text-left hover:bg-sky-50"
+								>
+									<span class="block text-sm font-medium text-sky-900">{langDatum(t.datum)}</span>
+									<span class="block text-sm text-gray-600">{t.ausschnitt}</span>
+								</button>
+							</li>
+						{/each}
+					</ul>
+				{/if}
+			</div>
+		{/if}
+	</search>
 
 	<!-- The calendar and the date bar sit outside the `{#if}`s below on purpose. Until hydration has
 	     read the clock there is no month and no selection, so both render as their own placeholder —

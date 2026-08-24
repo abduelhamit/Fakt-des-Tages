@@ -39,6 +39,50 @@ export function isIsoDate(wert: string): boolean {
 	return toIsoDate(fromIsoDate(wert)) === wert;
 }
 
+/** Shortest query the search accepts, and so the shortest suffix worth indexing. One number,
+ *  because a query below the indexed suffix length could never match anything anyway. */
+export const KUERZESTE_SUCHE = 3;
+
+/** Words, on any run of characters that is neither letter nor digit. */
+export function worte(text: string): string[] {
+	return text.split(/[^\p{L}\p{N}]+/u).filter(Boolean);
+}
+
+/**
+ * What goes *into* the index: every word, plus every suffix of it down to {@link KUERZESTE_SUCHE}.
+ * That is what lets `turm` reach `Fernsehturm` — MiniSearch matches whole terms, never substrings,
+ * and German welds the noun onto the end of the compound.
+ *
+ * Indexing only. A query must be tokenised with {@link worte}, or typing `turm` also asks for `urm`.
+ * The measured cost is in CLAUDE.md, under "The search".
+ */
+export function suchterme(text: string): string[] {
+	return worte(text).flatMap((wort) =>
+		Array.from({ length: Math.max(0, wort.length - KUERZESTE_SUCHE + 1) }, (_, i) => wort.slice(i))
+	);
+}
+
+/**
+ * One search term, folded to what the index stores: soft hyphens out, diacritics flattened, lower
+ * case.
+ *
+ * The archive needs all three. It carries 75 soft hyphens inside words (`Flug\u00adhafen`), where no
+ * tokeniser splits, and names from half of Europe — `\u00c9douard`, `Sm\u00e5l\u00e4nder`, `Florian\u00f3polis`,
+ * `Pok\u00e9mon`. `normalize('NFKD')` separates a letter from its accents so the accents can be
+ * dropped; `\u00df` does not decompose that way and needs its own case. What this buys and what it
+ * still cannot reach is in CLAUDE.md, under "The search".
+ *
+ * MiniSearch drops a term this returns empty, which is what should happen to a lone soft hyphen.
+ */
+export function suchbegriff(begriff: string): string {
+	return begriff
+		.replace(/\u00ad/g, '')
+		.normalize('NFKD')
+		.replace(/[\u0300-\u036f]/g, '')
+		.toLowerCase()
+		.replace(/\u00df/g, 'ss');
+}
+
 /**
  * The cells of one calendar month, Monday first. `monat` is zero-based, like `Date`.
  *

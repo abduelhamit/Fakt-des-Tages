@@ -54,9 +54,11 @@ Consequences worth knowing before changing any of this:
 - **A malformed facts file fails `pnpm build`,** so broken content never deploys and the previous
   version stays live. The UI has no runtime error state, and needs none.
 - **All facts are embedded in the page.** Accepted limitation: the payload grows with the archive —
-  measured at 30 KB gzipped (76 KB raw) for the 118 entries of Feb–Aug 2026, so roughly 65 KB
+  re-measured at 34 KB gzipped (90 KB raw) for the 119 entries of Feb–Aug 2026, so roughly 65 KB
   gzipped per year of weekdays, on the document's critical path. If that ever bites, prerender one
-  route per date and keep only the date keys on the home page for the calendar.
+  route per date and keep only the date keys on the home page for the calendar. The UI is not what
+  costs: measured by removing each from the built HTML and re-gzipping, the search bar is 153 bytes
+  gzipped and the loading mock's 42 cells are 113 (5.1 KB raw — repeated markup compresses away).
 - **Images live in [static/fakten/](static/fakten/)** and are referenced relatively —
   `![…](fakten/2026-03-06-1.jpg)`. Relative and not `/Fakt-des-Tages/…` because the home page is the
   only route, so the path resolves against it and the base path stays in one place. They are exempt
@@ -119,7 +121,12 @@ otherwise. That is exactly what the `Ladezustand` e2e test does, in a second bro
 ### The calendar
 
 [src/routes/+page.svelte](src/routes/+page.svelte) holds the whole thing; there is no separate
-component, and it needs none at this size. Five decisions in it are not obvious from the code:
+component. The search added about 150 lines to that file and shares almost nothing with the calendar
+— only `data.fakten`, one readiness flag and the `location.hash` idiom — so the "it needs none at
+this size" claim was re-checked rather than assumed: a component would be a clean cut, but with no
+vitest browser project it buys nothing testable, and the file is still one screenful per feature.
+Split it when a second reader disagrees, not before. Five decisions in it are not obvious from the
+code:
 
 - **The location hash is the single source of truth for the selection.** Clicking a day only writes
   `location.hash`; the `hashchange` handler is what actually moves the state, and `onMount` calls the
@@ -222,6 +229,99 @@ Only phones are covered, which is where the bar is pinned often enough to matter
 All four arrows on the page come from one `{#snippet pfeil(...)}`. The snippet is what keeps the
 shared class list inside a `class="..."` attribute, where Prettier's Tailwind plugin still sorts it —
 a hoisted `const` is silently skipped by the sorter. Verified both ways.
+
+### The search
+
+Between the heading and the calendar, matching on every keystroke, with the hits in a panel laid
+over the calendar. Picking one writes `location.hash` like everything else, so it is not a second
+way to navigate.
+
+**MiniSearch, and it is the only third-party code the browser gets.** Everything else here —
+`marked`, `yaml` — is build-time. The alternatives were measured against the real archive rather
+than picked by reputation, minified as Vite would and gzipped: uFuzzy is smallest at 4.2 KB but out
+of the box missed both the transposition `Fernsehtrum` and the two-word `nintendo switch`; Fuse.js
+(9.2 KB) found everything but Bitap-scans every full document per keystroke and is built for short
+strings, not prose; MiniSearch (5.9 KB) is a real inverted index with per-term edit distance and
+prefix matching, and found everything. Do not switch to Fuse without re-running that comparison.
+
+It loads behind a **dynamic `import()`**, triggered by focusing the box or the first keystroke,
+whichever comes first. Verified in the build: its chunk is not named anywhere in `index.html`, not
+even as a `modulepreload`, so a visitor who never searches never fetches it.
+
+- **The index is built in the browser from the rendered HTML,** with `DOMParser` for the text. Do
+  not ship a plain-text copy of every fact alongside the HTML to save that one pass — it would
+  double the part of the payload that actually costs something. And do not skip the parse and index
+  the HTML itself: `strong` and every `href` in the archive become searchable, which two e2e tests
+  pin by asserting `strong` and `example` find nothing. Verified by mutation: index `html` directly
+  and both go red.
+- **The images are swapped for their `alt` text before that, and it is not a nicety.**
+  `textContent` ignores attributes, so the 3,656 characters of German description across 16 entries
+  were simply not in the index: `Bühnenturm` and `Hauptturm` live only in an alt text and could not
+  be found at all. The padding spaces around the substitution matter too — the archive has seven
+  places where two images sit back to back, and without them the last word of one description welds
+  onto the first of the next. `doc.images` is live, hence the copy before mutating it. The probe
+  fixture carries one image for this, whose alt text is the only place the word `Wasserspeier`
+  appears.
+- **Every suffix of every word is indexed, which is what makes `turm` find `Fernsehturm`.**
+  MiniSearch matches whole terms — by prefix or by edit distance — never substrings, and German
+  welds the noun onto the end of the compound. `turm` therefore used to return exactly one entry,
+  the only one using the bare word, while missing `Fernsehturm`, `Eiffelturm`, `Hauptturm` and
+  `Bühnenturm`. `suchterme` in [fakten.ts](src/lib/fakten.ts) emits each word plus every suffix down
+  to `KUERZESTE_SUCHE`, turning prefix matching into substring matching. Measured on the real
+  archive: 3,531 terms become 14,400, the build goes 11 ms → 28 ms once in the browser, queries stay
+  under a millisecond. **A query must be tokenised with `worte`, not `suchterme`** — the `tokenize`
+  passed to `search()` is there for exactly that, and without it typing `turm` also asks for `urm`.
+- **Every hit is kept, ranked by score, capped at eight.** Substring matching does let a short query
+  pick up unrelated tails — `turm` reaches `Kultur`, `Herzogtum` and `Absturz` through short fuzzy
+  suffixes — but those score around 3 against 15–17 for the real matches, so they sort below the
+  answer instead of into it. A relative score cut was tried and taken back out: it removed the tail,
+  but it also dropped `Türmen` on 2026-07-07, which is a genuine hit and only reachable at all
+  because of the umlaut folding. Measured on the real archive, `turm` returns all four `Turm`
+  compounds first, then the tail, with `Türmen` last — eight in total, which is the cap rather than
+  the end of the list.
+- **`suchbegriff` folds the soft hyphens out, and that is load-bearing in a narrower way than it
+  first looks.** The archive carries 75 of them inside words (`Flug­hafen`). Typing the _whole_
+  word finds it either way — fuzzy matching absorbs the hidden character as one insertion — so a
+  test on the full word passes with the folding removed, and one did until the mutation caught it.
+  What breaks without it is the _prefix_ half: `hinterg` cannot reach past the hyphen and finds
+  nothing, and since this searches on every keystroke that is the state the visitor is in for all
+  but the last one. Measured: with the folding `Hintergrund` scores 0.4, without it 0.2. The e2e
+  test therefore types a partial word on purpose. It also flattens diacritics, with
+  `normalize('NFKD')` rather than a hand-written umlaut map: the same one line that lets `Munchen`
+  reach `München` also covers `Édouard`, `Småländer`, `Florianópolis`, `Pokémon`, `Maracanã`,
+  `Ålesund` and `Hyōgo`, all of which are in the archive and none of which an ä/ö/ü table would have
+  touched. `ß` does not decompose under NFKD and keeps its own case. Folding is to the bare vowel,
+  not the `ae` a dictionary would use, so `Muenchen` still does not reach `München` — that half is
+  given up knowingly.
+- **Three characters minimum, eight hits shown.** `KUERZESTE_SUCHE` is one constant for both the
+  query minimum and the shortest indexed suffix, because a query shorter than the shortest suffix
+  could never match. Above eight hits the list is taller than the calendar under it.
+- **The search is driven by an `$effect`, not `oninput`.** With `bind:value` the two would race on
+  listener order; the effect runs once the state has already moved.
+- **Re-read `suche` after the `await`.** Loading the module is asynchronous, so an earlier keystroke
+  can resolve after a later one and write a stale list. That read is deliberately outside the
+  effect's tracking — it is a guard, not a dependency.
+- **The input is `disabled` until hydration,** unlike the calendar beside it, which renders a mock.
+  The search needs no clock, but it does need JavaScript, and a box that swallows what you type
+  without answering is worse than one that admits it is not ready. It keeps its size either way, so
+  the page still arrives at its final height.
+- **The panel is absolutely positioned, and that is a requirement rather than a look.** In normal
+  flow it shoved the calendar 200 px down the moment a query matched. An e2e test measures the
+  month heading's top before and after typing; mutate the panel back to `static` and it fails by
+  exactly that 200 px. `top-full` resolves to the bottom of the `search` element, which is the
+  input, because every other child of it is out of flow. Since the panel now covers the calendar,
+  Escape empties the box — that and the input's own `type="search"` clear button are the ways back.
+  Closing it on `blur` would be the obvious third, and is a trap: `blur` fires before `click`, so
+  the panel unmounts before the hit the visitor aimed at receives its event.
+- **The count is in the DOM twice, deliberately.** `role="status"` on an always-present `sr-only`
+  paragraph, because a live region that appears at the same moment as its text is not reliably
+  announced, and `sr-only` keeps it in the accessibility tree where `display: none` would drop it.
+  The visible copy inside the panel is `aria-hidden`, or a screen reader reads the count twice. The
+  e2e tests assert on `getByRole('status')` for the same reason — `getByText('1 Treffer')` now
+  matches both copies and trips strict mode.
+
+`fakten.probe.yaml` carries one soft hyphen inside `Hintergrund` purely so the e2e suite can cover
+this. It is invisible; do not tidy it away.
 
 ### YAML gotchas that bite silently
 

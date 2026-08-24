@@ -341,3 +341,99 @@ test.describe('Ladezustand', () => {
 		await ohneJs.close();
 	});
 });
+
+// The fixture's entries all begin "Testdaten", so these queries deliberately name the words that
+// tell them apart. The 26th carries a soft hyphen inside "Hintergrund" — see the note in
+// fakten.probe.yaml — which is the case the whole `suchbegriff` helper exists for.
+test.describe('Suche', () => {
+	test.use({ timezoneId: 'Europe/Berlin' });
+
+	test.beforeEach(async ({ page }) => {
+		await page.clock.setFixedTime(HEUTE);
+		await page.goto('/Fakt-des-Tages/');
+		await expect(page.getByText('22. August 2026', { exact: true })).toBeVisible();
+	});
+
+	test('findet einen Fakt trotz Tippfehler und öffnet ihn', async ({ page }) => {
+		// "einzeilig" with the second i missing: one edit away, which is what fuzzy has to absorb.
+		await page.getByLabel('Fakt suchen').fill('einzeilg');
+
+		await expect(page.getByRole('status')).toHaveText('1 Treffer');
+		// Scoped to the `search` landmark: the calendar has a button for that date too, and its
+		// `aria-label` carries the same words.
+		const treffer = page.getByRole('search').getByRole('button', { name: /20\. August 2026/ });
+		await expect(treffer).toContainText('einzeilig');
+
+		await treffer.click();
+		expect(page.url()).toContain('#2026-08-20');
+		await expect(page.getByRole('article')).toContainText('kurzer Fakt, einzeilig');
+		// Picking a hit empties the box, which is what closes the list.
+		await expect(page.getByRole('status')).toHaveText('');
+	});
+
+	// Deliberately a *part* of the word. The whole word would pass even without `suchbegriff`, since
+	// fuzzy matching swallows the hidden character as one insertion — verified, that mutation went
+	// green. Prefix matching cannot cross it, and mid-word is where every keystroke but the last is.
+	test('sieht durch die weichen Trennzeichen hindurch', async ({ page }) => {
+		await page.getByLabel('Fakt suchen').fill('Hinterg');
+
+		await expect(page.getByRole('status')).toHaveText('1 Treffer');
+		await expect(
+			page.getByRole('search').getByRole('button', { name: /26\. August 2026/ })
+		).toBeVisible();
+	});
+
+	// The index is built from the rendered HTML, so the tags and the hrefs must not be in it. Search
+	// the HTML instead of its text and both of these come back with a hit.
+	for (const wort of ['strong', 'example']) {
+		test(`findet „${wort}“ nicht, weil nur der Text im Index steht`, async ({ page }) => {
+			await page.getByLabel('Fakt suchen').fill(wort);
+			await expect(page.getByRole('status')).toHaveText('Keine Treffer');
+		});
+	}
+
+	// German welds the noun onto the end of a compound, so prefix matching alone cannot reach it.
+	// „Bildschirmhöhe“ is in the 23rd and the bare word is nowhere in the fixture: without the suffix
+	// index this query finds nothing at all.
+	test('findet ein Wort mitten in einem zusammengesetzten Wort', async ({ page }) => {
+		await page.getByLabel('Fakt suchen').fill('schirm');
+
+		await expect(page.getByRole('status')).toHaveText('1 Treffer');
+		await expect(
+			page.getByRole('search').getByRole('button', { name: /23\. August 2026/ })
+		).toBeVisible();
+	});
+
+	// `textContent` drops `alt` attributes, which quietly kept 3,656 characters of the real archive
+	// out of the index. The fixture's only image carries this word and nothing else does.
+	test('durchsucht auch die Alt-Texte der Bilder', async ({ page }) => {
+		await page.getByLabel('Fakt suchen').fill('Wasserspeier');
+
+		await expect(page.getByRole('status')).toHaveText('1 Treffer');
+		await expect(
+			page.getByRole('search').getByRole('button', { name: /31\. August 2026/ })
+		).toBeVisible();
+	});
+
+	test('hält sich zurück, solange die Eingabe zu kurz ist', async ({ page }) => {
+		await page.getByLabel('Fakt suchen').fill('ei');
+		await expect(page.getByRole('status')).toHaveText('');
+	});
+
+	// The whole reason the hit list is laid over the page instead of pushed into it.
+	test('schiebt den Kalender nicht weg', async ({ page }) => {
+		const kalender = page.getByRole('heading', { level: 2 });
+		// `evaluate` and not `boundingBox()`, which scrolls the element into view before measuring.
+		const oben = () => kalender.evaluate((el) => el.getBoundingClientRect().top);
+		const vorher = await oben();
+
+		await page.getByLabel('Fakt suchen').fill('lang');
+		await expect(page.getByRole('status')).toHaveText('2 Treffer');
+		expect(await oben()).toBe(vorher);
+
+		// Escape puts the calendar back, since the panel is now sitting on top of it.
+		await page.getByLabel('Fakt suchen').press('Escape');
+		await expect(page.getByRole('status')).toHaveText('');
+		expect(await oben()).toBe(vorher);
+	});
+});

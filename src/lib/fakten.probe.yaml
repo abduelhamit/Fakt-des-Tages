@@ -5,6 +5,11 @@
 #
 # Die Tests in src/routes/page.e2e.ts hängen an dieser Form: drei Monate, Lücken innerhalb des
 # Augusts und zwei bewusst lange Einträge am 23. und 26. Wer hier etwas ändert, ändert die Tests.
+# Im 26. steckt ein weiches Trennzeichen (U+00AD) mitten in „Hintergrund“ — unsichtbar, aber genau
+# der Fall, an dem die Suche ohne `suchbegriff` scheitern würde. Nicht wegputzen.
+# Der 31. trägt ein Bild, dessen Alt-Text das Wort „Wasserspeier“ enthält — sonst steht es nirgends.
+# Damit prüft die Suche, dass Alt-Texte im Index landen. Die Bilddatei ist eine echte aus dem
+# Archiv, damit sie im Test-Build wirklich ausgeliefert wird.
 # Die echten Fakten stehen nebenan in fakten.yaml und dürfen frei bearbeitet werden.
 
 2026-07-30: Testdaten — einziger Eintrag im Juli, damit der Pfeil ‹ eine Grenze hat.
@@ -51,7 +56,7 @@
 2026-08-26: |
   Testdaten — Fakt mit Zwischenüberschrift, ebenfalls bewusst lang.
 
-  ## Hintergrund
+  ## Hinter­grund
 
   Der zweite lange Eintrag. Er wird gebraucht, damit ein Sprung von einem langen Fakt zu einem
   langen Fakt geprüft werden kann: Ist das Ziel kürzer als die Seitenhöhe, kappt der Browser die
@@ -82,6 +87,9 @@
 
   Ein letzter Absatz zum Abschluss.
 
-2026-08-31: Testdaten — letzter Eintrag im August.
+2026-08-31: |
+  Testdaten — letzter Eintrag im August.
+
+  ![Ein Wasserspeier, der nur hier im Alt-Text steht und sonst nirgends.](fakten/2026-03-06-1.jpg)
 
 2026-09-02: Testdaten — einziger Eintrag im September, damit der Pfeil › eine Grenze hat.
