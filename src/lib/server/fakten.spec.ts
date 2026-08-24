@@ -58,8 +58,9 @@ describe('src/lib/fakten.yaml', () => {
 	});
 
 	// The images are in Git LFS, and a checkout without it substitutes a ~130-byte pointer file for
-	// each one. That builds and deploys perfectly green, and the first sign of trouble is 25 broken
-	// images on the live site — so the gate has to be what notices. Covers a mistyped path too.
+	// each one. That builds and deploys perfectly green, and the first sign of trouble is every
+	// image on the site broken at once — so the gate has to be what notices. Covers a mistyped path
+	// too.
 	it('references images that exist and are real files, not LFS pointers', () => {
 		// Over the parsed entries, not the raw file: the header comment carries an example path.
 		const fakten = [

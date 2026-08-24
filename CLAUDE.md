@@ -68,8 +68,9 @@ Consequences worth knowing before changing any of this:
   `*.gif`), so the repo carries ~3 KB of pointers instead of 8.7 MB of binaries. Two consequences,
   both load-bearing:
   - `actions/checkout` in [deploy.yml](.github/workflows/deploy.yml) needs **`lfs: true`**. Without
-    it the build gets 130-byte pointer files, copies them into `build/fakten/` and deploys 25 broken
-    images — with every check green. That is why the gate test below reads the file headers.
+    it the build gets 130-byte pointer files, copies them into `build/fakten/` and deploys every
+    image on the site broken — with every check green. That is why the gate test below reads the
+    file headers.
   - Adding or replacing an image needs a local clone with `git lfs install`. Editing the _text_ of
     a fact in GitHub's web editor is unaffected.
 
@@ -255,11 +256,12 @@ even as a `modulepreload`, so a visitor who never searches never fetches it.
   pin by asserting `strong` and `example` find nothing. Verified by mutation: index `html` directly
   and both go red.
 - **The images are swapped for their `alt` text before that, and it is not a nicety.**
-  `textContent` ignores attributes, so the 3,656 characters of German description across 16 entries
-  were simply not in the index: `Bühnenturm` and `Hauptturm` live only in an alt text and could not
-  be found at all. The padding spaces around the substitution matter too — the archive has seven
-  places where two images sit back to back, and without them the last word of one description welds
-  onto the first of the next. `doc.images` is live, hence the copy before mutating it. The probe
+  `textContent` ignores attributes, so the several thousand characters of German description across
+  the illustrated entries were simply not in the index: `Bühnenturm` and `Hauptturm` live only in an
+  alt text and could not be found at all. The padding spaces around the substitution matter too —
+  the archive has runs of images sitting back to back, and without them the last word of one
+  description welds onto the first of the next. `doc.images` is live, hence the copy before
+  mutating it. The probe
   fixture carries one image for this, whose alt text is the only place the word `Wasserspeier`
   appears.
 - **Every suffix of every word is indexed, which is what makes `turm` find `Fernsehturm`.**
@@ -268,8 +270,10 @@ even as a `modulepreload`, so a visitor who never searches never fetches it.
   the only one using the bare word, while missing `Fernsehturm`, `Eiffelturm`, `Hauptturm` and
   `Bühnenturm`. `suchterme` in [fakten.ts](src/lib/fakten.ts) emits each word plus every suffix down
   to `KUERZESTE_SUCHE`, turning prefix matching into substring matching. Measured on the real
-  archive: 3,531 terms become 14,400, the build goes 11 ms → 28 ms once in the browser, queries stay
-  under a millisecond. **A query must be tokenised with `worte`, not `suchterme`** — the `tokenize`
+  archive: the term count goes up about fourfold (roughly 3,700 to 14,900), the build costs tens of
+  milliseconds once in the browser, and queries stay under a millisecond. Re-measure rather than
+  trusting those figures — they move with the archive. **A query must be tokenised with `worte`, not
+  `suchterme`** — the `tokenize`
   passed to `search()` is there for exactly that, and without it typing `turm` also asks for `urm`.
 - **Every hit is kept, ranked by score, capped at eight.** Substring matching does let a short query
   pick up unrelated tails — `turm` reaches `Kultur`, `Herzogtum` and `Absturz` through short fuzzy

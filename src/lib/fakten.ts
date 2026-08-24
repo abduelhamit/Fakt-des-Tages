@@ -1,3 +1,8 @@
+// Imported by `+page.svelte`, so everything in here ships to the browser: keep it dependency-free
+// and keep the functions pure. Build-time-only code belongs in `$lib/server/fakten.ts`, which the
+// framework will fail the build over if it is ever pulled into client code — nothing enforces this
+// side, so it has to be remembered.
+
 /**
  * A fact rendered to HTML. Branded so it is not interchangeable with the CommonMark it came from:
  * without this, dropping the render step from the build-time load would still type-check and feed
@@ -39,11 +44,12 @@ export function isIsoDate(wert: string): boolean {
 	return toIsoDate(fromIsoDate(wert)) === wert;
 }
 
-/** Shortest query the search accepts, and so the shortest suffix worth indexing. One number,
- *  because a query below the indexed suffix length could never match anything anyway. */
+/** Shortest query the search accepts, and so the shortest suffix worth indexing — one constant for
+ *  both, since a query shorter than the shortest stored suffix could never match. */
 export const KUERZESTE_SUCHE = 3;
 
-/** Words, on any run of characters that is neither letter nor digit. */
+/** Words, split on any run of characters that is neither letter nor digit. The `filter` drops the
+ *  empty pieces a leading or trailing separator splits off. */
 export function worte(text: string): string[] {
 	return text.split(/[^\p{L}\p{N}]+/u).filter(Boolean);
 }
@@ -66,11 +72,12 @@ export function suchterme(text: string): string[] {
  * One search term, folded to what the index stores: soft hyphens out, diacritics flattened, lower
  * case.
  *
- * The archive needs all three. It carries 75 soft hyphens inside words (`Flug\u00adhafen`), where no
- * tokeniser splits, and names from half of Europe — `\u00c9douard`, `Sm\u00e5l\u00e4nder`, `Florian\u00f3polis`,
- * `Pok\u00e9mon`. `normalize('NFKD')` separates a letter from its accents so the accents can be
- * dropped; `\u00df` does not decompose that way and needs its own case. What this buys and what it
- * still cannot reach is in CLAUDE.md, under "The search".
+ * The archive needs all three. It is full of soft hyphens inside words — written `Flug\u00adhafen`
+ * here because the character is invisible in source — where no tokeniser splits, and it carries
+ * names from half of Europe: Édouard, Småländer, Florianópolis, Pokémon. `normalize('NFKD')`
+ * separates a letter from its accents so the accents can be dropped; ß does not decompose that way
+ * and needs its own case. What this buys and what it still cannot reach is in CLAUDE.md, under
+ * "The search".
  *
  * MiniSearch drops a term this returns empty, which is what should happen to a lone soft hyphen.
  */

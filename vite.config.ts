@@ -27,9 +27,11 @@ export default defineConfig({
 	plugins: [
 		faktenFixture,
 		tailwindcss(),
+		// SvelteKit's own options go here, at the top level of this object. Because this argument is
+		// present, a `svelte.config.js` is ignored entirely (it only logs a warning) — do not add one.
 		sveltekit({
 			compilerOptions: {
-				// Force runes mode for the project, except for libraries. Can be removed in svelte 6.
+				// Runes everywhere except libraries. Can be removed in Svelte 6, where it is the only mode.
 				runes: ({ filename }) =>
 					filename.split(/[/\\]/).includes('node_modules') ? undefined : true
 			},

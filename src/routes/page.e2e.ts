@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 
-// Shared by both pinned suites below, so the two cannot drift apart: a Saturday the fixture gives a
+// Shared by every pinned suite below, so they cannot drift apart: a Saturday the fixture gives a
 // fact, sitting between its July and September entries, in a month that starts on a Saturday.
 const HEUTE = new Date('2026-08-22T10:00:00Z');
 
@@ -25,7 +25,6 @@ test('rendert den Fakt ohne Laufzeit-Fetch', async ({ page }) => {
 	// how we know the client-side half ran at all.
 	await expect(page.getByText(/^\d{1,2}\. \p{L}+ \d{4}$/u)).toBeVisible();
 
-	// The prerendered placeholder must be gone once hydration has run.
 	await expect(page.getByText('Fakten werden geladen …')).toHaveCount(0);
 
 	// The whole point of the SSG rewrite: the facts are baked into the page.
@@ -33,9 +32,8 @@ test('rendert den Fakt ohne Laufzeit-Fetch', async ({ page }) => {
 });
 
 // Everything below runs against src/lib/fakten.probe.yaml, not the site's real content — see the
-// `FAKTEN_PROBE` note in vite.config.ts. Dates may therefore be named outright. The clock is pinned
-// to Saturday 22 August 2026: a day the fixture gives a fact, sitting between its July and
-// September entries, in a month that starts on a Saturday.
+// `FAKTEN_PROBE` note in vite.config.ts. Dates may therefore be named outright, and the clock is
+// pinned to `HEUTE`.
 test.describe('Kalender', () => {
 	test.use({ timezoneId: 'Europe/Berlin' });
 
@@ -116,8 +114,8 @@ test.describe('Kalender', () => {
 		await expect(page.getByText('21. August 2026', { exact: true })).toBeVisible();
 	});
 
-	// A month grid is four to six rows deep depending on where the 1st falls, so without a reserved
-	// height everything under the calendar shifts as the visitor pages through months.
+	// Pins the six reserved rows on the calendar grid in +page.svelte: without them everything below
+	// the calendar shifts as the visitor pages through the months.
 	test('lässt den Inhalt unter dem Kalender an seinem Platz', async ({ page }) => {
 		const kanten: number[] = [];
 		// Four rows (February 2027 starts on a Monday and is exactly four weeks), five, and six —
@@ -143,8 +141,7 @@ test.describe('Kalender', () => {
 		await expect(monatsName).toHaveText('September 2026');
 		// September holds the last entry, so there is nothing further forward to reach.
 		await expect(vor).toHaveAttribute('aria-disabled', 'true');
-		// `aria-disabled` and not the native attribute: a natively disabled button loses focus the
-		// moment it is disabled, which strands the keyboard user who just pressed it.
+		// Still focused, which is what `aria-disabled` buys over the native attribute — see `verschiebe`.
 		await expect(vor).toBeFocused();
 		// Focusable but inert. `force` is needed because Playwright honours `aria-disabled` in its
 		// actionability check and would otherwise refuse the click — which is itself the assertion
@@ -225,8 +222,8 @@ test.describe('Faktenpfeile', () => {
 		await page.goto('/Fakt-des-Tages/#2026-08-23');
 		await expect(page.getByText('23. August 2026', { exact: true })).toBeVisible();
 
-		// Read at rest, and that is the whole trick — see `leistenkante`. Measured after scrolling it
-		// would compare a number with itself and pass no matter what the code does.
+		// Read at rest: measured after scrolling it would compare a number with itself and pass no
+		// matter what the code does.
 		const klebepunkt = await leistenkante(page);
 		expect(klebepunkt).toBeGreaterThan(0);
 
@@ -392,9 +389,8 @@ test.describe('Suche', () => {
 		});
 	}
 
-	// German welds the noun onto the end of a compound, so prefix matching alone cannot reach it.
-	// „Bildschirmhöhe“ is in the 23rd and the bare word is nowhere in the fixture: without the suffix
-	// index this query finds nothing at all.
+	// The suffix index in `suchterme`, end to end. „Bildschirmhöhe“ is in the 23rd and the bare word
+	// is nowhere in the fixture: without the suffix index this query finds nothing at all.
 	test('findet ein Wort mitten in einem zusammengesetzten Wort', async ({ page }) => {
 		await page.getByLabel('Fakt suchen').fill('schirm');
 
@@ -404,8 +400,8 @@ test.describe('Suche', () => {
 		).toBeVisible();
 	});
 
-	// `textContent` drops `alt` attributes, which quietly kept 3,656 characters of the real archive
-	// out of the index. The fixture's only image carries this word and nothing else does.
+	// `textContent` drops `alt` attributes — see `nurText` for what that quietly cost the real
+	// archive. The fixture's only image carries this word and nothing else does.
 	test('durchsucht auch die Alt-Texte der Bilder', async ({ page }) => {
 		await page.getByLabel('Fakt suchen').fill('Wasserspeier');
 

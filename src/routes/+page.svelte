@@ -103,7 +103,8 @@
 		};
 	});
 
-	// Everything the shuffle may land on — never the fact already on screen. See CLAUDE.md.
+	// Never the fact already on screen: across an archive this size a repeat is common enough that
+	// the button would look broken. See CLAUDE.md, under "The random fact".
 	const andereFakten = $derived(chronologisch.filter((datum) => datum !== gewaehlt));
 
 	/** Jump somewhere else in the archive, through `springe` like the arrows do. No length check:
@@ -175,7 +176,7 @@
 		})());
 	}
 
-	// `parseFromString` is stateless, so one parser serves all 119 facts. Built on first use and not
+	// `parseFromString` is stateless, so one parser serves the whole archive. Built on first use, not
 	// here at the top: this script runs during prerendering too, where `DOMParser` does not exist —
 	// an eager `new DOMParser()` fails the build outright with `DOMParser is not defined`.
 	let leser: DOMParser | undefined;
@@ -184,11 +185,11 @@
 	 * The readable text of one fact.
 	 *
 	 * The images are replaced by their `alt` text rather than dropped: `textContent` ignores
-	 * attributes, so 3,656 characters of German description across 16 entries — written for screen
-	 * readers — never reached the index, and `Bühnenturm` and `Hauptturm` could not be found at all.
+	 * attributes, so several thousand characters of German description — written for screen readers —
+	 * never reached the index, and `Bühnenturm` and `Hauptturm` could not be found at all.
 	 * `doc.images` is a live collection, hence the copy before mutating it. The padding spaces are
-	 * not cosmetic: the archive has seven places where two images sit back to back, and without them
-	 * the last word of one description welds onto the first word of the next.
+	 * not cosmetic: the archive has runs of images sitting back to back, and without them the last
+	 * word of one description welds onto the first word of the next.
 	 */
 	function nurText(html: string) {
 		leser ??= new DOMParser();
@@ -226,8 +227,10 @@
 		// dependency: only the query still in the box may write the list.
 		if (suche.trim() !== gesucht) return;
 		// Every hit, ranked by score and capped at `TREFFERGRENZE`. Substring matching does let a short
-		// query pick up unrelated tails — `turm` reaches `Kultur`, `Herzogtum` — but they score around
-		// 3 against 15–17 for the real matches, so they sort to the bottom rather than into the way.
+		// query pick up unrelated tails — `turm` reaches `Kultur`, `Herzogtum` — but a real match always
+		// scores several times a fuzzy tail, so they sort to the bottom rather than into the way. Do not
+		// turn that into a relative cut: the gap is narrow enough at the bottom of the real matches to
+		// take `Türmen` with it, which CLAUDE.md records as tried and reverted.
 		treffer = mini
 			.search(gesucht, { fuzzy: 0.2, prefix: true, tokenize: worte })
 			.slice(0, TREFFERGRENZE)
@@ -293,7 +296,7 @@
 			>
 				<p aria-hidden="true" class="px-3 py-2 text-sm text-gray-600">{meldung}</p>
 				{#if treffer.length > 0}
-					<!-- Capped and scrollable: eight hits are taller than a phone screen. -->
+					<!-- `max-h-80` caps it and scrolls: a full `TREFFERGRENZE` of hits is taller than a phone. -->
 					<ul class="max-h-80 divide-y divide-gray-200 overflow-y-auto border-t border-gray-200">
 						{#each treffer as t (t.datum)}
 							<li>
@@ -364,7 +367,13 @@
 					{@const hatFakt = data.fakten.has(datum)}
 					{#if hatFakt || datum === heute}
 						<!-- Today stays clickable even with no fact of its own: it is the ring the visitor
-						     navigates back to, so it has to be pressable. -->
+						     navigates back to, so it has to be pressable.
+
+						     The loading mock below copies this cell's height (`py-1.5` plus the grid's
+						     `text-sm`, 32 px) as `h-8` and its `bg-sky-50` outright. Change either here and
+						     change it there. The e2e test only half-covers this: `1fr` sizes each row to its
+						     tallest cell, so moving the button without the factless `<span>` passes green,
+						     and nothing tests the colour at all. -->
 						<button
 							onclick={() => (location.hash = datum)}
 							aria-label={fromIsoDate(datum).toLocaleDateString('de-DE', { dateStyle: 'full' }) +
@@ -382,8 +391,8 @@
 						>
 					{:else}
 						<!-- Hidden from assistive tech rather than just muted: a bare number carries no date
-					     context of its own, and nothing here is actionable. What is left to hear is the
-					     handful of days a visitor can open, each with its full date. -->
+						     context of its own, and nothing here is actionable. What is left to hear is the
+						     handful of days a visitor can open, each with its full date. -->
 						<span aria-hidden="true" class="py-1.5 text-gray-600">{i + 1}</span>
 					{/if}
 				{/each}
@@ -405,7 +414,13 @@
 	<!-- Sticky, so a fact longer than the screen keeps its date and its navigation on screen.
 	     The gradient is why there is no border under it: the text fades as it passes behind the
 	     bar rather than being clipped at an invisible edge. A border would also have to appear
-	     only once pinned, which CSS alone cannot tell — a fade is honest at every offset. -->
+	     only once pinned, which CSS alone cannot tell — a fade is honest at every offset.
+
+	     `-mx-6 px-6` cancels `main`'s padding to make the bar full-bleed. It looks like a no-op
+	     on a desktop and is the only reason the bar works on an iPhone — Safari fills the strip
+	     behind the status bar with a colour sampled from the top row of the viewport, and only
+	     samples when that row is uniform across the whole width. See CLAUDE.md, under "The bar
+	     is full-bleed because of iOS", for the five alternatives already ruled out on-device. -->
 	<div
 		bind:this={leiste}
 		class="sticky top-0 -mx-6 mt-6 flex items-center justify-between bg-linear-to-b from-white from-60% to-transparent px-6 pt-2 pb-8"
@@ -423,8 +438,8 @@
 
 	{#if fakt}
 		<!-- The YAML is a same-origin file in this repo, rendered at build time, so whoever can
-			     author a fact can already author this app's JavaScript — it is not a trust boundary
-			     and needs no sanitiser. Add one the moment facts come from anywhere but the repo. -->
+		     author a fact can already author this app's JavaScript — it is not a trust boundary
+		     and needs no sanitiser. Add one the moment facts come from anywhere but the repo. -->
 		<!-- eslint-disable-next-line svelte/no-at-html-tags -->
 		<article bind:this={fakttext} class="prose">{@html fakt}</article>
 	{:else if gewaehlt}
@@ -443,7 +458,11 @@
 <!--
 	Every arrow on the page: the two that page the calendar and the two beside the fact. They carry
 	`aria-disabled` rather than the native attribute for the reason spelled out on `verschiebe`,
-	which is why each caller passes a handler that re-checks its own bound.
+	which is why each caller passes a handler that re-checks its own bound. `gray-400` is only
+	acceptable on an *inactive* control, which WCAG exempts; readable text stays at `gray-600`.
+
+	A snippet rather than a hoisted `const` for the class list: Prettier's Tailwind plugin sorts
+	classes inside a `class="..."` attribute and silently skips a `const`. Verified both ways.
 -->
 {#snippet pfeil(zeichen: string, beschriftung: string, gesperrt: boolean, betaetige: () => void)}
 	<button

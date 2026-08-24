@@ -23,7 +23,7 @@ jobs:
     steps:
       # `lfs: true` is load-bearing: the fact images are in Git LFS, and the default
       # checkout would hand the build 130-byte pointer files to copy into build/fakten/,
-      # deploying 25 broken images with everything green.
+      # deploying every image on the site broken, with everything green.
       - uses: actions/checkout@v4
         with:
           lfs: true
