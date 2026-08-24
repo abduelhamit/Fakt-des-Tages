@@ -326,8 +326,16 @@ test.describe('Ladezustand', () => {
 		// The whole of `main` is provisional here, not just the line that says so.
 		await expect(platzhalter.locator('main')).toHaveAttribute('aria-busy', 'true');
 		// Nothing may look actionable yet: with no month and no selection there is nowhere to go, which
-		// is why the month arrows test `!monat` and not only their month bound.
-		await expect(platzhalter.locator('button:not([aria-disabled="true"])')).toHaveCount(0);
+		// is why the month arrows test `!monat` and not only their month bound. Either mechanism
+		// counts — the heading uses native `disabled`, since its bound only flips at hydration.
+		await expect(
+			platzhalter.locator('button:not([aria-disabled="true"]):not(:disabled)')
+		).toHaveCount(0);
+		// And nothing may offer the hand either. The heading is bounded the native way, which the
+		// cursor rule has to exclude as well as the aria one.
+		expect(
+			await platzhalter.locator('h1 button').evaluate((el) => getComputedStyle(el).cursor)
+		).toBe('default');
 		// Not one digit inside `main`: no date, no day number, nothing carried over from the build's
 		// clock — which is the whole reason the clock is only read in `onMount`.
 		await expect(platzhalter.locator('main').getByText(/\d/)).toHaveCount(0);
@@ -454,5 +462,54 @@ test.describe('Zufälliger Fakt', () => {
 		await expect(page.getByText('20. August 2026', { exact: true })).toBeVisible();
 		expect(page.url()).toContain('#2026-08-20');
 		await expect(page.getByRole('article')).toContainText('kurzer Fakt, einzeilig');
+	});
+});
+
+// An absent hash already means today, so the title is the way back to both at once.
+test.describe('Überschrift', () => {
+	test.use({ timezoneId: 'Europe/Berlin' });
+
+	test.beforeEach(async ({ page }) => {
+		await page.clock.setFixedTime(HEUTE);
+	});
+
+	test('entfernt den Hash und zeigt wieder heute', async ({ page }) => {
+		await page.goto('/Fakt-des-Tages/#2026-07-30');
+		await expect(page.getByText('30. Juli 2026', { exact: true })).toBeVisible();
+
+		await page.getByRole('button', { name: 'Fakt des Tages' }).click();
+
+		// Both halves matter: a plain link cleans the URL but leaves the page on the old fact, since
+		// SvelteKit routes the click without firing `hashchange`. Measured — that is why this is a
+		// button and not an anchor.
+		// On the raw URL, not `new URL(...).hash`: that reports `''` for a trailing bare `#` too, so
+		// it cannot tell `pushState` from `location.hash = ''`. Verified — the weaker assertion
+		// passed with the mutation in place.
+		expect(page.url()).not.toContain('#');
+		await expect(page.getByText('22. August 2026', { exact: true })).toBeVisible();
+
+		// Pushed, not replaced, so the way back is the same as after clicking a day in the calendar.
+		// Both directions are checked: `pushState` fires no event of its own, but traversing into or
+		// out of that entry always changes the fragment, so the existing `hashchange` listener sees
+		// it. Measured — two events, one per direction — rather than assumed.
+		await page.goBack();
+		await expect(page.getByText('30. Juli 2026', { exact: true })).toBeVisible();
+		await page.goForward();
+		await expect(page.getByText('22. August 2026', { exact: true })).toBeVisible();
+		expect(page.url()).not.toContain('#');
+	});
+
+	// Without the early return this would stack a history entry pointing at the identical URL, and
+	// the back button would look dead.
+	test('legt ohne Hash keinen Verlaufseintrag an', async ({ page }) => {
+		await page.goto('/Fakt-des-Tages/#2026-07-30');
+		await page.getByRole('button', { name: 'Fakt des Tages' }).click();
+		await expect(page.getByText('22. August 2026', { exact: true })).toBeVisible();
+
+		await page.getByRole('button', { name: 'Fakt des Tages' }).click();
+		await page.getByRole('button', { name: 'Fakt des Tages' }).click();
+
+		await page.goBack();
+		await expect(page.getByText('30. Juli 2026', { exact: true })).toBeVisible();
 	});
 });

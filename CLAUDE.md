@@ -133,6 +133,16 @@ code:
   `location.hash`; the `hashchange` handler is what actually moves the state, and `onMount` calls the
   same function. Back/forward and shared links therefore work without a second code path. Do not
   "simplify" it by also setting the state in the click handler — that is how the two get out of sync.
+  The heading is the one control that cannot take that path: _removing_ the hash needs
+  `history.pushState`, which fires no `hashchange`, so `zurueckZuHeute` calls `ausHash` itself — the
+  same call `onMount` makes. One function still decides the selection; what the rule forbids is two
+  functions writing it. `location.hash = ''` is not an alternative, because it leaves a bare `#`
+  behind, and neither is a link to `/`: SvelteKit routes that click client-side, so the hash goes
+  without a `hashchange` and the URL says today while the page still shows the old fact. Measured,
+  not assumed. Nothing is pushed when there is no hash, or Back lands on an identical URL and looks
+  dead. Watch the assertion when testing this: `new URL(url).hash` reports `''` for a trailing bare
+  `#` as well, so it cannot tell the two apart — the e2e test checks the raw URL string, after the
+  weaker version was verified to pass against `location.hash = ''`.
 - **The arrows are bounded by the content, and the bounds include today and the selection.** Bounding
   on the fact keys alone strands a visitor: once the whole archive is in the past, both arrows go
   dead in the current month. Comparison is on `YYYY-MM` strings, which sort chronologically, so no
@@ -346,7 +356,7 @@ query is running, exactly as the panel covers the calendar.
   from `data.fakten`, which is already there at prerender time. Without `!gewaehlt` the button ships
   in the HTML claiming `aria-disabled="false"` while no listener exists — enabled-looking and inert,
   and permanently so for a visitor without JavaScript. The loading-state test happens to catch it
-  too, since it asserts no button in the placeholder is missing `aria-disabled="true"`.
+  too, since it asserts that no button in the placeholder is pressable by either mechanism.
 - **`🔀` and not the die `⚄`.** U+2684 is a real glyph rather than tofu — checked by advance width
   against U+FFFF — but at 14 px its five pips each fall under a pixel and it reads as an empty box.
   The shuffle emoji is legible at that size and was chosen for it, at the price of being the only
@@ -522,10 +532,11 @@ contains an example image path that any regex over the raw text will happily mat
   no `tailwind.config.js`. `typography` and `forms` plugins are loaded. Prettier sorts classes and
   is pointed at that stylesheet, so run `pnpm format` after touching class lists. One base rule lives
   in that file as well: v4's Preflight dropped v3's `cursor: pointer` on buttons, leaving nothing on
-  the page looking clickable, so `button:not([aria-disabled='true'])` puts the hand back. The
-  exception is the point — a bounded arrow is only `aria-disabled` and stays focusable, so the plain
-  arrow cursor is one of the few things left saying it does nothing. Both halves have an e2e test,
-  each verified to fail when reverted.
+  the page looking clickable, so `button:not([aria-disabled='true']):not(:disabled)` puts the hand
+  back. Both exclusions are the point, and they are not interchangeable — a bounded arrow is only
+  `aria-disabled` and stays focusable, while the heading is natively `disabled` before hydration.
+  Leave either one out and an inert control offers the hand; the `:disabled` half was missing at
+  first and the heading button caught it. Each has an e2e test, verified to fail when reverted.
 - The facts file is **deliberately not** prettier-ignored (only `/static/` is). Prettier has to parse
   YAML to format it, so `pnpm lint` rejects a facts file that is syntactically broken — one step
   earlier than the parse test, and a second independent signal. Prettier is silent on duplicate or

@@ -5,7 +5,7 @@
 /* Tailwind v4's Preflight dropped v3's `cursor: pointer` on buttons; this puts it back. Why the
    `aria-disabled` exception is there, and what it costs to lose it, is in CLAUDE.md. */
 @layer base {
-	button:not([aria-disabled='true']) {
+	button:not([aria-disabled='true']):not(:disabled) {
 		cursor: pointer;
 	}
 }

@@ -54,6 +54,19 @@
 	});
 
 	/**
+	 * Back to today by dropping the hash, which is what an absent hash already means. `ausHash` is
+	 * called by hand because `pushState` fires no `hashchange` — see CLAUDE.md, under "The location
+	 * hash is the single source of truth", for that and for the two alternatives that do not work.
+	 * `location.search` is carried over because assigning `location.hash` elsewhere preserves it,
+	 * and dropping a query string only here would be a quiet inconsistency.
+	 */
+	function zurueckZuHeute() {
+		if (!location.hash) return;
+		history.pushState(null, '', location.pathname + location.search);
+		ausHash();
+	}
+
+	/**
 	 * Move the displayed month, if the archive reaches that far. The bound is enforced here and not
 	 * only on the buttons, because they use `aria-disabled` rather than the native attribute: a
 	 * button that goes natively `disabled` under the visitor who just pressed it drops keyboard
@@ -263,7 +276,13 @@
      calendar and the date bar are stand-ins too, and a visitor hears them long before they
      reach the line that says so. -->
 <main class="mx-auto max-w-2xl p-6" aria-busy={!gewaehlt}>
-	<h1 class="text-3xl font-bold">Fakt des Tages</h1>
+	<!-- The title is the way back to today and to the canonical URL. Why a button and not a link,
+	     and why `ausHash` is called by hand, is in CLAUDE.md. `disabled` and not `aria-disabled`:
+	     this only ever flips once, at hydration, exactly like the search box below — the aria form
+	     is for controls the visitor's own click can disable, where losing focus would strand them. -->
+	<h1 class="text-3xl font-bold">
+		<button onclick={zurueckZuHeute} disabled={!gewaehlt}>Fakt des Tages</button>
+	</h1>
 
 	<!-- `disabled` until hydration, unlike the calendar below it: the search needs no clock, but it
 	     does need JavaScript. See CLAUDE.md, under "The search". -->
