@@ -437,3 +437,26 @@ test.describe('Suche', () => {
 		expect(await oben()).toBe(vorher);
 	});
 });
+
+// The die is stubbed so the pick is deterministic. Pinned to 2026-08-22, the fixture's other six
+// facts are the candidates and 0.3 lands on the second of them. Without the "never the fact already
+// on screen" filter the same 0.3 would land on 2026-08-22 itself, so this pins the filter as much as
+// the jump.
+test.describe('Zufälliger Fakt', () => {
+	test.use({ timezoneId: 'Europe/Berlin' });
+
+	test('springt auf einen anderen Fakt', async ({ page }) => {
+		await page.clock.setFixedTime(HEUTE);
+		await page.addInitScript(() => {
+			Math.random = () => 0.3;
+		});
+		await page.goto('/Fakt-des-Tages/');
+		await expect(page.getByText('22. August 2026', { exact: true })).toBeVisible();
+
+		await page.getByRole('button', { name: 'Zufälliger Fakt' }).click();
+
+		await expect(page.getByText('20. August 2026', { exact: true })).toBeVisible();
+		expect(page.url()).toContain('#2026-08-20');
+		await expect(page.getByRole('article')).toContainText('kurzer Fakt, einzeilig');
+	});
+});

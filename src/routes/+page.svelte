@@ -103,6 +103,15 @@
 		};
 	});
 
+	// Everything the shuffle may land on — never the fact already on screen. See CLAUDE.md.
+	const andereFakten = $derived(chronologisch.filter((datum) => datum !== gewaehlt));
+
+	/** Jump somewhere else in the archive, through `springe` like the arrows do. No length check:
+	 *  an empty list indexes to `undefined`, which `springe` already turns down. */
+	function zufall() {
+		springe(andereFakten[Math.floor(Math.random() * andereFakten.length)]);
+	}
+
 	// How far the month arrows reach. Today and the selection count alongside the facts, so a
 	// visitor who lands on a month outside the archive — which is every month, once the entries are
 	// all in the past — still has a way back rather than two dead arrows.
@@ -302,6 +311,19 @@
 			</div>
 		{/if}
 	</search>
+
+	<!-- Outside the `search` element: this is not a search, and the landmark should not claim it.
+	     For the `aria-disabled` bound and for why the glyph is not a die, see CLAUDE.md, under
+	     "The random fact". -->
+	<div class="mt-2 flex justify-end">
+		<button
+			onclick={zufall}
+			aria-disabled={!gewaehlt || andereFakten.length === 0}
+			class="rounded px-2 py-1 text-sm text-sky-800 hover:bg-sky-50 aria-disabled:text-gray-400 aria-disabled:hover:bg-transparent"
+		>
+			<span aria-hidden="true">🔀</span> Zufälliger Fakt
+		</button>
+	</div>
 
 	<!-- The calendar and the date bar sit outside the `{#if}`s below on purpose. Until hydration has
 	     read the clock there is no month and no selection, so both render as their own placeholder —

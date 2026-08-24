@@ -323,6 +323,31 @@ even as a `modulepreload`, so a visitor who never searches never fetches it.
 `fakten.probe.yaml` carries one soft hyphen inside `Hintergrund` purely so the e2e suite can cover
 this. It is invisible; do not tidy it away.
 
+### The random fact
+
+A button under the search box, right-aligned: searching is "I want something specific", the shuffle
+is "surprise me", so the two belong together. It sits _outside_ the `search` element, because it is not
+a search and the landmark should not claim it — which also means the hit panel covers it while a
+query is running, exactly as the panel covers the calendar.
+
+- **It goes through `springe`.** Writing the hash and pulling the top of the fact back when the bar
+  has pinned both come for free that way, and there is no second navigation path to keep in step.
+- **It never returns the fact already on screen.** With 119 entries a repeat is common enough that
+  the button would look broken. The e2e test stubs `Math.random` so the pick is deterministic, and
+  is built so the stub would land on the current fact if the filter were gone — remove the filter
+  and it fails rather than passing on a coincidence.
+- **`aria-disabled`, not the native attribute,** like every other button here, and bounded before
+  hydration as well. That second half needs its own reason, because unlike the arrows it does not
+  come for free: `monat` and `nachbarn` are `undefined` before hydration, but `andereFakten` comes
+  from `data.fakten`, which is already there at prerender time. Without `!gewaehlt` the button ships
+  in the HTML claiming `aria-disabled="false"` while no listener exists — enabled-looking and inert,
+  and permanently so for a visitor without JavaScript. The loading-state test happens to catch it
+  too, since it asserts no button in the placeholder is missing `aria-disabled="true"`.
+- **`🔀` and not the die `⚄`.** U+2684 is a real glyph rather than tofu — checked by advance width
+  against U+FFFF — but at 14 px its five pips each fall under a pixel and it reads as an empty box.
+  The shuffle emoji is legible at that size and was chosen for it, at the price of being the only
+  glyph on the page that renders in colour rather than in the current text colour.
+
 ### YAML gotchas that bite silently
 
 - **Never add a `%YAML 1.1` directive.** Under 1.2 core (the `yaml` package default) a bare
