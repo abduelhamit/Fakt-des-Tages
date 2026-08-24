@@ -265,6 +265,21 @@ test.describe('Faktenpfeile', () => {
 		expect(breiten.leiste).toBe(breiten.main);
 	});
 
+	// `#2026-07-30` is the fixture's first entry, so back is bounded and on is not. The day button is
+	// not along for the ride: it is the only one of the three that fails if the rule is ever narrowed
+	// to the bar, verified by mutation — put the cursor on `pfeil` alone and both arrows still pass.
+	test('zeigt die Hand nur über dem, was auch etwas tut', async ({ page }) => {
+		await page.goto('/Fakt-des-Tages/#2026-07-30');
+		await expect(page.getByText('30. Juli 2026', { exact: true })).toBeVisible();
+
+		const zeiger = (name: string) =>
+			page.getByRole('button', { name }).evaluate((el) => getComputedStyle(el).cursor);
+
+		expect(await zeiger('Nächster Fakt')).toBe('pointer');
+		expect(await zeiger('30. Juli 2026')).toBe('pointer');
+		expect(await zeiger('Vorheriger Fakt')).toBe('default');
+	});
+
 	// Runs at the default viewport, which only works because the fixture's 2026-08-23 is deliberately
 	// long. Shorten that entry and this test keeps passing while proving nothing.
 	test('hält die Datumsleiste beim Scrollen in Sichtweite', async ({ page }) => {

@@ -142,7 +142,9 @@ component, and it needs none at this size. Five decisions in it are not obvious 
   its own. Two details there are deliberate and easy to undo by accident. The month arrows use
   `aria-disabled` rather than the native attribute — a natively disabled button drops keyboard focus
   to `<body>` the instant it is disabled, stranding the visitor who just pressed it — which is why
-  `verschiebe` enforces the bound itself rather than trusting the attribute. And the selected day is
+  `verschiebe` enforces the bound itself rather than trusting the attribute. The cursor rule in
+  [layout.css](src/routes/layout.css) matches on that same attribute (see Misc), so swapping the
+  mechanism here quietly makes a bounded arrow look clickable again. And the selected day is
   named in its `aria-label` (`… (angezeigt)`) instead of carrying `aria-pressed`, which would claim
   toggle semantics that a single-select set does not have. Both have e2e tests, both verified to
   fail when reverted. Note Playwright honours `aria-disabled` in its actionability checks, so a test
@@ -389,7 +391,12 @@ contains an example image path that any regex over the raw text will happily mat
 
 - Tailwind v4 — configured via CSS (`@import`/`@plugin` in [src/routes/layout.css](src/routes/layout.css)),
   no `tailwind.config.js`. `typography` and `forms` plugins are loaded. Prettier sorts classes and
-  is pointed at that stylesheet, so run `pnpm format` after touching class lists.
+  is pointed at that stylesheet, so run `pnpm format` after touching class lists. One base rule lives
+  in that file as well: v4's Preflight dropped v3's `cursor: pointer` on buttons, leaving nothing on
+  the page looking clickable, so `button:not([aria-disabled='true'])` puts the hand back. The
+  exception is the point — a bounded arrow is only `aria-disabled` and stays focusable, so the plain
+  arrow cursor is one of the few things left saying it does nothing. Both halves have an e2e test,
+  each verified to fail when reverted.
 - The facts file is **deliberately not** prettier-ignored (only `/static/` is). Prettier has to parse
   YAML to format it, so `pnpm lint` rejects a facts file that is syntactically broken — one step
   earlier than the parse test, and a second independent signal. Prettier is silent on duplicate or
