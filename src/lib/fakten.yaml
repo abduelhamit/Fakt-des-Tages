@@ -231,3 +231,27 @@
 
   Bisher hatte Peruggia die Mona Lisa in seiner Wohnung, letztlich aber wollte er sie „heim“ nach Italien bringen. Daher versuchte er, das Bild in Florenz an den Kunsthändler Alfredo Geri zu verkaufen. Geri informierte Giovanni Poggi, den Direktor der Uffizien, und bekundete sein Interesse. Peruggia kam nach Florenz und zeigte das Bild in seinem Hotelzimmer. Nachdem sich Geri und Poggi sicher waren, dass sie das Original vor sich hatten, überredeten sie Peruggia, in seinem Hotel auf das Geld zu warten und riefen die Polizei. Die Reaktion der Öffentlichkeit war heftig. Italienische Nationalisten verlangten, dass „ihre“ Mona Lisa „zu Hause“ bleiben solle. Die italienische Regierung versicherte zwar, dass sie die Mona Lisa an den Louvre zurückerstatten werde, aber zuerst ging das Gemälde „auf Tournee“ und wurde in Florenz, Rom und Mailand ausgestellt. Es reiste in einer eigens angefertigten, gepolsterten Kiste und mit Ehrenwache. Schließlich kehrte die Mona Lisa mit einer großen Staatszeremonie wieder nach Paris zurück.
 2026-08-24: 'Heute vor 20 Jahren verlor Pluto seinen Status als Planeten. Die Debatte fing aber schon 1801 an, als Ceres entdeckt wurde, der sich Pluto ähnelt. In den 2000ern wurden mindestens drei weitere solcher Himmelskörper entdeckt (Quaoar, Sedna und Eris), sodass man sich die Frage stellen musste, ob man die alle als Planeten bezeichnen möchte. Die Internationale Astronomische Union (IAU), eine weltweite Vereinigung von Astronomen mit Sitz in Paris, begann schon acht Tage bevor Pluto seinen Status verlor mit dem ersten Vorschlagsentwurf, wie Planeten definiert werden sollten. Nach zwei weiteren Vorschlagsrunden wurde der dritte, finale Entwurf zur Wahl gestellt und dafür gestimmt. Laut dieser neuen Definition ist ein Planet ein Himmelskörper, der (a) die Sonne umkreist, (b) über genügend Masse verfügt, damit seine Eigenanziehungskraft die Kräfte starrer Körper überwindet und er eine Form im hydrostatischen Gleichgewicht (nahezu Kugelgestalt) annimmt, und (c) die Umgebung seiner Umlaufbahn bereinigt hat. Punkt C ist der Knackpunkt bei Pluto: Er befindet sich im Kuipergürtel und teilt sich seine Bahn mit anderen Objekten wie Eris. Daher wurde Pluto, wie die vorher erwähnten Körper auch, als Zwergplanet eingestuft und ist nicht mehr neben den acht Planeten eingereiht.'
+2026-08-25: |-
+  Heute vor 35 Jahren veröffentlichte Linus Torvalds in der Usenet-Gruppe _comp.os.minix_ folgendes Posting:
+  > Hello everybody out there using minix -
+  > 
+  > I’m doing a (free) operating system (just a hobby, won’t be big and professional like gnu) for 386(486) AT clones. This has been brewing since april, and is starting to get ready. I’d like any feedback on things people like/dislike in minix, as my OS resembles it somewhat (same physical layout of the file-system (due to practical reasons) among other things).
+  > 
+  > I’ve currently ported bash(1.08) and gcc(1.40), and things seem to work. This implies that I’ll get something practical within a few months, and I’d like to know what features most people would want. Any suggestions are welcome, but I won’t promise I’ll implement them :-)
+  > 
+  > Linus (...)
+  > 
+  > PS. Yes – it’s free of any minix code, and it has a multi-threaded fs. It is NOT portable (uses 386 task switching etc), and it probably never will support anything other than AT-harddisks, as that’s all I have :-(.
+
+  Auf Deutsch:
+  > Hallo alle da draußen, die Minix einsetzen -
+  > 
+  > Ich arbeite an einem (freien) Betriebssystem (nur ein Hobby, wird nicht groß und professionell sein wie GNU) für 386(486)AT-kompatible Rechner. Das Projekt entwickelt sich seit April und beginnt fertig zu werden. Ich hätte gern Rückmeldungen über Eigenschaften, die die Leute an Minix mögen/nicht mögen, da mein Betriebssystem diesem in einigen Merkmalen ähnelt (gleiches physikalisches Layout des Dateisystems (aus Praktikabilitätsgründen) und einige andere Dinge).
+  > 
+  > Ich habe im Moment bereits die bash (1.08) und gcc (1.40) portiert, und es scheint zu funktionieren. Das bedeutet, dass ich in einigen Monaten etwas haben werde, womit man arbeiten kann, und mich interessiert, welche Eigenschaften die meisten Leute gerne sehen würden. Alle Vorschläge sind willkommen, aber ich kann nicht versprechen, dass ich sie auch einbaue :-)
+  > 
+  > Linus (...)
+  > 
+  > PS. Ja, es enthält keinerlei Minix-Code und das Dateisystem ist multi-threaded. Es ist NICHT portierbar (es benutzt das 386er-Taskswitching etc.) und wird vermutlich nie etwas anderes unterstützen als AT-Festplatten, da ich nur solche besitze :-(.
+
+  Dieses "nicht-professionelle Hobbyprojekt" ist heute unter Linux bekannt, ein wichtiges Stück Software der heutigen Zeit. Ohne Linux hätten wir das Internet nicht in der Form, wie wir's kennen. Ca. drei Wochen nach dieser Ankündigung wurde Linux in der Version 0.01 das erste Mal öffentlich auf einem FTP-Server zur Verfügung gestellt. Der Rest ist Geschichte.
