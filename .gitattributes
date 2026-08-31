@@ -3,3 +3,4 @@
 # sonst landen die Zeigerdateien statt der Bilder im Build.
 static/fakten/*.jpg filter=lfs diff=lfs merge=lfs -text
 static/fakten/*.gif filter=lfs diff=lfs merge=lfs -text
+static/fakten/*.png filter=lfs diff=lfs merge=lfs -text

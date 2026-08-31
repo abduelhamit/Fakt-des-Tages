@@ -64,9 +64,12 @@ Consequences worth knowing before changing any of this:
   only route, so the path resolves against it and the base path stays in one place. They are exempt
   from the payload note above: only the selected day's `{@html}` is in the DOM, so a visitor
   downloads the images of the day they are looking at and no others.
-- **Those images are in Git LFS** ([.gitattributes](.gitattributes) tracks `static/fakten/*.jpg` and
-  `*.gif`), so the repo carries ~3 KB of pointers instead of 8.7 MB of binaries. Two consequences,
-  both load-bearing:
+- **Those images are in Git LFS** ([.gitattributes](.gitattributes) tracks `static/fakten/*.jpg`,
+  `*.gif` and `*.png`), so the repo carries ~3 KB of pointers instead of 8.7 MB of binaries. Add the
+  pattern before the first file of a new format, or it lands in the repo as a real binary and no
+  check notices. Photographs are JPEG; PNG is there for line art, where JPEG rings around the edges
+  — the tughra on 2026-08-31 is half the size as a 16-colour PNG8 and sharp, against a JPEG at the
+  same width. Two consequences, both load-bearing:
   - `actions/checkout` in [deploy.yml](.github/workflows/deploy.yml) needs **`lfs: true`**. Without
     it the build gets 130-byte pointer files, copies them into `build/fakten/` and deploys every
     image on the site broken — with every check green. That is why the gate test below reads the
