@@ -60,10 +60,13 @@ Consequences worth knowing before changing any of this:
   costs: measured by removing each from the built HTML and re-gzipping, the search bar is 153 bytes
   gzipped and the loading mock's 42 cells are 113 (5.1 KB raw — repeated markup compresses away).
 - **Images live in [static/fakten/](static/fakten/)** and are referenced relatively —
-  `![…](fakten/2026-03-06-1.jpg)`. Relative and not `/Fakt-des-Tages/…` because the home page is the
-  only route, so the path resolves against it and the base path stays in one place. They are exempt
-  from the payload note above: only the selected day's `{@html}` is in the DOM, so a visitor
-  downloads the images of the day they are looking at and no others.
+  `![…](fakten/2026-03-06-1.jpg)`, so the path resolves against the page and the base path stays in
+  one place. **That works because facts are only ever rendered on `/`.** It used to be phrased as
+  "the home page is the only route", which stopped being true when `/impressum` and `/datenschutz`
+  arrived — the paths still resolve, but for the narrower reason. Render a fact on any other route
+  and every image on it 404s, because `fakten/…` would resolve against _that_ route's directory.
+  They are exempt from the payload note above: only the selected day's `{@html}` is in the DOM, so a
+  visitor downloads the images of the day they are looking at and no others.
 - **A CC-licensed image carries its credit in the entry**, on the line after it, as
   `_Foto: Name, [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/)_`. Same paragraph as
   the image, and **no hard break** between them: Preflight makes `img` a block, so the credit starts
@@ -401,6 +404,63 @@ Rendering goes through `{@html}` on the already-rendered HTML, wrapped in Tailwi
 this repo compiled into the build, so anyone who can write a fact can already write the app's
 JavaScript — it is not a trust boundary. That reasoning stops holding the moment facts come from
 anywhere but the repo; add sanitising then.
+
+## Impressum and Datenschutz
+
+Two prerendered routes, `/impressum` and `/datenschutz`, reached from a footer in
+[+layout.svelte](src/routes/+layout.svelte). German law is the reason they exist: the site is not
+"ausschließlich persönlichen oder familiären Zwecken", so § 18 Abs. 1 MStV wants a name and a
+ladungsfähige Anschrift even though nothing here is commercial.
+
+- **[src/lib/anbieter.ts](src/lib/anbieter.ts) is the single source for name, address and email,**
+  because both pages need them — § 5 DDG in the Impressum, Art. 13 Abs. 1 lit. a DSGVO for the
+  `Verantwortlicher` in the Datenschutzerklärung. Two hand-kept copies of a postal address drift,
+  and the copy that drifts is the one nobody re-reads. It ships to the client, which is the point.
+- **An unfilled address fails the deploy gate.** `anschrift` carries an `AUSFÜLLEN` marker and
+  [anbieter.spec.ts](src/lib/anbieter.spec.ts) asserts no marker survives; `pnpm vitest run` is in
+  [deploy.yml](.github/workflows/deploy.yml), so a placeholder Impressum cannot go live. Same trick
+  as the facts-file parse test, and for the same reason: a fake Impressum is a worse problem than a
+  missing one, and neither `pnpm build` nor `pnpm lint` would say a word about it.
+- **Every claim on the Datenschutz page was read off the build, not off a generator.** No storage
+  API appears anywhere in the source, nothing fetches at runtime, the font stack is system fonts,
+  and every `img`/`script`/`link` in the built HTML is same-origin. The page says so in those terms,
+  which means **the code can turn the page into a false statement** — one web font, one embedded
+  video, one counter. `lädt nichts von fremden Servern` in
+  [rechtsseiten.e2e.ts](src/routes/rechtsseiten.e2e.ts) is the guard: it watches every request
+  origin across the home page, a search (so the lazily imported MiniSearch chunk is inside the
+  window) and both legal pages. Verified by adding a `fonts.googleapis.com` stylesheet to
+  [app.html](src/app.html), which turns it red and names the host.
+- **There is no test that the footer links carry the base path.** One was written and then deleted:
+  mutating `resolve('/impressum')` to a bare `/impressum` never reaches a browser, because the
+  prerender crawler refuses it and `pnpm build` dies with "does not begin with `base`". The build is
+  the harder gate, and a test that cannot fail reads like cover for something that is not covered.
+- **`<main>` stays in each page rather than moving into the layout.** The home page's carries
+  `aria-busy={!gewaehlt}`, which is page state; hoisting it would mean plumbing that state upward to
+  serve two pages that are never busy. The footer sits _outside_ `<main>` for the mirror-image
+  reason — it is never provisional, so it has no business inside something that is.
+- **The way back to the facts lives in the two legal pages, not in the footer,** and that is not
+  tidiness. A link to `/` is the trap recorded above under the location hash: clicked _on_ the home
+  page SvelteKit routes it client-side, the component never remounts, no `hashchange` fires, and
+  the URL says today while the previously chosen fact stays on screen. Clicked from a legal page it
+  is a real route change — the home component mounts and `onMount` resolves the date — so the link
+  is correct exactly where it sits. Putting it in the page bodies is what keeps it off the home
+  page **structurally**: the files it lives in are only rendered on those two routes, so there is
+  no condition to get wrong. A footer version was built first, gated on `page.route.id` from
+  `$app/state`, and taken back out — it worked, but it spent an import, a `$derived` and an `{#if}`
+  enforcing at runtime what file layout enforces for free. The footer therefore stays two links on
+  every route. `verlinkt auf der Startseite nirgends auf sich selbst` in
+  [rechtsseiten.e2e.ts](src/routes/rechtsseiten.e2e.ts) guards it by collecting every `a[href]` on
+  the home page rather than counting footer links, so it also catches a self-link re-added to the
+  layout; verified by doing exactly that, and it fails alone.
+- **Unverified: what GitHub Pages does with a trailing slash.** adapter-static writes
+  `impressum.html`, not `impressum/index.html`, so `/impressum` works and `/impressum/` probably
+  404s on Pages — `pnpm preview` answers 307 there, but Pages is a different server and this cannot
+  be tested from here. Every link the site generates omits the slash, so it only bites a hand-typed
+  or externally-published URL. Check it after the first deploy; if it does 404, `trailingSlash:
+'always'` in [vite.config.ts](vite.config.ts) emits directories instead and fixes it.
+- Both pages are asserted readable with **JavaScript switched off**. Prerendering gives that for
+  free today, which is exactly why it is worth pinning: a legal page that needs JS is a legal page
+  some visitors cannot read, and nothing else would announce the change.
 
 ## Commands
 

@@ -1,0 +1,41 @@
+<script lang="ts">
+	import { ANBIETER } from '$lib/anbieter';
+	import { resolve } from '$app/paths';
+</script>
+
+<svelte:head><title>Impressum — Fakt des Tages</title></svelte:head>
+
+<!-- The address block twice, because § 5 DDG and § 18 Abs. 2 MStV each want it in their own
+     section and a reader is entitled to find it under either heading. One snippet rather than two
+     copies, for the same reason `anbieter.ts` exists at all. -->
+{#snippet anschrift()}
+	<p>
+		{ANBIETER.name}<br />
+		{#each ANBIETER.anschrift as zeile, i (i)}{zeile}<br />{/each}
+	</p>
+{/snippet}
+
+<main class="mx-auto max-w-2xl p-6">
+	<h1 class="text-3xl font-bold">Impressum</h1>
+
+	<div class="prose mt-6">
+		<h2>Angaben gemäß § 5 DDG</h2>
+		{@render anschrift()}
+
+		<h2>Kontakt</h2>
+		<p>
+			E-Mail: <a href="mailto:{ANBIETER.email}">{ANBIETER.email}</a>
+		</p>
+
+		<!-- A fact published every weekday, written and edited rather than merely collected, reads as
+		     a „journalistisch-redaktionell gestaltetes Angebot“. Whether it really is one is arguable;
+		     naming the responsible person costs a line and settles the question either way. -->
+		<h2>Verantwortlich für den Inhalt nach § 18 Abs. 2 MStV</h2>
+		{@render anschrift()}
+
+		<!-- The way back, here rather than in the layout's footer: a link to `/` must never be
+		     rendered on the home page itself, and living in this file is what guarantees that
+		     structurally, with no condition to get wrong. See CLAUDE.md, under the location hash. -->
+		<p><a href={resolve('/')}>Zum Fakt des Tages</a></p>
+	</div>
+</main>
