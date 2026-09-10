@@ -64,6 +64,21 @@ Consequences worth knowing before changing any of this:
   only route, so the path resolves against it and the base path stays in one place. They are exempt
   from the payload note above: only the selected day's `{@html}` is in the DOM, so a visitor
   downloads the images of the day they are looking at and no others.
+- **A CC-licensed image carries its credit in the entry**, on the line after it, as
+  `_Foto: Name, [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/)_`. Same paragraph as
+  the image, and **no hard break** between them: Preflight makes `img` a block, so the credit starts
+  on its own line regardless, and a `<br>` there buys nothing but an extra empty line. That was
+  tried first and measured — with the break the credit sat 37 px below its picture and 37 px above
+  the next one, which is to say it belonged to neither.
+  [layout.css](src/routes/layout.css) closes the first gap to 8 px, and the selector is the load-
+  bearing part: `.prose p > img:has(+ em)` matches only an image with a credit after it, so the
+  single images and the back-to-back pairs elsewhere in the archive keep their 32 px. Verified by
+  measuring all four cases in a browser rather than reasoning about the cascade. It has to live in
+  `@layer utilities`, because that is where the typography plugin puts `.prose :where(img)` and a
+  later layer beats any specificity — in `components` the rule ships, matches, and does nothing,
+  which is exactly what happened on the first attempt. Public-domain and CC0 images get no line,
+  since none is owed; 2026-09-10 is the first entry with one. Note the credit is rendered text, so
+  the photographer's name joins the search index like any other word in the fact.
 - **Those images are in Git LFS** ([.gitattributes](.gitattributes) tracks `static/fakten/*.jpg`,
   `*.gif` and `*.png`), so the repo carries ~3 KB of pointers instead of 8.7 MB of binaries. Add the
   pattern before the first file of a new format, or it lands in the repo as a real binary and no

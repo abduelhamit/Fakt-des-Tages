@@ -9,7 +9,13 @@
 # der Fall, an dem die Suche ohne `suchbegriff` scheitern würde. Nicht wegputzen.
 # Der 31. trägt ein Bild, dessen Alt-Text das Wort „Wasserspeier“ enthält — sonst steht es nirgends.
 # Damit prüft die Suche, dass Alt-Texte im Index landen. Die Bilddatei ist eine echte aus dem
-# Archiv, damit sie im Test-Build wirklich ausgeliefert wird.
+# Archiv, damit sie im Test-Build wirklich ausgeliefert wird. Darunter hängt ein Bildnachweis und
+# darunter noch ein Absatz: daran misst der Test, dass der Nachweis näher am eigenen Bild klebt
+# als am nächsten Element. Ohne den Absatz gäbe es keinen zweiten Abstand zu vergleichen. Ganz
+# unten hängt dasselbe Bild noch einmal ohne Nachweis: daran prüft der Test, dass die Regel nur
+# auf Bilder mit Nachweis zielt. Sein Alt-Text enthält „Wasserspeier“ bewusst nicht.
+# Achtung beim Umformulieren: dieser Text landet im Suchindex. „hinter“ stand hier einmal
+# und war ein zweiter Treffer für die Anfrage `Hinterg` — der Trennzeichen-Test fiel um.
 # Die echten Fakten stehen nebenan in fakten.yaml und dürfen frei bearbeitet werden.
 
 2026-07-30: Testdaten — einziger Eintrag im Juli, damit der Pfeil ‹ eine Grenze hat.
@@ -91,5 +97,10 @@
   Testdaten — letzter Eintrag im August.
 
   ![Ein Wasserspeier, der nur hier im Alt-Text steht und sonst nirgends.](fakten/2026-03-06-1.jpg)
+  _Foto: Probefotograf, [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/)_
+
+  Ein Absatz unter dem Bildnachweis, damit der Test beide Abstände messen kann.
+
+  ![Dasselbe Bild noch einmal, diesmal ohne Nachweis — der Vergleichsfall für den Abstand.](fakten/2026-03-06-1.jpg)
 
 2026-09-02: Testdaten — einziger Eintrag im September, damit der Pfeil › eine Grenze hat.

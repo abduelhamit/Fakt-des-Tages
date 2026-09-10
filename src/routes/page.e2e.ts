@@ -513,3 +513,46 @@ test.describe('Überschrift', () => {
 		await expect(page.getByText('30. Juli 2026', { exact: true })).toBeVisible();
 	});
 });
+
+// A credit belongs to the picture above it, which is a claim about two distances rather than about
+// any one of them. Prose gives an image 2em below it and 2em between paragraphs, so the untouched
+// markup put the credit exactly as far from its own image as from the next element. The rule in
+// layout.css breaks that tie, and it is easy to lose silently: written into `@layer components` it
+// ships, matches, and is overruled by the typography plugin's own layer — which is what happened on
+// the first attempt. Comparing distances rather than asserting pixel counts, so the test survives a
+// change of font metrics.
+test.describe('Bildnachweis', () => {
+	test.use({ timezoneId: 'Europe/Berlin' });
+
+	test.beforeEach(async ({ page }) => {
+		await page.clock.setFixedTime(HEUTE);
+		await page.goto('/Fakt-des-Tages/#2026-08-31');
+	});
+
+	test('klebt näher am eigenen Bild als am nächsten Element', async ({ page }) => {
+		const abstaende = await page.locator('article').evaluate((artikel) => {
+			const nachweis = artikel.querySelector('em')!;
+			const bild = nachweis.closest('p')!.querySelector('img')!;
+			const danach = nachweis.closest('p')!.nextElementSibling!;
+			return {
+				zumBild: nachweis.getBoundingClientRect().top - bild.getBoundingClientRect().bottom,
+				zumNaechsten: danach.getBoundingClientRect().top - nachweis.getBoundingClientRect().bottom
+			};
+		});
+
+		expect(abstaende.zumBild).toBeLessThan(abstaende.zumNaechsten);
+	});
+
+	// The rule keys on `:has(+ em)` rather than a class, so it has to leave every uncredited image
+	// alone — the archive is full of them, including pairs sitting side by side in one paragraph.
+	// The fixture carries the same file twice for exactly this comparison.
+	test('lässt ein Bild ohne Nachweis unberührt', async ({ page }) => {
+		const abstand = (n: number) =>
+			page
+				.locator('article img')
+				.nth(n)
+				.evaluate((bild) => parseFloat(getComputedStyle(bild).marginBottom));
+
+		expect(await abstand(0)).toBeLessThan(await abstand(1));
+	});
+});
