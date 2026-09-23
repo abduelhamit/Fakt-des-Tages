@@ -164,6 +164,21 @@ code:
   dead. Watch the assertion when testing this: `new URL(url).hash` reports `''` for a trailing bare
   `#` as well, so it cannot tell the two apart — the e2e test checks the raw URL string, after the
   weaker version was verified to pass against `location.hash = ''`.
+- **A fact may link to another fact, as `[…](#2026-08-24)`, and that is safe where a link to `/` is
+  not.** The two look alike and behave oppositely. SvelteKit's click handler special-cases a
+  same-page link whose hash _differs_: it sets `hash_navigating`, deliberately does **not**
+  `preventDefault`, and lets the browser navigate natively, precisely so `hashchange` fires
+  (`client.js`, "use the browser default behavior in that case"). `ausHash` then runs like any
+  other selection. Removing the hash is the case that has no native path, which is the whole
+  reason `zurueckZuHeute` exists. Verified in a browser against the real archive, not just read:
+  the fact swaps, the URL ends `#2026-08-24`, and Back returns to the previous fact. 2026-09-23 is
+  the first entry doing this. Two caveats. Such a link bypasses `springe`, so it does not pull the
+  next fact's top back under the sticky bar — tolerable because the link sits in the fact the
+  reader is already at. And `verlinkt auf der Startseite nirgends auf sich selbst` in
+  [rechtsseiten.e2e.ts](src/routes/rechtsseiten.e2e.ts) compares **pathnames**, so it would read a
+  hash-only link as a self-link; it stays green only because the e2e suite builds against
+  `fakten.probe.yaml`, which has none. Put one in that fixture and the test needs to exclude
+  hash-only hrefs first.
 - **The arrows are bounded by the content, and the bounds include today and the selection.** Bounding
   on the fact keys alone strands a visitor: once the whole archive is in the past, both arrows go
   dead in the current month. Comparison is on `YYYY-MM` strings, which sort chronologically, so no
