@@ -59,6 +59,14 @@ Consequences worth knowing before changing any of this:
   route per date and keep only the date keys on the home page for the calendar. The UI is not what
   costs: measured by removing each from the built HTML and re-gzipping, the search bar is 153 bytes
   gzipped and the loading mock's 42 cells are 113 (5.1 KB raw — repeated markup compresses away).
+- **`Heute vor N Jahren …` opens nearly every entry, and N is a numeral — always.** 130 of the 139
+  entries; not one spells it out. Do not "correct" a small number to a word there. German style
+  does prefer words below twelve, but that is a rule for running prose and the opener is a fixed
+  formula, so the two live side by side quite happily: 2026-09-22 has `knapp zehn Jahre später`
+  mid-sentence, spelled out, and 2026-09-28 has `Heute vor 6 Jahren`, in digits. Both are correct.
+  The same goes for a `Vor N Jahren` that opens a clause further in. The nine entries starting
+  otherwise are the ones no anniversary fits — `Heute ist Rosenmontag!`,
+  `Heute ist Freitag, der 13.`
 - **Images live in [static/fakten/](static/fakten/)** and are referenced relatively —
   `![…](fakten/2026-03-06-1.jpg)`, so the path resolves against the page and the base path stays in
   one place. **That works because facts are only ever rendered on `/`.** It used to be phrased as
@@ -82,6 +90,23 @@ Consequences worth knowing before changing any of this:
   which is exactly what happened on the first attempt. Public-domain and CC0 images get no line,
   since none is owed; 2026-09-10 is the first entry with one. Note the credit is rendered text, so
   the photographer's name joins the search index like any other word in the fact.
+- **That same line also carries a rights-holder's _required declaration_, which is a third case
+  and not a credit.** 2026-09-28 is the first: Genshin Impact screenshots exist under no free
+  licence at all, but HoYoverse's
+  [Legal FAQ](https://www.hoyolab.com/article/143107) (item 2) says of posting game imagery on a
+  personal or any other website that "We do not prohibit non-commercial personal use" — while
+  stating outright that this is not a transfer of rights and "nor should it be regarded as an
+  approval in the legal sense". It attaches one condition, and meeting it is what the line is for:
+  "it is required to place the COGNOSPHERE legal declaration on such works". So the entry carries
+  `_© All rights reserved by COGNOSPHERE. Other properties belong to their respective owners._`
+  **verbatim** — do not translate it, shorten it or fold it into a German credit, because the
+  wording is the condition rather than a courtesy. It sits in the same slot as a CC credit, so the
+  `:has(+ em)` spacing rule picks it up for free. Note what this does _not_ do: the permission is
+  non-commercial only and revocable, so it would lapse if this site ever took money. The other
+  non-free images here (the Hobbit and Naruto covers, Crash, the Lego box, the Nevermind cover)
+  rest on a § 51 UrhG quotation argument instead and carry no line, because no rights holder has
+  asked for one. Those pages are behind JavaScript and answer a plain fetch with a title or a 403;
+  they were read with Playwright.
 - **Those images are in Git LFS** ([.gitattributes](.gitattributes) tracks `static/fakten/*.jpg`,
   `*.gif` and `*.png`), so the repo carries ~3 KB of pointers instead of 8.7 MB of binaries. Add the
   pattern before the first file of a new format, or it lands in the repo as a real binary and no
