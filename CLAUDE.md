@@ -67,6 +67,29 @@ Consequences worth knowing before changing any of this:
   The same goes for a `Vor N Jahren` that opens a clause further in. The nine entries starting
   otherwise are the ones no anniversary fits — `Heute ist Rosenmontag!`,
   `Heute ist Freitag, der 13.`
+- **A number and what it belongs to are joined by a no-break space, and which one depends on what
+  follows.** `25 Mio. $` takes **U+202F**, the narrow no-break space, in both gaps; `vor 35 Jahren`
+  takes **U+00A0**, the normal-width one. The boundary is Duden's: narrow before an abbreviation,
+  unit or symbol (`25 Mio.`, `1,1–1,3 Mrd.`, `70 %`, `20 °C`, `10 km`, `§ 5`) and inside a spaced
+  abbreviation (`z. B.`, `u. a.`, `d. h.`); normal width before a spelled-out word the number
+  counts (`vor 35 Jahren`, `90 Minuten`). Do not collapse the two onto one character, tempting as
+  it is — DIN 5008 would allow a full space throughout, but measured in the page's own font at
+  16 px U+202F is 1.94 px against U+00A0's 4.19 px, which is right for `25 Mio. $` and visibly
+  wrong for `vor 35 Jahren`, where it jams the words together. A plain space in either position is
+  a defect, not a matter of taste. Only numerals count: `zehn Jahre` and `in den 1990er Jahren`
+  keep an ordinary space, because an orphaned `Jahre` reads perfectly well where an orphaned
+  `Mio.` does not. The examples above are written with ordinary spaces on purpose:
+  the two characters are indistinguishable on the page, so embedding them here would teach nothing.
+- **Both are invisible and differ only in width, so the wrong one is silent.** Retyping a figure by
+  hand drops the character altogether and nothing in the gate notices — the same hazard as the soft
+  hyphen described under the search. Everything here was checked for both characters rather than
+  assumed: the YAML parser preserves them, `marked` emits them literally with no `&nbsp;` or
+  `&#8239;` reaching the built HTML, Prettier round-trips them inside a block scalar, and the
+  search index is unaffected because `worte` splits on `[^\p{L}\p{N}]+` — neither is a letter or a
+  digit, so both separate tokens exactly like an ordinary space. U+202F is a real glyph in the
+  site's font stack, not a fallback: 1.94 px against 15.69 px for a tofu box. The archive was
+  swept once to match, so a plain space beside a numeral is now a defect to fix rather than a
+  backlog item.
 - **Images live in [static/fakten/](static/fakten/)** and are referenced relatively —
   `![…](fakten/2026-03-06-1.jpg)`, so the path resolves against the page and the base path stays in
   one place. **That works because facts are only ever rendered on `/`.** It used to be phrased as
