@@ -142,6 +142,26 @@ Consequences worth knowing before changing any of this:
     file headers.
   - Adding or replacing an image needs a local clone with `git lfs install`. Editing the _text_ of
     a fact in GitHub's web editor is unaffected.
+- **Transparency is a consequence of choosing PNG, never a reason to choose it.** Settle the format
+  on the ringing question alone — photographs JPEG, line art PNG, as above. Only once PNG has won on
+  its own merits is the background a question at all, and then the default is to keep the alpha
+  channel rather than flatten it onto white. The Cheers wordmark on 2026-09-30 is the first one that
+  does: it looks identical on today's white page and is the smaller file, 52,762 bytes against
+  54,055 flattened. Two questions decide it, and the two older PNGs each answer no to one, which is
+  why both are flattened:
+  - **Is the white part of the picture, or just where the picture stops?** The Malaysian flag on
+    2026-09-16 is a rectangle whose white stripes _are_ the artwork — there is no
+    outside-the-subject to remove, and a flag with holes in it is a mistake rather than an option.
+  - **Does the mark still read on a ground that is not white?** The tughra on 2026-08-31 is solid
+    black calligraphy, so transparent it would survive only as long as whatever sits behind it
+    stays pale and would vanish against anything dark. The white there is doing real work and stays
+    baked in. `Cheers` passes because its letters carry their own gold and only the keyline is
+    black.
+
+  Check the interior holes before shipping one. The counters inside the Cheers letters are genuine
+  gaps in the SVG, so a coloured ground shows through them — correct for a wordmark, wrong for a
+  logo meant to sit on its own white tile. Nothing tests any of this: alpha is invisible against a
+  white page, so a wrong call here looks right until the day something is put behind it.
 
 ### The visitor's clock cannot be known at build time
 
