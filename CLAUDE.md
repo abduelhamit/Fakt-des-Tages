@@ -90,6 +90,23 @@ Consequences worth knowing before changing any of this:
   site's font stack, not a fallback: 1.94 px against 15.69 px for a tofu box. The archive was
   swept once to match, so a plain space beside a numeral is now a defect to fix rather than a
   backlog item.
+- **An ordinal binds to the word it labels, and that is the same rule seen from the other side.**
+  `1. Januar`, `19. Jahrhundert`, `9. Sinfonie`, `26. Präsident` and `100.000. Artikel` all take
+  **U+00A0**. With a cardinal the thing at risk is the orphaned noun — `vor 35 Jahren` must not
+  leave `Jahren` stranded on the next line. With an ordinal it is the reverse: a line ending in a
+  bare `9.` reads as a sentence that has finished. Duden and DIN 5008 ask for this in dates
+  explicitly, and the archive had already done it by hand once, at `1. FC`, before anyone wrote the
+  rule down. 19 further sites were swept to match, 20 in all.
+- **A number that ends a sentence is indistinguishable from an ordinal, and binding one is worse
+  than missing one.** `Heute ist Freitag, der 13.` before `Ich könnte …`, the score `2–1.` before
+  `Vor 200.000 Cariocas`, and `… aus dem Jahr 1995.` before `Heutzutage …` are the three in the
+  archive, and a no-break space in any of them welds two sentences together. No pattern over digits
+  and capitals can separate the two cases, so the sweep classified on the following word — month
+  names, `Jahrhundert`, a short list of counted nouns — and left whatever it could not place alone
+  rather than guessing. Extend that list rather than loosening the pattern. Name plus number is a
+  different construction and deliberately untouched: `Area 51`, `Nintendo 64`, `Platz 1` and
+  `Artikel 1` keep ordinary spaces, because this rule is about a numeral standing before its own
+  word.
 - **Images live in [static/fakten/](static/fakten/)** and are referenced relatively —
   `![…](fakten/2026-03-06-1.jpg)`, so the path resolves against the page and the base path stays in
   one place. **That works because facts are only ever rendered on `/`.** It used to be phrased as
@@ -130,6 +147,22 @@ Consequences worth knowing before changing any of this:
   rest on a § 51 UrhG quotation argument instead and carry no line, because no rights holder has
   asked for one. Those pages are behind JavaScript and answer a plain fetch with a title or a 403;
   they were read with Playwright.
+- **The fact texts are reworked Wikipedia prose, and one sentence in the footer carries what that
+  licence requires.** Nearly every entry leans on the German or English Wikipedia; 2026-10-01 is the
+  extreme, where both of the last two paragraphs are word for word from `Zeitball` and
+  `Zeitball (Bremerhaven)` — checked sentence by sentence rather than assumed. Wikipedia is
+  CC BY-SA 4.0, which unlike the public-domain images here genuinely obliges: name the source, name
+  the licence, disclose that something was changed, and licence the result alike.
+  [+layout.svelte](src/routes/+layout.svelte) does that in the footer rather than under each fact on
+  purpose — a per-entry credit would be the stricter reading, but it would need maintaining per
+  entry, and the credit nobody remembers to add is the one that is missing. Accepted limitation: the
+  notice names Wikipedia rather than the individual article behind each fact.
+  `nennt Herkunft und Lizenz der Fakten in der Fußzeile` in
+  [rechtsseiten.e2e.ts](src/routes/rechtsseiten.e2e.ts) asserts all three, and pins each
+  language edition to its own host, after being verified to
+  fail with the sentence deleted; without it the notice is static markup whose removal nothing would
+  announce. It is also why the no-JavaScript test names the two legal links rather than counting the
+  footer's links.
 - **Those images are in Git LFS** ([.gitattributes](.gitattributes) tracks `static/fakten/*.jpg`,
   `*.gif` and `*.png`), so the repo carries ~3 KB of pointers instead of 8.7 MB of binaries. Add the
   pattern before the first file of a new format, or it lands in the repo as a real binary and no
@@ -142,6 +175,18 @@ Consequences worth knowing before changing any of this:
     file headers.
   - Adding or replacing an image needs a local clone with `git lfs install`. Editing the _text_ of
     a fact in GitHub's web editor is unaffected.
+- **Decide JPEG against PNG at the size the image is shown, not at full size — the two disagree.**
+  The 1876 engraving on 2026-10-01 is the case that proves it. Hatching looks like line art, and as
+  a 256-colour PNG it did score better than JPEG at full width: RMSE 0.016 against 0.032. At the
+  624 px the prose column actually gives it, the order reverses — 0.019 for the PNG against 0.012
+  for the JPEG. Palette error is per pixel and survives downsampling, while the high-frequency
+  hatching JPEG discards averages out of existence on the way down. So it is a photograph for this
+  purpose and ships as one. Chroma subsampling lost as well, which is worth knowing because it
+  normally wins on anything photographic: 4:2:0 saved 23 % of the file and tripled the display-size
+  error, because the hand-colouring has hard edges in the flags, figures and foliage. Everything
+  here stays 4:4:4. One measuring trap, since it gave a garbage reading first time: resizing two
+  files to the same _width_ can leave their heights a pixel apart, and `magick compare` then reports
+  a meaningless number instead of complaining. Pin both dimensions with a `!` geometry.
 - **Transparency is a consequence of choosing PNG, never a reason to choose it.** Settle the format
   on the ringing question alone — photographs JPEG, line art PNG, as above. Only once PNG has won on
   its own merits is the background a question at all, and then the default is to keep the alpha

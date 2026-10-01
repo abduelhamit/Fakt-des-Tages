@@ -38,7 +38,14 @@ test.describe('Rechtsseiten', () => {
 			await expect(seite.getByRole('heading', { level: 1 })).toHaveText(ueberschrift);
 			// The footer is in the layout, so each legal page also reaches the other one — and the
 			// way back to the facts sits in the page itself. None of the three needs JavaScript.
-			await expect(seite.getByRole('contentinfo').getByRole('link')).toHaveCount(2);
+			// Named rather than counted: the footer also carries the Wikipedia and licence links of
+			// the attribution notice, so a count would fail on an unrelated edit to that sentence.
+			await expect(
+				seite.getByRole('contentinfo').getByRole('link', { name: 'Impressum' })
+			).toBeVisible();
+			await expect(
+				seite.getByRole('contentinfo').getByRole('link', { name: 'Datenschutz' })
+			).toBeVisible();
 			await expect(
 				seite.getByRole('main').getByRole('link', { name: 'Zum Fakt des Tages' })
 			).toBeVisible();
@@ -74,6 +81,30 @@ test.describe('Rechtsseiten', () => {
 			);
 		expect(ziele).not.toContain('/Fakt-des-Tages');
 	});
+});
+
+// Nearly every fact is reworked Wikipedia prose, and Wikipedia is CC BY-SA 4.0 — which wants the
+// source named, the licence named and the fact that something was changed disclosed. All three live
+// in one static sentence in the layout, so deleting it breaks a licence condition while every other
+// check stays green. Same shape as the `AUSFÜLLEN` guard on the Impressum: assert the obligation.
+test('nennt Herkunft und Lizenz der Fakten in der Fußzeile', async ({ page }) => {
+	await page.goto('/Fakt-des-Tages/');
+	const fusszeile = page.getByRole('contentinfo');
+
+	// One link per language edition, each pinned to its own host: the accessible names come from
+	// `aria-label`, because the visible `deutsch-` would otherwise be a link named after a fragment.
+	await expect(fusszeile.getByRole('link', { name: 'Deutschsprachige Wikipedia' })).toHaveAttribute(
+		'href',
+		'https://de.wikipedia.org/'
+	);
+	await expect(
+		fusszeile.getByRole('link', { name: 'Englischsprachige Wikipedia' })
+	).toHaveAttribute('href', 'https://en.wikipedia.org/');
+	await expect(fusszeile.getByRole('link', { name: 'CC BY-SA 4.0' })).toHaveAttribute(
+		'href',
+		/creativecommons\.org\/licenses\/by-sa\/4\.0/
+	);
+	await expect(fusszeile).toContainText('bearbeitet');
 });
 
 // The Datenschutz page states that the site loads no external fonts, maps, videos or scripts. That
