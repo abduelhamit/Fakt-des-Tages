@@ -87,8 +87,14 @@ describe('renderFakt', () => {
 	});
 
 	it('links every image to its own file, which is how it opens at 100 %', () => {
-		expect(renderFakt('![Ein Bild](fakten/2026-03-15-1.jpg)')).toContain(
-			'<a href="fakten/2026-03-15-1.jpg"><img src="fakten/2026-03-15-1.jpg" alt="Ein Bild"></a>'
+		expect(renderFakt('![Ein Bild](fakten/2026-03-06-1.jpg)')).toContain(
+			'<a href="fakten/2026-03-06-1.jpg"><img src="fakten/2026-03-06-1.jpg" alt="Ein Bild" width="1600" height="745"></a>'
+		);
+	});
+
+	it('fails on an image it cannot measure, naming the path', () => {
+		expect(() => renderFakt('![Fehlt](fakten/1999-01-01-1.jpg)')).toThrow(
+			/fakten\/1999-01-01-1\.jpg/
 		);
 	});
 });
