@@ -8,7 +8,7 @@ Nach dem ersten Deploy erreichbar unter <https://abduelhamit.github.io/Fakt-des-
 
 ## Einen Fakt hinzufügen
 
-Alle Fakten stehen in **einer** Datei: [`src/lib/fakten.yaml`](src/lib/fakten.yaml). Sie lässt sich
+Alle Fakten stehen in **einer** Datei: [`src/lib/facts.yaml`](src/lib/facts.yaml). Sie lässt sich
 direkt im GitHub-Webeditor bearbeiten — eine lokale Entwicklungsumgebung ist dafür nicht nötig.
 
 ```yaml
@@ -108,7 +108,7 @@ pnpm test:e2e                           # nur die Browser-Tests
 ```
 
 Für die Browser-Tests muss einmalig `pnpm exec playwright install chromium` ausgeführt werden.
-Die Node-Tests prüfen unter anderem, ob `src/lib/fakten.yaml` fehlerfrei ist — sie laufen bei jedem
+Die Node-Tests prüfen unter anderem, ob `src/lib/facts.yaml` fehlerfrei ist — sie laufen bei jedem
 Deploy und stoppen ihn bei einem Tippfehler.
 
 ## Deployment

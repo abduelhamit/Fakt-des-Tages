@@ -21,13 +21,37 @@ How the page itself behaves (the loading placeholder, calendar, sticky bar, sear
 legal pages) is in [src/routes/CLAUDE.md](src/routes/CLAUDE.md). It loads once a file there is
 read; if it is not in context yet, read it before answering about or changing anything there.
 
+## German and English
+
+The site is German; its code is English. Which side a piece of text falls on depends on who reads
+it:
+
+- **English:** identifiers of every kind (variables, functions, types, constants, object keys,
+  snippets, environment variables, plugin names), file and module names, code comments, test titles
+  and assertion messages, commit messages, and both CLAUDE.md files.
+- **German:** everything a visitor reads — UI text, `aria-label`s, `<title>`s, alt texts, the legal
+  pages and the facts themselves — and everything written for whoever maintains the facts:
+  [README.md](README.md), the header comments of `facts.yaml` and `facts.probe.yaml`, the
+  `AUSFÜLLEN` marker in [provider.ts](src/lib/provider.ts), and the errors `parseFacts` and
+  `renderFact` throw, which are what a maintainer sees in CI after a bad edit in the web editor.
+  Test inputs that imitate an entry — the probe fixture, the YAML strings in the unit tests — are
+  German too, because they stand in for content.
+- **Public URLs stay German even though they are code:** `/impressum`, `/datenschutz` and the
+  `static/fakten/` image directory. A renamed route breaks every link already out there, and a
+  renamed image directory breaks the `fakten/…` path in every illustrated entry. That is why the
+  facts file is `facts.yaml` while its images live under `fakten/` — do not "tidy" one to match the
+  other.
+
+German quoted inside English — a legal term such as `ladungsfähige Anschrift`, a UI string a test
+looks for — is fine and does not make the text German.
+
 ## Adding a fact
 
 A fact arrives as German prose in the chat, usually with an image URL, and every step below applies
 to it. The rules themselves are under the content pipeline below; this is the order they are
 applied in and what is checked, so nothing depends on remembering a past session.
 
-1. **The entry.** Append `YYYY-MM-DD: |-` at the end of [fakten.yaml](src/lib/fakten.yaml),
+1. **The entry.** Append `YYYY-MM-DD: |-` at the end of [facts.yaml](src/lib/facts.yaml),
    two-space indent, image as its last paragraph. The prose stays the user's: change only what the
    checks below flag, and report each change _and_ each thing deliberately left alone. Paragraph
    breaks are the user's call.
@@ -87,7 +111,7 @@ applied in and what is checked, so nothing depends on remembering a past session
 
 **Measuring traps**, each of which produced a wrong reading at least once:
 
-- `pnpm test:e2e` leaves `build/` built from `fakten.probe.yaml`. Rebuild before checking real
+- `pnpm test:e2e` leaves `build/` built from `facts.probe.yaml`. Rebuild before checking real
   content.
 - `pnpm preview` moves silently to the next free port when 4173 is taken, so a forgotten server
   goes on answering with an old build. Run measurement servers with `--port N --strictPort`, stop
@@ -105,7 +129,7 @@ applied in and what is checked, so nothing depends on remembering a past session
 
 ## Content pipeline — everything happens at build time
 
-Facts live in **one YAML file**, [src/lib/fakten.yaml](src/lib/fakten.yaml), mapping ISO date to a
+Facts live in **one YAML file**, [src/lib/facts.yaml](src/lib/facts.yaml), mapping ISO date to a
 **CommonMark** string, so entries can be written and formatted by hand:
 
 ```yaml
@@ -127,15 +151,15 @@ edit made in GitHub's web UI, already triggers a full rebuild and deploy via
 
 Consequences worth knowing before changing any of this:
 
-- **[src/lib/fakten.ts](src/lib/fakten.ts) must stay dependency-free.** It holds the
-  `Fakten`/`FaktHtml` types and the pure date helpers (`toIsoDate`, `fromIsoDate`, `isIsoDate`,
-  `monatsRaster`) and is imported by the page component, so anything added there ships to the
+- **[src/lib/facts.ts](src/lib/facts.ts) must stay dependency-free.** It holds the
+  `Facts`/`FactHtml` types and the pure date helpers (`toIsoDate`, `fromIsoDate`, `isIsoDate`,
+  `monthGrid`) and is imported by the page component, so anything added there ships to the
   client. `isIsoDate` lives here rather than in `$lib/server/` because the calendar validates the
   location hash with it — that _is_ a trust boundary, unlike the facts file.
-- **`FaktHtml` is a branded string, and the brand needs an anchor.** `renderFakt` is the only place
-  it is applied, so a load that returns `parseFakten`'s output unrendered fails to compile. That
+- **`FactHtml` is a branded string, and the brand needs an anchor.** `renderFact` is the only place
+  it is applied, so a load that returns `parseFacts`'s output unrendered fails to compile. That
   only works because [+page.server.ts](src/routes/+page.server.ts) pins the output type as
-  `PageServerLoad<{ fakten: Fakten }>` — a bare `PageServerLoad` accepts any serialisable shape, and
+  `PageServerLoad<{ facts: Facts }>` — a bare `PageServerLoad` accepts any serialisable shape, and
   the page would simply infer whatever load returned. Do not drop that type argument.
 - **A malformed facts file fails `pnpm build`,** so broken content never deploys and the previous
   version stays live. The UI has no runtime error state, and needs none.
@@ -170,7 +194,7 @@ Consequences worth knowing before changing any of this:
   hand drops the character altogether and nothing in the gate notices. Everything here was checked for
   both characters rather than assumed: the YAML parser preserves them, `marked` emits them literally with no `&nbsp;` or
   `&#8239;` reaching the built HTML, Prettier round-trips them inside a block scalar, and the
-  search index is unaffected because `worte` splits on `[^\p{L}\p{N}]+` — neither is a letter or a
+  search index is unaffected because `words` splits on `[^\p{L}\p{N}]+` — neither is a letter or a
   digit, so both separate tokens exactly like an ordinary space. U+202F is a real glyph in the
   site's font stack, not a fallback: 1.94 px against 15.69 px for a tofu box. The archive was
   swept once to match, so a plain space beside a numeral is now a defect to fix rather than a
@@ -198,7 +222,7 @@ Consequences worth knowing before changing any of this:
   to 12 px and the lines ending more than 30 px short go from 9 to 1, breaking correctly at
   `ange-brachter`, `er-laubte`, `überprü-fen` and `Län-gengrad`. One utility class, every entry
   covered including the ones not written yet, and the stored text stays plain.
-- **Do not reintroduce soft hyphens: they broke the search.** `worte` splits on `[^\p{L}\p{N}]+`,
+- **Do not reintroduce soft hyphens: they broke the search.** `words` splits on `[^\p{L}\p{N}]+`,
   and U+00AD is a format character — neither letter nor digit — so a soft-hyphenated `Flughafen`
   entered the index as `flug` and `hafen`, and typing `Flughafen` matched nothing. Nothing in the
   gate would notice one coming back, and the character is invisible in every editor.
@@ -209,7 +233,7 @@ Consequences worth knowing before changing any of this:
   and every image on it 404s, because `fakten/…` would resolve against _that_ route's directory.
   They are exempt from the payload note above: only the selected day's `{@html}` is in the DOM, so a
   visitor downloads the images of the day they are looking at and no others.
-- **Clicking an image opens its file, and that link is the whole zoom feature.** `renderFakt` wraps
+- **Clicking an image opens its file, and that link is the whole zoom feature.** `renderFact` wraps
   every `<img>` in `<a href>` to its own `src`, at build time, so nothing is written per entry. The
   browser's image viewer then toggles fit-to-window and 100 % on click, pinches on a phone and
   zooms with the keyboard, and Back returns to the same fact with its hash. It needs no JavaScript.
@@ -219,7 +243,7 @@ Consequences worth knowing before changing any of this:
   after. Two things depend on it: the credit selector below, and the `zoom-in` cursor in
   [layout.css](src/routes/layout.css). A fact that puts an image inside its own link would nest
   one `<a>` in another, which is invalid HTML, so no entry does.
-- **`renderFakt` also writes each image's own `width` and `height`,** read from the file under
+- **`renderFact` also writes each image's own `width` and `height`,** read from the file under
   `static/` with `image-meta`, so the browser reserves the box before the bytes arrive and the text
   below does not jump when a day is picked. Preflight's `height: auto` keeps the displayed size what
   it was: measured on every image in the archive at 375 and 1024 px, every position and height
@@ -274,8 +298,8 @@ Consequences worth knowing before changing any of this:
   purpose — a per-entry credit would be the stricter reading, but it would need maintaining per
   entry, and the credit nobody remembers to add is the one that is missing. Accepted limitation: the
   notice names Wikipedia rather than the individual article behind each fact.
-  `nennt Herkunft und Lizenz der Fakten in der Fußzeile` in
-  [rechtsseiten.e2e.ts](src/routes/rechtsseiten.e2e.ts) asserts all three, and pins each
+  `names the facts' source and licence in the footer` in
+  [legal-pages.e2e.ts](src/routes/legal-pages.e2e.ts) asserts all three, and pins each
   language edition to its own host, after being verified to
   fail with the sentence deleted; without it the notice is static markup whose removal nothing would
   announce. It is also why the no-JavaScript test names the two legal links rather than counting the
@@ -289,7 +313,7 @@ Consequences worth knowing before changing any of this:
   - `actions/checkout` in [deploy.yml](.github/workflows/deploy.yml) needs **`lfs: true`**. Without
     it the build gets 130-byte pointer files, copies them into `build/fakten/` and deploys every
     image on the site broken. The gate test below reads the file headers to catch that, and since
-    `renderFakt` measures every image, `pnpm build` itself fails on a pointer too.
+    `renderFact` measures every image, `pnpm build` itself fails on a pointer too.
   - Adding or replacing an image needs a local clone with `git lfs install`. Editing the _text_ of
     a fact in GitHub's web editor is unaffected.
 - **Decide JPEG against PNG at the size the image is shown, not at full size — the two disagree.**
@@ -344,7 +368,7 @@ Consequences worth knowing before changing any of this:
   names the offending key. Do not quietly switch this to skip-and-continue.
 - Multi-line facts need a `|` block scalar with consistent indentation. This is the main hand-editing
   hazard in the GitHub web editor.
-- `parseFakten` rejects a document that parses to a plain string rather than a map — a file
+- `parseFacts` rejects a document that parses to a plain string rather than a map — a file
   containing prose instead of entries, for instance.
 
 Rendering goes through `{@html}` on the already-rendered HTML, wrapped in Tailwind's `prose` class
@@ -377,7 +401,7 @@ pnpm test:e2e             # Playwright only (builds and previews first)
 Single test / focused runs:
 
 ```sh
-pnpm vitest run src/lib/fakten.spec.ts                 # one file
+pnpm vitest run src/lib/facts.spec.ts                 # one file
 pnpm vitest run -t 'parses and is not empty'           # one test by name
 pnpm exec playwright test src/routes/page.e2e.ts       # one e2e file
 ```
@@ -450,9 +474,9 @@ covered by the Playwright layer instead. If you do re-add a browser project, exp
 again.
 
 **The e2e suite builds against a fixture, not the real facts.**
-[playwright.config.ts](playwright.config.ts) sets `FAKTEN_PROBE=1`, and the small `fakten-fixture`
-plugin in [vite.config.ts](vite.config.ts) swaps `src/lib/fakten.yaml` for
-[src/lib/fakten.probe.yaml](src/lib/fakten.probe.yaml). That file is content-shaped on purpose —
+[playwright.config.ts](playwright.config.ts) sets `FACTS_PROBE=1`, and the small `facts-fixture`
+plugin in [vite.config.ts](vite.config.ts) swaps `src/lib/facts.yaml` for
+[src/lib/facts.probe.yaml](src/lib/facts.probe.yaml). That file is content-shaped on purpose —
 three months, gaps inside August, two deliberately long entries — and the tests name its dates
 outright. Two long ones, because the jump test steps between them: land on a fact shorter than the
 viewport and the browser clamps the scroll, so the test measures the clamping instead of the jump. The point is that **editing the site's content can break the build but never a test**:
@@ -463,10 +487,10 @@ and by `pnpm build` itself.
 Two traps if you ever touch that swap. It cannot be keyed on `vite --mode`: SvelteKit runs a second
 build pass for prerendering that reports mode `production`, and that is the pass which reads the
 YAML. And it cannot be a `resolve.alias`: by the time an alias could fire, `$lib` has already become
-an absolute path, so no `$lib/fakten.yaml` pattern ever matches. Both were tried and observed to
+an absolute path, so no `$lib/facts.yaml` pattern ever matches. Both were tried and observed to
 silently do nothing.
 
-Changing `fakten.probe.yaml` _does_ change the tests. Shortening its 2026-08-23 or 2026-08-26 entry
+Changing `facts.probe.yaml` _does_ change the tests. Shortening its 2026-08-23 or 2026-08-26 entry
 in particular leaves the sticky-bar and jump tests passing while proving nothing, because the page
 stops scrolling far enough for `sticky` to engage.
 
@@ -483,7 +507,7 @@ Everything calendar-related instead pins the clock with `page.clock.setFixedTime
 `timezoneId: 'Europe/Berlin'`, which is what lets those tests name concrete dates. Keep the two
 apart: the unpinned test is the only one that proves the page works on a clock nobody chose.
 
-[src/lib/server/fakten.spec.ts](src/lib/server/fakten.spec.ts) parses the **real** facts file, not just
+[src/lib/server/facts.spec.ts](src/lib/server/facts.spec.ts) parses the **real** facts file, not just
 fixtures, and that test runs in the gate. It is what stops a typo pushed from GitHub's web editor
 from deploying green and taking the site down; verified to fail, naming the bad key. Do not weaken
 it to a fixture. It also walks every `fakten/…` path a fact references and reads the first bytes of

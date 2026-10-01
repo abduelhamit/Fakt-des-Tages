@@ -22,10 +22,10 @@
 		<span aria-hidden="true"> · </span>
 		<a class="text-sky-800 hover:underline" href={resolve('/datenschutz')}>Datenschutz</a>
 	</p>
-	<!-- CC BY-SA 4.0 verlangt Quelle, Lizenz und den Hinweis auf Bearbeitung. Der Hinweis steht
-	     hier und nicht unter dem einzelnen Fakt, weil sie für fast alle gilt: ein Vermerk je
-	     Eintrag wäre genauer, aber er müsste je Eintrag gepflegt werden, und der Vermerk, den
-	     niemand nachträgt, ist der, der fehlt. Siehe CLAUDE.md. -->
+	<!-- CC BY-SA 4.0 requires the source, the licence and a note that the text was changed. The
+	     note sits here rather than under each fact because it applies to nearly all of them: one
+	     per entry would be more precise, but it would have to be maintained per entry, and the
+	     note nobody adds is the one that is missing. See CLAUDE.md. -->
 	<p class="mt-2">
 		Die Fakten beruhen überwiegend auf Artikeln der
 		<a

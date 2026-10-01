@@ -6,26 +6,24 @@ import { sveltekit } from '@sveltejs/kit/vite';
 /**
  * Swaps the facts file for a fixture, so the Playwright suite does not depend on the site's actual
  * content — [playwright.config.ts](playwright.config.ts) is what sets the variable. Editing
- * `src/lib/fakten.yaml` can then break the build, but never a test.
+ * `src/lib/facts.yaml` can then break the build, but never a test.
  *
  * Two things this deliberately is *not*. It is not keyed on `--mode`, because SvelteKit runs a
  * second build pass for prerendering that comes back as mode `production`, and that is the pass
  * which actually reads the YAML. And it is not a `resolve.alias`, because by the time an alias
- * could fire, `$lib` is already an absolute path and no `$lib/fakten.yaml` pattern matches.
+ * could fire, `$lib` is already an absolute path and no `$lib/facts.yaml` pattern matches.
  */
-const faktenFixture = process.env.FAKTEN_PROBE === '1' && {
-	name: 'fakten-fixture',
+const factsFixture = process.env.FACTS_PROBE === '1' && {
+	name: 'facts-fixture',
 	enforce: 'pre' as const,
 	resolveId(id: string) {
-		return id.includes('/src/lib/fakten.yaml')
-			? id.replace('fakten.yaml', 'fakten.probe.yaml')
-			: null;
+		return id.includes('/src/lib/facts.yaml') ? id.replace('facts.yaml', 'facts.probe.yaml') : null;
 	}
 };
 
 export default defineConfig({
 	plugins: [
-		faktenFixture,
+		factsFixture,
 		tailwindcss(),
 		// SvelteKit's own options go here, at the top level of this object. Because this argument is
 		// present, a `svelte.config.js` is ignored entirely (it only logs a warning) — do not add one.

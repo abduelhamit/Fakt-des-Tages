@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { ANBIETER } from '$lib/anbieter';
+	import { PROVIDER } from '$lib/provider';
 	import { resolve } from '$app/paths';
 </script>
 
@@ -7,11 +7,11 @@
 
 <!-- The address block twice, because § 5 DDG and § 18 Abs. 2 MStV each want it in their own
      section and a reader is entitled to find it under either heading. One snippet rather than two
-     copies, for the same reason `anbieter.ts` exists at all. -->
-{#snippet anschrift()}
+     copies, for the same reason `provider.ts` exists at all. -->
+{#snippet address()}
 	<p class="hyphens-none">
-		{ANBIETER.name}<br />
-		{#each ANBIETER.anschrift as zeile, i (i)}{zeile}<br />{/each}
+		{PROVIDER.name}<br />
+		{#each PROVIDER.address as line, i (i)}{line}<br />{/each}
 	</p>
 {/snippet}
 
@@ -20,18 +20,18 @@
 
 	<div class="prose mt-6">
 		<h2>Angaben gemäß § 5 DDG</h2>
-		{@render anschrift()}
+		{@render address()}
 
 		<h2>Kontakt</h2>
 		<p class="hyphens-none">
-			E-Mail: <a href="mailto:{ANBIETER.email}">{ANBIETER.email}</a>
+			E-Mail: <a href="mailto:{PROVIDER.email}">{PROVIDER.email}</a>
 		</p>
 
 		<!-- A fact published every weekday, written and edited rather than merely collected, reads as
 		     a „journalistisch-redaktionell gestaltetes Angebot“. Whether it really is one is arguable;
 		     naming the responsible person costs a line and settles the question either way. -->
 		<h2>Verantwortlich für den Inhalt nach § 18 Abs. 2 MStV</h2>
-		{@render anschrift()}
+		{@render address()}
 
 		<!-- The way back, here rather than in the layout's footer: a link to `/` must never be
 		     rendered on the home page itself, and living in this file is what guarantees that

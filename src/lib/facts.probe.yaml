@@ -1,6 +1,6 @@
 # Testdaten für die Playwright-Tests — NICHT der Inhalt der Website.
 #
-# Sie ersetzt src/lib/fakten.yaml nur beim Bauen für die Tests — wie, steht bei `FAKTEN_PROBE` in
+# Sie ersetzt src/lib/facts.yaml nur beim Bauen für die Tests — wie, steht bei `FACTS_PROBE` in
 # vite.config.ts. `pnpm build` rührt sie nicht an, sie kann also nie online gehen.
 #
 # Die Tests in src/routes/page.e2e.ts hängen an dieser Form: drei Monate, Lücken innerhalb des
@@ -14,7 +14,7 @@
 # auf Bilder mit Nachweis zielt. Sein Alt-Text enthält „Wasserspeier“ bewusst nicht.
 # Achtung beim Umformulieren: dieser Text landet im Suchindex. „hinter“ stand hier einmal
 # und war ein zweiter Treffer für die Anfrage `Hinterg` — der Präfix-Test fiel um.
-# Die echten Fakten stehen nebenan in fakten.yaml und dürfen frei bearbeitet werden.
+# Die echten Fakten stehen nebenan in facts.yaml und dürfen frei bearbeitet werden.
 
 2026-07-30: Testdaten — einziger Eintrag im Juli, damit der Pfeil ‹ eine Grenze hat.
 

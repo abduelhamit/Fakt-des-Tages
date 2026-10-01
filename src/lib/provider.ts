@@ -6,14 +6,14 @@
  *
  * This ships to the client, which is fine — every word of it is meant to be read by strangers.
  *
- * `anschrift` has to stay a ladungsfähige Anschrift, a real street address that a court could
+ * `address` has to stay a ladungsfähige Anschrift, a real street address that a court could
  * deliver post to; a Postfach does not satisfy the case law.
- * [anbieter.spec.ts](anbieter.spec.ts) fails on an `AUSFÜLLEN` marker, so a half-finished edit
- * cannot reach the live site — the same trick [server/fakten.spec.ts](server/fakten.spec.ts) plays
+ * [provider.spec.ts](provider.spec.ts) fails on an `AUSFÜLLEN` marker, so a half-finished edit
+ * cannot reach the live site — the same trick [server/facts.spec.ts](server/facts.spec.ts) plays
  * on a malformed facts file.
  */
-export const ANBIETER = {
+export const PROVIDER = {
 	name: 'Abdülhamit Yilmaz',
-	anschrift: ['Birkenstr. 79', '40233 Düsseldorf'],
+	address: ['Birkenstr. 79', '40233 Düsseldorf'],
 	email: 'abduelhamit.yilmaz@gmail.com'
 } as const;
