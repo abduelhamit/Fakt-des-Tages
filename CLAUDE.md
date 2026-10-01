@@ -66,9 +66,10 @@ applied in and what is checked, so nothing depends on remembering a past session
    - **Credit line:** CC → credit, PD/CC0 → none, rights-holder declaration → verbatim, per the
      credit rules under the content pipeline.
    - **Format and size, measured at the 624 px the column displays.** 1000–1280 px wide covers 2×
-     screens. Photographs JPEG at 4:4:4, line art PNG (an undithered palette usually wins; dithering
-     inflates the file), alpha per the transparency rule. Always `-strip`; if the source is already
-     a high-quality JPEG at the target size, `jpegtran -copy none -optimize` instead of
+     screens. Photographs progressive JPEG at 4:4:4, line art Adam7-interlaced PNG (an undithered
+     palette usually wins; dithering inflates the file), alpha per the transparency rule — see the
+     interlacing rule for when a PNG stays non-interlaced. Always `-strip`; if the source is already
+     a high-quality JPEG at the target size, `jpegtran -copy none -optimize -progressive` instead of
      re-encoding. Most images land under 250 KB — say the size, and why when it is more.
    - **File** `static/fakten/YYYY-MM-DD-N.ext`.
    - **Alt text in German**, describing what is visible — subject, colours, layout, any lettering
@@ -286,6 +287,14 @@ Consequences worth knowing before changing any of this:
   normally wins on anything photographic: 4:2:0 saved 23 % of the file and tripled the display-size
   error, because the hand-colouring has hard edges in the flags, figures and foliage. Everything
   here stays 4:4:4.
+- **Images load coarse-to-fine: JPEGs progressive, PNGs Adam7-interlaced.** On a slow connection
+  the picture appears whole and blurry and then sharpens, instead of filling in from the top. For
+  JPEG it is free: `jpegtran -progressive` is lossless — verified pixel-identical with
+  `magick compare -metric AE` — and usually makes the file slightly smaller. For PNG it is not:
+  Adam7 compresses worse, and on small palette line art it can cost a third of the file. Encode a
+  new PNG both ways with the same encoder, interlace it unless that clearly grows the file, and say
+  which way it went; a non-interlaced PNG in the archive is one where it did. The animated GIFs are
+  not interlaced either: their weight is the frame count, which interlacing does nothing about.
 - **Transparency is a consequence of choosing PNG, never a reason to choose it.** Settle the format
   on the ringing question alone — photographs JPEG, line art PNG, as above. Only once PNG has won on
   its own merits is the background a question at all, and then the default is to keep the alpha
