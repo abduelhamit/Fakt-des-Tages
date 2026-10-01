@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { imageMeta } from 'image-meta';
 import { Marked, Renderer } from 'marked';
 import YAML from 'yaml';
 import { isIsoDate, type FaktHtml } from '$lib/fakten';
@@ -48,13 +50,31 @@ export function parseFakten(text: string): Map<string, string> {
  * so it carries exactly the encoded URL the image does; for a URL it cannot encode marked returns
  * the bare alt text instead, and there is then nothing to link. A private instance, so the global
  * `marked` stays stock for anything else that imports it.
+ *
+ * Each image also gets its file's own `width` and `height`, so the browser reserves its box before
+ * the bytes arrive and the text below it does not jump. Preflight's `height: auto` keeps the
+ * displayed size exactly what it was. The path is read against `static/` from the working
+ * directory, which is the project root under both `vite build` and vitest. An image that cannot be
+ * measured — a mistyped path, an LFS pointer, a remote URL, a header declaring an impossible size
+ * — fails the build, naming the path.
  */
 const markdown = new Marked({
 	renderer: {
 		image(token) {
 			const bild = Renderer.prototype.image.call(this, token);
 			const quelle = /^<img src="([^"]*)"/.exec(bild)?.[1];
-			return quelle ? `<a href="${quelle}">${bild}</a>` : bild;
+			if (!quelle) return bild;
+			let größe;
+			try {
+				größe = imageMeta(readFileSync(`static/${token.href}`));
+			} catch (cause) {
+				const detail = cause instanceof Error ? cause.message : String(cause);
+				throw new Error(`Das Bild „${token.href}“ lässt sich nicht vermessen: ${detail}`, {
+					cause
+				});
+			}
+			const maße = ` width="${größe.width}" height="${größe.height}">`;
+			return `<a href="${quelle}">${bild.replace(/>$/, maße)}</a>`;
 		}
 	}
 });

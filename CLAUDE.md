@@ -219,6 +219,21 @@ Consequences worth knowing before changing any of this:
   after. Two things depend on it: the credit selector below, and the `zoom-in` cursor in
   [layout.css](src/routes/layout.css). A fact that puts an image inside its own link would nest
   one `<a>` in another, which is invalid HTML, so no entry does.
+- **`renderFakt` also writes each image's own `width` and `height`,** read from the file under
+  `static/` with `image-meta`, so the browser reserves the box before the bytes arrive and the text
+  below does not jump when a day is picked. Preflight's `height: auto` keeps the displayed size what
+  it was: measured on every image in the archive at 375 and 1024 px, every position and height
+  identical to the hundredth of a pixel, and with image requests blocked every box still held its
+  full height. An image it cannot measure — a mistyped path, an LFS pointer, a remote URL, a format
+  the library does not know, a header declaring an impossible size — fails `pnpm build`, naming the
+  path. Remote images are therefore not possible without changing this, which is fine: every image
+  is downloaded into `static/fakten/`. **Do not swap it for the more popular `image-size`.** Both
+  read every image in the archive identically, but `image-size` returns `0 x 0` for a header
+  declaring an empty surface — tested against 2.0.4 with a GIF and a PNG header, and its GIF parser
+  returns the two size fields unchecked — which would ship as `width="0"` and hide the image without
+  failing anything, while `image-meta` throws. `@carboneio/image-size`, a security fork that also
+  throws, was passed over for its tiny user base, and `sharp` because it is async-only, which the
+  synchronous renderer cannot use, and ships native binaries to read a header.
 - **A CC-licensed image carries its credit in the entry**, on the line after it, as
   `_Foto: Name, [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/)_`. Same paragraph as
   the image, and **no hard break** between them: Preflight makes `img` a block, so the credit starts
@@ -273,8 +288,8 @@ Consequences worth knowing before changing any of this:
   same width. Two consequences, both load-bearing:
   - `actions/checkout` in [deploy.yml](.github/workflows/deploy.yml) needs **`lfs: true`**. Without
     it the build gets 130-byte pointer files, copies them into `build/fakten/` and deploys every
-    image on the site broken — with every check green. That is why the gate test below reads the
-    file headers.
+    image on the site broken. The gate test below reads the file headers to catch that, and since
+    `renderFakt` measures every image, `pnpm build` itself fails on a pointer too.
   - Adding or replacing an image needs a local clone with `git lfs install`. Editing the _text_ of
     a fact in GitHub's web editor is unaffected.
 - **Decide JPEG against PNG at the size the image is shown, not at full size — the two disagree.**
