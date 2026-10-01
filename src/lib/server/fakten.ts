@@ -1,4 +1,4 @@
-import { marked } from 'marked';
+import { Marked, Renderer } from 'marked';
 import YAML from 'yaml';
 import { isIsoDate, type FaktHtml } from '$lib/fakten';
 
@@ -41,7 +41,25 @@ export function parseFakten(text: string): Map<string, string> {
 	return fakten;
 }
 
+/**
+ * Every image links to its own file, which is the whole zoom feature: the browser's image viewer
+ * already toggles between fit-to-window and 100 % on click, pinches on a phone and zooms with the
+ * keyboard, and it works without JavaScript. The `href` is read back out of marked's own `<img>`
+ * so it carries exactly the encoded URL the image does; for a URL it cannot encode marked returns
+ * the bare alt text instead, and there is then nothing to link. A private instance, so the global
+ * `marked` stays stock for anything else that imports it.
+ */
+const markdown = new Marked({
+	renderer: {
+		image(token) {
+			const bild = Renderer.prototype.image.call(this, token);
+			const quelle = /^<img src="([^"]*)"/.exec(bild)?.[1];
+			return quelle ? `<a href="${quelle}">${bild}</a>` : bild;
+		}
+	}
+});
+
 /** CommonMark → HTML. `async: false` picks marked's synchronous overload, which returns `string`. */
-export function renderFakt(markdown: string): FaktHtml {
-	return marked.parse(markdown, { async: false }) as FaktHtml;
+export function renderFakt(text: string): FaktHtml {
+	return markdown.parse(text, { async: false }) as FaktHtml;
 }

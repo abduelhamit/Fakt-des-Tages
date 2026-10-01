@@ -208,13 +208,24 @@ Consequences worth knowing before changing any of this:
   and every image on it 404s, because `fakten/…` would resolve against _that_ route's directory.
   They are exempt from the payload note above: only the selected day's `{@html}` is in the DOM, so a
   visitor downloads the images of the day they are looking at and no others.
+- **Clicking an image opens its file, and that link is the whole zoom feature.** `renderFakt` wraps
+  every `<img>` in `<a href>` to its own `src`, at build time, so nothing is written per entry. The
+  browser's image viewer then toggles fit-to-window and 100 % on click, pinches on a phone and
+  zooms with the keyboard, and Back returns to the same fact with its hash. It needs no JavaScript.
+  An in-page `<dialog>` with on-screen −/100 %/+ buttons was weighed and passed over as roughly
+  50 lines doing what the browser already does. The wrapper changes no layout: every image and
+  credit across every illustrated entry measured identically at 375 and 1024 px, before and
+  after. Two things depend on it: the credit selector below, and the `zoom-in` cursor in
+  [layout.css](src/routes/layout.css). A fact that puts an image inside its own link would nest
+  one `<a>` in another, which is invalid HTML, so no entry does.
 - **A CC-licensed image carries its credit in the entry**, on the line after it, as
   `_Foto: Name, [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/)_`. Same paragraph as
   the image, and **no hard break** between them: Preflight makes `img` a block, so the credit starts
   on its own line regardless, and a `<br>` there buys nothing but an extra empty line — measured, it
   left the credit 37 px from both pictures, belonging to neither.
   [layout.css](src/routes/layout.css) closes the first gap to 8 px, and the selector is the load-
-  bearing part: `.prose p > img:has(+ em)` matches only an image with a credit after it, so the
+  bearing part: `.prose p > a:has(+ em) > img` matches only an image with a credit after it — the
+  sibling is the image's zoom link, not the image (see the point above) — so the
   single images and the back-to-back pairs elsewhere in the archive keep their 32 px. Verified by
   measuring all four cases in a browser rather than reasoning about the cascade. It has to live in
   `@layer utilities`, because that is where the typography plugin puts `.prose :where(img)` and a
