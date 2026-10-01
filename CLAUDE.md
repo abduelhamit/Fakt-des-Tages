@@ -17,6 +17,83 @@ Product rules that are easy to get wrong:
   visitor's local `Date`, read in the browser: nothing runs at request time, so the build can never
   know what day it is for a visitor.
 
+## Adding a fact
+
+A fact arrives as German prose in the chat, usually with an image URL, and every step below applies
+to it. The rules themselves are under the content pipeline below; this is the order they are
+applied in and what is checked, so nothing depends on remembering a past session.
+
+1. **The entry.** Append `YYYY-MM-DD: |-` at the end of [fakten.yaml](src/lib/fakten.yaml),
+   two-space indent, image as its last paragraph. The prose stays the user's: change only what the
+   checks below flag, and report each change _and_ each thing deliberately left alone. Paragraph
+   breaks are the user's call.
+2. **Language.** Grammar and spelling first — case agreement (an apposition takes its head's case),
+   gender, genitive after `mithilfe`/`wegen`, idiom. Fix clear errors; offer stylistic ones as
+   suggestions without applying them. Check the `Heute vor N Jahren` arithmetic, and leave N as a
+   numeral.
+3. **Facts.** The prose comes from Wikipedia already, so do not re-verify it wholesale. Check
+   what looks wrong, and the places where copying and rewording most easily introduce a mistake:
+   figures, dates and names, superlatives like `der einzige` or `zum ersten Mal`, and any sentence
+   whose meaning may have drifted from its source. Check against `de.wikipedia.org` or
+   `en.wikipedia.org` (`action=query&prop=extracts&explaintext=1`), and confirm against the source
+   before calling something wrong — a figure that only looks implausible is not an error.
+4. **Typography.** No-break spaces per the rules under the content pipeline: cardinals, ordinals,
+   units, spaced abbreviations, and never a number that ends a sentence. No soft hyphens; strip any
+   that arrived. Count the characters in the entry rather than trusting the eye.
+5. **The image.**
+   - **Licence.** `curl -s -G --data-urlencode` against the API
+     (`action=query&prop=imageinfo&iiprop=url|size|mime|extmetadata&titles=File:…`) with a
+     User-Agent naming the site and the Impressum address. Query `commons.wikimedia.org`, except
+     for non-free files: Commons accepts free licences only, so a fair-use cover or poster lives on
+     `en.wikipedia.org` and has to be asked there, as the Nevermind cover was. Not on
+     `de.wikipedia.org`, which hosts no non-free files at all — German law has no fair use. Read
+     `LicenseShortName`, `AttributionRequired`, `NonFree`, `Restrictions` and `Credit`. A
+     plain-text body means a 429, not a parse failure.
+   - **Download** the original from `upload.wikimedia.org`. `thumb.wikimedia.org` returns HTML, and
+     a non-standard thumbnail width 404s.
+   - **Non-free images:** look for a rights holder's own permission first — press kits, legal FAQs;
+     those pages are often JavaScript-walled, so read them with Playwright — and fall back to a
+     § 51 UrhG quotation at the smallest useful size. **Flag two German-law caveats whenever they
+     apply**, because Commons reasons from US law: a `PD-textlogo` may still reach the ordinary
+     threshold for applied art since BGH _Geburtstagszug_ (2013), and a photograph of a
+     public-domain two-dimensional work carries its own § 72 UrhG protection under BGH
+     _Reiss-Engelhorn_ (2018), whatever the Commons tag says.
+   - **Credit line:** CC → credit, PD/CC0 → none, rights-holder declaration → verbatim, per the
+     credit rules under the content pipeline.
+   - **Format and size, measured at the 624 px the column displays.** 1000–1280 px wide covers 2×
+     screens. Photographs JPEG at 4:4:4, line art PNG (an undithered palette usually wins; dithering
+     inflates the file), alpha per the transparency rule. Always `-strip`; if the source is already
+     a high-quality JPEG at the target size, `jpegtran -copy none -optimize` instead of
+     re-encoding. Most images land under 250 KB — say the size, and why when it is more.
+   - **File** `static/fakten/YYYY-MM-DD-N.ext`.
+   - **Alt text in German**, describing what is visible — subject, colours, layout, any lettering
+     quoted in „…“. It is the only description a screen reader gets and it feeds the search. It
+     must not claim what the file lacks: a transparent PNG has no `weißer Grund`.
+6. **The gate.** `git check-attr filter -- static/fakten/<file>` must say `lfs`; then `pnpm lint`,
+   `pnpm vitest run`, `pnpm build`. Then read the entry back out of `build/index.html`: the
+   invisible characters literal, no `&nbsp;`, `&#8239;` or `&shy;` anywhere, and the image in
+   `build/fakten/` a real file according to `file`, not a pointer.
+7. **Report:** what changed, what was left and why, the licence verdict and its caveats, and the
+   image's format, size and reasoning.
+8. **Commit only when asked.** Stage explicit paths rather than everything. Subject
+   `Add <subject> as the fact for YYYY-MM-DD`; the body records the decisions. A later correction
+   to the same day is amended into that commit when the user asks, message unchanged.
+
+**Measuring traps**, each of which produced a wrong reading at least once:
+
+- `pnpm test:e2e` leaves `build/` built from `fakten.probe.yaml`. Rebuild before checking real
+  content.
+- `pnpm preview` moves silently to the next free port when 4173 is taken, so a forgotten server
+  goes on answering with an old build. Run measurement servers with `--port N --strictPort`, stop
+  them by port (`lsof -ti tcp:N`), and assert that the served page carries the new markup before
+  reading anything off it.
+- `.prose p` exists before the right fact does. Wait for the fact's own text before measuring or
+  taking a screenshot.
+- Rebuilding lines from character rects cannot see an automatic hyphen, so it reads one character
+  short. Take a screenshot to judge a break.
+- Playwright scripts outside the test runner must run from the project directory, as
+  `node --input-type=module -e "…"`, or `@playwright/test` does not resolve.
+
 ## Content pipeline — everything happens at build time
 
 Facts live in **one YAML file**, [src/lib/fakten.yaml](src/lib/fakten.yaml), mapping ISO date to a
