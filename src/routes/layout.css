@@ -8,14 +8,20 @@
 	button:not([aria-disabled='true']):not(:disabled) {
 		cursor: pointer;
 	}
+
+	/* Every fact image links to its own file, which the browser opens at up to 100 %. */
+	.prose a:has(> img) {
+		cursor: zoom-in;
+	}
 }
 
 /* Pull a photo credit up against the image it belongs to. Prose gives an image 2em below it and
    2em between paragraphs, so an untouched credit sits exactly as far from its own picture as from
    the next one. `:has(+ em)` is what distinguishes a credited image from a bare one — see
-   CLAUDE.md, under the credit convention, for why the sibling test and not a class, and why this has to sit in `utilities`. */
+   CLAUDE.md, under the credit convention, for why the sibling test and not a class, and why this has to sit in `utilities`.
+   The sibling is the image's link, not the image: `renderFakt` wraps every one in `<a>`. */
 @layer utilities {
-	.prose p > img:has(+ em) {
+	.prose p > a:has(+ em) > img {
 		margin-bottom: 0.5em;
 	}
 }

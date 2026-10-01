@@ -85,4 +85,10 @@ describe('renderFakt', () => {
 			'<strong>Fakt</strong>'
 		);
 	});
+
+	it('links every image to its own file, which is how it opens at 100 %', () => {
+		expect(renderFakt('![Ein Bild](fakten/2026-03-15-1.jpg)')).toContain(
+			'<a href="fakten/2026-03-15-1.jpg"><img src="fakten/2026-03-15-1.jpg" alt="Ein Bild"></a>'
+		);
+	});
 });
