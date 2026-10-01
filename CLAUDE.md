@@ -81,8 +81,8 @@ Consequences worth knowing before changing any of this:
   `Mio.` does not. The examples above are written with ordinary spaces on purpose:
   the two characters are indistinguishable on the page, so embedding them here would teach nothing.
 - **Both are invisible and differ only in width, so the wrong one is silent.** Retyping a figure by
-  hand drops the character altogether and nothing in the gate notices — the same hazard as the soft
-  hyphen described under the search. Everything here was checked for both characters rather than
+  hand drops the character altogether and nothing in the gate notices — the same hazard the soft
+  hyphens turned out to carry before they were removed, two bullets below. Everything here was checked for both characters rather than
   assumed: the YAML parser preserves them, `marked` emits them literally with no `&nbsp;` or
   `&#8239;` reaching the built HTML, Prettier round-trips them inside a block scalar, and the
   search index is unaffected because `worte` splits on `[^\p{L}\p{N}]+` — neither is a letter or a
@@ -107,6 +107,27 @@ Consequences worth knowing before changing any of this:
   different construction and deliberately untouched: `Area 51`, `Nintendo 64`, `Platz 1` and
   `Artikel 1` keep ordinary spaces, because this rule is about a numeral standing before its own
   word.
+- **Hyphenation is the browser's job, and a soft hyphen is never to be typed into a fact.** The
+  fact column is `prose hyphens-auto` on the `<article>` in
+  [+page.svelte](src/routes/+page.svelte), which together with the `lang="de"` already on `<html>`
+  in [app.html](src/app.html) hands the whole problem to the browser's German dictionary. Measured
+  at a 375 px viewport on the 2026-10-01 entry: the median gap at the right margin falls from 28 px
+  to 12 px and the lines ending more than 30 px short go from 9 to 1, breaking correctly at
+  `ange-brachter`, `er-laubte`, `überprü-fen` and `Län-gengrad`. One utility class, every entry
+  covered including the ones not written yet, and the stored text stays plain.
+- **It replaced 101 hand-placed soft hyphens, whose removal fixed a silent search bug.** They
+  predate anyone here knowing about `hyphens: auto`, and they were quietly taking words out of the
+  index. `worte` splits on `[^\p{L}\p{N}]+`, and U+00AD is a format character — neither letter nor
+  digit — so tokenising ran _before_ `suchbegriff` could fold it away and `Flug­hafen` entered the
+  index as `flug` and `hafen`, with the whole word nowhere in it. Typing `Flughafen` then matched
+  nothing: no prefix, and five edits from either half. Measured on the real archive, **41 of the 87
+  hyphenated words could not be found by their own name**; in the probe fixture the index held
+  `hinter` and `grund` while `hintergrund` scored zero. The e2e test that was supposed to cover
+  this passed throughout, because it typed `Hinterg` and fuzzy-matched the orphaned `hinter` at
+  distance 1 — green while the thing it was named for was broken. So: do not reintroduce them.
+  Nothing in the gate would notice, the character is invisible in every editor, and the browser
+  hyphenates better than a human guessing. The input path helps rather than hinders here — entries
+  are pasted in through the chat, which strips the character on the way.
 - **Images live in [static/fakten/](static/fakten/)** and are referenced relatively —
   `![…](fakten/2026-03-06-1.jpg)`, so the path resolves against the page and the base path stays in
   one place. **That works because facts are only ever rendered on `/`.** It used to be phrased as
@@ -442,20 +463,15 @@ even as a `modulepreload`, so a visitor who never searches never fetches it.
   because of the umlaut folding. Measured on the real archive, `turm` returns all four `Turm`
   compounds first, then the tail, with `Türmen` last — eight in total, which is the cap rather than
   the end of the list.
-- **`suchbegriff` folds the soft hyphens out, and that is load-bearing in a narrower way than it
-  first looks.** The archive carries 75 of them inside words (`Flug­hafen`). Typing the _whole_
-  word finds it either way — fuzzy matching absorbs the hidden character as one insertion — so a
-  test on the full word passes with the folding removed, and one did until the mutation caught it.
-  What breaks without it is the _prefix_ half: `hinterg` cannot reach past the hyphen and finds
-  nothing, and since this searches on every keystroke that is the state the visitor is in for all
-  but the last one. Measured: with the folding `Hintergrund` scores 0.4, without it 0.2. The e2e
-  test therefore types a partial word on purpose. It also flattens diacritics, with
-  `normalize('NFKD')` rather than a hand-written umlaut map: the same one line that lets `Munchen`
-  reach `München` also covers `Édouard`, `Småländer`, `Florianópolis`, `Pokémon`, `Maracanã`,
-  `Ålesund` and `Hyōgo`, all of which are in the archive and none of which an ä/ö/ü table would have
-  touched. `ß` does not decompose under NFKD and keeps its own case. Folding is to the bare vowel,
-  not the `ae` a dictionary would use, so `Muenchen` still does not reach `München` — that half is
-  given up knowingly.
+- **`suchbegriff` flattens diacritics, with `normalize('NFKD')` rather than a hand-written umlaut
+  map.** The same one line that lets `Munchen` reach `München` also covers `Édouard`, `Småländer`,
+  `Florianópolis`, `Pokémon`, `Maracanã`, `Ålesund` and `Hyōgo`, all of which are in the archive and
+  none of which an ä/ö/ü table would have touched. `ß` does not decompose under NFKD and keeps its
+  own case. Folding is to the bare vowel, not the `ae` a dictionary would use, so `Muenchen` still
+  does not reach `München` — that half is given up knowingly. It folded soft hyphens out as well
+  until the archive stopped carrying any; why they went is under the content pipeline above.
+  `findet ein angefangenes Wort` types a half-finished word on purpose, because the search runs on
+  every keystroke and a part-word is the state a visitor is in for all but the last one.
 - **Three characters minimum, eight hits shown.** `KUERZESTE_SUCHE` is one constant for both the
   query minimum and the shortest indexed suffix, because a query shorter than the shortest suffix
   could never match. Above eight hits the list is taller than the calendar under it.
@@ -482,9 +498,6 @@ even as a `modulepreload`, so a visitor who never searches never fetches it.
   The visible copy inside the panel is `aria-hidden`, or a screen reader reads the count twice. The
   e2e tests assert on `getByRole('status')` for the same reason — `getByText('1 Treffer')` now
   matches both copies and trips strict mode.
-
-`fakten.probe.yaml` carries one soft hyphen inside `Hintergrund` purely so the e2e suite can cover
-this. It is invisible; do not tidy it away.
 
 ### The random fact
 
@@ -586,6 +599,19 @@ ladungsfähige Anschrift even though nothing here is commercial.
   be tested from here. Every link the site generates omits the slash, so it only bites a hand-typed
   or externally-published URL. Check it after the first deploy; if it does 404, `trailingSlash:
 'always'` in [vite.config.ts](vite.config.ts) emits directories instead and fixes it.
+- **Both pages hyphenate, and the identity blocks deliberately do not.** `hyphens-auto` sits on
+  `<main>` rather than on the inner `.prose`, because the `<h1>` is outside that div: at 320 px
+  `Datenschutzerklärung` ran 16 px past the viewport and gave the page a horizontal scrollbar, which
+  moving the class up fixes by breaking it at `Datenschutzerklä-rung`. That overflow predated the
+  hyphenation work — verified by measuring it with `hyphens` forced back to `manual`. The name,
+  address and email carry `hyphens-none` instead, because they are data a reader transcribes onto an
+  envelope rather than prose to be read, and `hyphens: auto` really did break the address at
+  `…gmail.c|om` on a 320 px screen before the exception went in. Nothing tests either class; the
+  failure is at least visible on the page rather than silent. **Hyphenation raises no § 5 DDG or
+  Art. 12 DSGVO problem, and that was checked rather than assumed:** it is purely presentational, so
+  `textContent`, `innerText` and what a selection copies are byte-identical to the source with no
+  hyphen character anywhere — copying the block still yields
+  `Abdülhamit Yilmaz Birkenstr. 79 40233 Düsseldorf`.
 - Both pages are asserted readable with **JavaScript switched off**. Prerendering gives that for
   free today, which is exactly why it is worth pinning: a legal page that needs JS is a legal page
   some visitors cannot read, and nothing else would announce the change.

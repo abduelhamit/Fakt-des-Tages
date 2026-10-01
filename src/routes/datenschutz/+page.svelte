@@ -9,13 +9,13 @@
      storage API appears anywhere in the source, nothing fetches at runtime, and every img/script/
      link in the built HTML is same-origin. If that ever stops being true — an embedded video, a
      web font, a counter — this page becomes wrong before anything else on the site does. -->
-<main class="mx-auto max-w-2xl p-6">
+<main class="mx-auto max-w-2xl p-6 hyphens-auto">
 	<h1 class="text-3xl font-bold">Datenschutzerklärung</h1>
 
 	<div class="prose mt-6">
 		<h2>Verantwortlicher</h2>
 		<p>Verantwortlich für die Datenverarbeitung auf dieser Website im Sinne der DSGVO ist:</p>
-		<p>
+		<p class="hyphens-none">
 			{ANBIETER.name}<br />
 			{#each ANBIETER.anschrift as zeile, i (i)}{zeile}<br />{/each}
 			E-Mail: <a href="mailto:{ANBIETER.email}">{ANBIETER.email}</a>

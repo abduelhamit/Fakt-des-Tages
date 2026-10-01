@@ -49,13 +49,6 @@ describe('suchbegriff', () => {
 		expect(suchbegriff('Fernsehturm')).toBe('fernsehturm');
 	});
 
-	// The whole reason this function exists: no tokeniser splits on a soft hyphen, so a prefix query
-	// cannot reach past one. The e2e test pins the search behaviour; this pins the folding itself.
-	it('removes the soft hyphens the archive is full of', () => {
-		expect(suchbegriff('Flug\u00adhafen')).toBe('flughafen');
-		expect(suchbegriff('voll\u00adst\u00e4ndig')).toBe('vollstandig');
-	});
-
 	// To the bare vowel, not `ae`: that is what lets a keyboard without umlauts reach the word.
 	it('folds umlauts and sharp s', () => {
 		expect(suchbegriff('T\u00fcrmen')).toBe('turmen');
@@ -70,11 +63,6 @@ describe('suchbegriff', () => {
 		expect(suchbegriff('Sm\u00e5l\u00e4nder')).toBe('smalander');
 		expect(suchbegriff('Florian\u00f3polis')).toBe('florianopolis');
 		expect(suchbegriff('Hy\u014dgo')).toBe('hyogo');
-	});
-
-	// MiniSearch drops a term that comes back empty, which is what a lone hyphen deserves.
-	it('empties a term that was nothing but a soft hyphen', () => {
-		expect(suchbegriff('\u00ad')).toBe('');
 	});
 });
 
