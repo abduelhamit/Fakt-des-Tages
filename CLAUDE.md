@@ -52,7 +52,8 @@ applied in and what is checked, so nothing depends on remembering a past session
    - **Download** the original from `upload.wikimedia.org`. `thumb.wikimedia.org` returns HTML, and
      a non-standard thumbnail width 404s.
    - **Non-free images:** look for a rights holder's own permission first — press kits, legal FAQs;
-     those pages are often JavaScript-walled, so read them with Playwright — and fall back to a
+     those pages are often JavaScript-walled and answer a plain fetch with a bare title or a 403,
+     which means "read it with Playwright", not "not there" — and fall back to a
      § 51 UrhG quotation at the smallest useful size. **Flag two German-law caveats whenever they
      apply**, because Commons reasons from US law: a `PD-textlogo` may still reach the ordinary
      threshold for applied art since BGH _Geburtstagszug_ (2013), and a photograph of a
@@ -91,6 +92,9 @@ applied in and what is checked, so nothing depends on remembering a past session
   taking a screenshot.
 - Rebuilding lines from character rects cannot see an automatic hyphen, so it reads one character
   short. Take a screenshot to judge a break.
+- Resizing two files to the same _width_ can leave their heights a pixel apart, and
+  `magick compare` then reports a meaningless number instead of complaining. Pin both dimensions
+  with a `!` geometry.
 - Playwright scripts outside the test runner must run from the project directory, as
   `node --input-type=module -e "…"`, or `@playwright/test` does not resolve.
 
@@ -131,17 +135,17 @@ Consequences worth knowing before changing any of this:
 - **A malformed facts file fails `pnpm build`,** so broken content never deploys and the previous
   version stays live. The UI has no runtime error state, and needs none.
 - **All facts are embedded in the page.** Accepted limitation: the payload grows with the archive —
-  re-measured at 34 KB gzipped (90 KB raw) for the 119 entries of Feb–Aug 2026, so roughly 65 KB
-  gzipped per year of weekdays, on the document's critical path. If that ever bites, prerender one
-  route per date and keep only the date keys on the home page for the calendar. The UI is not what
+  all of it on the document's critical path, so measure it (`gzip -c build/index.html | wc -c`)
+  rather than trusting a remembered figure. If that ever bites, prerender one route per date and
+  keep only the date keys on the home page for the calendar. The UI is not what
   costs: measured by removing each from the built HTML and re-gzipping, the search bar is 153 bytes
   gzipped and the loading mock's 42 cells are 113 (5.1 KB raw — repeated markup compresses away).
-- **`Heute vor N Jahren …` opens nearly every entry, and N is a numeral — always.** 130 of the 139
-  entries; not one spells it out. Do not "correct" a small number to a word there. German style
+- **`Heute vor N Jahren …` opens nearly every entry, and N is a numeral — always.** Not one entry
+  spells it out. Do not "correct" a small number to a word there. German style
   does prefer words below twelve, but that is a rule for running prose and the opener is a fixed
   formula, so the two live side by side quite happily: 2026-09-22 has `knapp zehn Jahre später`
   mid-sentence, spelled out, and 2026-09-28 has `Heute vor 6 Jahren`, in digits. Both are correct.
-  The same goes for a `Vor N Jahren` that opens a clause further in. The nine entries starting
+  The same goes for a `Vor N Jahren` that opens a clause further in. The entries starting
   otherwise are the ones no anniversary fits — `Heute ist Rosenmontag!`,
   `Heute ist Freitag, der 13.`
 - **A number and what it belongs to are joined by a no-break space, and which one depends on what
@@ -158,9 +162,8 @@ Consequences worth knowing before changing any of this:
   `Mio.` does not. The examples above are written with ordinary spaces on purpose:
   the two characters are indistinguishable on the page, so embedding them here would teach nothing.
 - **Both are invisible and differ only in width, so the wrong one is silent.** Retyping a figure by
-  hand drops the character altogether and nothing in the gate notices — the same hazard the soft
-  hyphens turned out to carry before they were removed, two bullets below. Everything here was checked for both characters rather than
-  assumed: the YAML parser preserves them, `marked` emits them literally with no `&nbsp;` or
+  hand drops the character altogether and nothing in the gate notices. Everything here was checked for
+  both characters rather than assumed: the YAML parser preserves them, `marked` emits them literally with no `&nbsp;` or
   `&#8239;` reaching the built HTML, Prettier round-trips them inside a block scalar, and the
   search index is unaffected because `worte` splits on `[^\p{L}\p{N}]+` — neither is a letter or a
   digit, so both separate tokens exactly like an ordinary space. U+202F is a real glyph in the
@@ -172,15 +175,13 @@ Consequences worth knowing before changing any of this:
   **U+00A0**. With a cardinal the thing at risk is the orphaned noun — `vor 35 Jahren` must not
   leave `Jahren` stranded on the next line. With an ordinal it is the reverse: a line ending in a
   bare `9.` reads as a sentence that has finished. Duden and DIN 5008 ask for this in dates
-  explicitly, and the archive had already done it by hand once, at `1. FC`, before anyone wrote the
-  rule down. 19 further sites were swept to match, 20 in all.
+  explicitly.
 - **A number that ends a sentence is indistinguishable from an ordinal, and binding one is worse
   than missing one.** `Heute ist Freitag, der 13.` before `Ich könnte …`, the score `2–1.` before
-  `Vor 200.000 Cariocas`, and `… aus dem Jahr 1995.` before `Heutzutage …` are the three in the
+  `Vor 200.000 Cariocas`, and `… aus dem Jahr 1995.` before `Heutzutage …` are the cases in the
   archive, and a no-break space in any of them welds two sentences together. No pattern over digits
-  and capitals can separate the two cases, so the sweep classified on the following word — month
-  names, `Jahrhundert`, a short list of counted nouns — and left whatever it could not place alone
-  rather than guessing. Extend that list rather than loosening the pattern. Name plus number is a
+  and capitals can separate the two cases, so classify on the following word — a month name,
+  `Jahrhundert`, a counted noun — and leave whatever you cannot place alone rather than guessing. Name plus number is a
   different construction and deliberately untouched: `Area 51`, `Nintendo 64`, `Platz 1` and
   `Artikel 1` keep ordinary spaces, because this rule is about a numeral standing before its own
   word.
@@ -192,41 +193,29 @@ Consequences worth knowing before changing any of this:
   to 12 px and the lines ending more than 30 px short go from 9 to 1, breaking correctly at
   `ange-brachter`, `er-laubte`, `überprü-fen` and `Län-gengrad`. One utility class, every entry
   covered including the ones not written yet, and the stored text stays plain.
-- **It replaced 101 hand-placed soft hyphens, whose removal fixed a silent search bug.** They
-  predate anyone here knowing about `hyphens: auto`, and they were quietly taking words out of the
-  index. `worte` splits on `[^\p{L}\p{N}]+`, and U+00AD is a format character — neither letter nor
-  digit — so tokenising ran _before_ `suchbegriff` could fold it away and `Flug­hafen` entered the
-  index as `flug` and `hafen`, with the whole word nowhere in it. Typing `Flughafen` then matched
-  nothing: no prefix, and five edits from either half. Measured on the real archive, **41 of the 87
-  hyphenated words could not be found by their own name**; in the probe fixture the index held
-  `hinter` and `grund` while `hintergrund` scored zero. The e2e test that was supposed to cover
-  this passed throughout, because it typed `Hinterg` and fuzzy-matched the orphaned `hinter` at
-  distance 1 — green while the thing it was named for was broken. So: do not reintroduce them.
-  Nothing in the gate would notice, the character is invisible in every editor, and the browser
-  hyphenates better than a human guessing. The input path helps rather than hinders here — entries
-  are pasted in through the chat, which strips the character on the way.
+- **Do not reintroduce soft hyphens: they broke the search.** `worte` splits on `[^\p{L}\p{N}]+`,
+  and U+00AD is a format character — neither letter nor digit — so a soft-hyphenated `Flughafen`
+  entered the index as `flug` and `hafen`, and typing `Flughafen` matched nothing. Nothing in the
+  gate would notice one coming back, and the character is invisible in every editor.
 - **Images live in [static/fakten/](static/fakten/)** and are referenced relatively —
   `![…](fakten/2026-03-06-1.jpg)`, so the path resolves against the page and the base path stays in
-  one place. **That works because facts are only ever rendered on `/`.** It used to be phrased as
-  "the home page is the only route", which stopped being true when `/impressum` and `/datenschutz`
-  arrived — the paths still resolve, but for the narrower reason. Render a fact on any other route
+  one place. **That works because facts are only ever rendered on `/`** — not because `/` is the
+  only route. Render a fact on any other route
   and every image on it 404s, because `fakten/…` would resolve against _that_ route's directory.
   They are exempt from the payload note above: only the selected day's `{@html}` is in the DOM, so a
   visitor downloads the images of the day they are looking at and no others.
 - **A CC-licensed image carries its credit in the entry**, on the line after it, as
   `_Foto: Name, [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/)_`. Same paragraph as
   the image, and **no hard break** between them: Preflight makes `img` a block, so the credit starts
-  on its own line regardless, and a `<br>` there buys nothing but an extra empty line. That was
-  tried first and measured — with the break the credit sat 37 px below its picture and 37 px above
-  the next one, which is to say it belonged to neither.
+  on its own line regardless, and a `<br>` there buys nothing but an extra empty line — measured, it
+  left the credit 37 px from both pictures, belonging to neither.
   [layout.css](src/routes/layout.css) closes the first gap to 8 px, and the selector is the load-
   bearing part: `.prose p > img:has(+ em)` matches only an image with a credit after it, so the
   single images and the back-to-back pairs elsewhere in the archive keep their 32 px. Verified by
   measuring all four cases in a browser rather than reasoning about the cascade. It has to live in
   `@layer utilities`, because that is where the typography plugin puts `.prose :where(img)` and a
-  later layer beats any specificity — in `components` the rule ships, matches, and does nothing,
-  which is exactly what happened on the first attempt. Public-domain and CC0 images get no line,
-  since none is owed; 2026-09-10 is the first entry with one. Note the credit is rendered text, so
+  later layer beats any specificity — in `components` the rule ships, matches, and does nothing.
+  Public-domain and CC0 images get no line, since none is owed. Note the credit is rendered text, so
   the photographer's name joins the search index like any other word in the fact.
 - **That same line also carries a rights-holder's _required declaration_, which is a third case
   and not a credit.** 2026-09-28 is the first: Genshin Impact screenshots exist under no free
@@ -243,12 +232,11 @@ Consequences worth knowing before changing any of this:
   non-commercial only and revocable, so it would lapse if this site ever took money. The other
   non-free images here (the Hobbit and Naruto covers, Crash, the Lego box, the Nevermind cover)
   rest on a § 51 UrhG quotation argument instead and carry no line, because no rights holder has
-  asked for one. Those pages are behind JavaScript and answer a plain fetch with a title or a 403;
-  they were read with Playwright.
+  asked for one.
 - **The fact texts are reworked Wikipedia prose, and one sentence in the footer carries what that
   licence requires.** Nearly every entry leans on the German or English Wikipedia; 2026-10-01 is the
   extreme, where both of the last two paragraphs are word for word from `Zeitball` and
-  `Zeitball (Bremerhaven)` — checked sentence by sentence rather than assumed. Wikipedia is
+  `Zeitball (Bremerhaven)`. Wikipedia is
   CC BY-SA 4.0, which unlike the public-domain images here genuinely obliges: name the source, name
   the licence, disclose that something was changed, and licence the result alike.
   [+layout.svelte](src/routes/+layout.svelte) does that in the footer rather than under each fact on
@@ -262,7 +250,7 @@ Consequences worth knowing before changing any of this:
   announce. It is also why the no-JavaScript test names the two legal links rather than counting the
   footer's links.
 - **Those images are in Git LFS** ([.gitattributes](.gitattributes) tracks `static/fakten/*.jpg`,
-  `*.gif` and `*.png`), so the repo carries ~3 KB of pointers instead of 8.7 MB of binaries. Add the
+  `*.gif` and `*.png`), so the repo carries pointers instead of binaries. Add the
   pattern before the first file of a new format, or it lands in the repo as a real binary and no
   check notices. Photographs are JPEG; PNG is there for line art, where JPEG rings around the edges
   — the tughra on 2026-08-31 is half the size as a 16-colour PNG8 and sharp, against a JPEG at the
@@ -282,9 +270,7 @@ Consequences worth knowing before changing any of this:
   purpose and ships as one. Chroma subsampling lost as well, which is worth knowing because it
   normally wins on anything photographic: 4:2:0 saved 23 % of the file and tripled the display-size
   error, because the hand-colouring has hard edges in the flags, figures and foliage. Everything
-  here stays 4:4:4. One measuring trap, since it gave a garbage reading first time: resizing two
-  files to the same _width_ can leave their heights a pixel apart, and `magick compare` then reports
-  a meaningless number instead of complaining. Pin both dimensions with a `!` geometry.
+  here stays 4:4:4.
 - **Transparency is a consequence of choosing PNG, never a reason to choose it.** Settle the format
   on the ringing question alone — photographs JPEG, line art PNG, as above. Only once PNG has won on
   its own merits is the background a question at all, and then the default is to keep the alpha
@@ -354,12 +340,9 @@ otherwise. That is exactly what the `Ladezustand` e2e test does, in a second bro
 ### The calendar
 
 [src/routes/+page.svelte](src/routes/+page.svelte) holds the whole thing; there is no separate
-component. The search added about 150 lines to that file and shares almost nothing with the calendar
-— only `data.fakten`, one readiness flag and the `location.hash` idiom — so the "it needs none at
-this size" claim was re-checked rather than assumed: a component would be a clean cut, but with no
-vitest browser project it buys nothing testable, and the file is still one screenful per feature.
-Split it when a second reader disagrees, not before. Five decisions in it are not obvious from the
-code:
+component. The search lives there too and shares almost nothing with the calendar, so a component
+would be a clean cut — but with no vitest browser project it buys nothing testable. Split it when a
+second reader disagrees, not before. These decisions in it are not obvious from the code:
 
 - **The location hash is the single source of truth for the selection.** Clicking a day only writes
   `location.hash`; the `hashchange` handler is what actually moves the state, and `onMount` calls the
@@ -545,8 +528,7 @@ even as a `modulepreload`, so a visitor who never searches never fetches it.
   `Florianópolis`, `Pokémon`, `Maracanã`, `Ålesund` and `Hyōgo`, all of which are in the archive and
   none of which an ä/ö/ü table would have touched. `ß` does not decompose under NFKD and keeps its
   own case. Folding is to the bare vowel, not the `ae` a dictionary would use, so `Muenchen` still
-  does not reach `München` — that half is given up knowingly. It folded soft hyphens out as well
-  until the archive stopped carrying any; why they went is under the content pipeline above.
+  does not reach `München` — that half is given up knowingly.
   `findet ein angefangenes Wort` types a half-finished word on purpose, because the search runs on
   every keystroke and a part-word is the state a visitor is in for all but the last one.
 - **Three characters minimum, eight hits shown.** `KUERZESTE_SUCHE` is one constant for both the
@@ -585,8 +567,8 @@ query is running, exactly as the panel covers the calendar.
 
 - **It goes through `springe`.** Writing the hash and pulling the top of the fact back when the bar
   has pinned both come for free that way, and there is no second navigation path to keep in step.
-- **It never returns the fact already on screen.** With 119 entries a repeat is common enough that
-  the button would look broken. The e2e test stubs `Math.random` so the pick is deterministic, and
+- **It never returns the fact already on screen.** A repeat, however rare, makes the button look
+  broken. The e2e test stubs `Math.random` so the pick is deterministic, and
   is built so the stub would land on the current fact if the filter were gone — remove the filter
   and it fails rather than passing on a coincidence.
 - **`aria-disabled`, not the native attribute,** like every other button here, and bounded before
@@ -663,9 +645,8 @@ ladungsfähige Anschrift even though nothing here is commercial.
   is a real route change — the home component mounts and `onMount` resolves the date — so the link
   is correct exactly where it sits. Putting it in the page bodies is what keeps it off the home
   page **structurally**: the files it lives in are only rendered on those two routes, so there is
-  no condition to get wrong. A footer version was built first, gated on `page.route.id` from
-  `$app/state`, and taken back out — it worked, but it spent an import, a `$derived` and an `{#if}`
-  enforcing at runtime what file layout enforces for free. The footer therefore stays two links on
+  no condition to get wrong. A footer version gated on `page.route.id` worked, but enforced at
+  runtime what file layout enforces for free. The footer therefore stays two links on
   every route. `verlinkt auf der Startseite nirgends auf sich selbst` in
   [rechtsseiten.e2e.ts](src/routes/rechtsseiten.e2e.ts) guards it by collecting every `a[href]` on
   the home page rather than counting footer links, so it also catches a self-link re-added to the
@@ -679,8 +660,7 @@ ladungsfähige Anschrift even though nothing here is commercial.
 - **Both pages hyphenate, and the identity blocks deliberately do not.** `hyphens-auto` sits on
   `<main>` rather than on the inner `.prose`, because the `<h1>` is outside that div: at 320 px
   `Datenschutzerklärung` ran 16 px past the viewport and gave the page a horizontal scrollbar, which
-  moving the class up fixes by breaking it at `Datenschutzerklä-rung`. That overflow predated the
-  hyphenation work — verified by measuring it with `hyphens` forced back to `manual`. The name,
+  moving the class up fixes by breaking it at `Datenschutzerklä-rung`. The name,
   address and email carry `hyphens-none` instead, because they are data a reader transcribes onto an
   envelope rather than prose to be read, and `hyphens: auto` really did break the address at
   `…gmail.c|om` on a 320 px screen before the exception went in. Nothing tests either class; the
@@ -816,10 +796,7 @@ assertion is the regression guard for the whole build-time pipeline, so do not d
 
 Playwright's `boundingBox()` **scrolls the element into view before measuring**, so it cannot test
 sticky positioning — an earlier version of the sticky test passed with `sticky` removed for exactly
-that reason. Read `getBoundingClientRect()` through `page.evaluate` instead. The same test also needs
-a fact taller than the viewport, which is what the long placeholder on 2026-08-23 is for — shorten
-that entry and the page stops scrolling far enough for `sticky` to engage, and the test proves
-nothing while still passing.
+that reason. Read `getBoundingClientRect()` through `page.evaluate` instead.
 
 The first test runs on the real clock and deliberately asserts nothing about _which_ fact is shown.
 Everything calendar-related instead pins the clock with `page.clock.setFixedTime` under
