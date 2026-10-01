@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { ANBIETER } from '$lib/anbieter';
+	import { PROVIDER } from '$lib/provider';
 	import { resolve } from '$app/paths';
 </script>
 
@@ -16,9 +16,9 @@
 		<h2>Verantwortlicher</h2>
 		<p>Verantwortlich für die Datenverarbeitung auf dieser Website im Sinne der DSGVO ist:</p>
 		<p class="hyphens-none">
-			{ANBIETER.name}<br />
-			{#each ANBIETER.anschrift as zeile, i (i)}{zeile}<br />{/each}
-			E-Mail: <a href="mailto:{ANBIETER.email}">{ANBIETER.email}</a>
+			{PROVIDER.name}<br />
+			{#each PROVIDER.address as line, i (i)}{line}<br />{/each}
+			E-Mail: <a href="mailto:{PROVIDER.email}">{PROVIDER.email}</a>
 		</p>
 
 		<h2>Was diese Seite nicht tut</h2>

@@ -11,49 +11,49 @@ import { expect, test } from '@playwright/test';
 // Nothing here pins the clock: neither page shows a date, so they are the only routes on the site
 // that behave identically whatever day it is.
 
-test.describe('Rechtsseiten', () => {
+test.describe('legal pages', () => {
 	// The footer link and the <h1> differ on the Datenschutz page, so both are named rather than
 	// derived from one another.
-	for (const { pfad, link, ueberschrift } of [
-		{ pfad: 'impressum', link: 'Impressum', ueberschrift: 'Impressum' },
-		{ pfad: 'datenschutz', link: 'Datenschutz', ueberschrift: 'Datenschutzerklärung' }
+	for (const { path, link, heading } of [
+		{ path: 'impressum', link: 'Impressum', heading: 'Impressum' },
+		{ path: 'datenschutz', link: 'Datenschutz', heading: 'Datenschutzerklärung' }
 	]) {
-		test(`${pfad} ist über die Fußzeile erreichbar`, async ({ page }) => {
+		test(`${path} is reachable from the footer`, async ({ page }) => {
 			await page.goto('/Fakt-des-Tages/');
 
 			await page.getByRole('contentinfo').getByRole('link', { name: link }).click();
 
-			await expect(page).toHaveURL(new RegExp(`/Fakt-des-Tages/${pfad}`));
-			await expect(page.getByRole('heading', { level: 1 })).toHaveText(ueberschrift);
+			await expect(page).toHaveURL(new RegExp(`/Fakt-des-Tages/${path}`));
+			await expect(page.getByRole('heading', { level: 1 })).toHaveText(heading);
 		});
 
 		// Legal pages that need JavaScript to be readable are legal pages some visitors cannot read.
 		// Everything here is prerendered, so this should hold for free — which is exactly why it is
 		// worth a test: nothing would announce it if a future change made the text client-rendered.
-		test(`${pfad} ist ohne JavaScript lesbar`, async ({ browser, baseURL }) => {
-			const ohneJs = await browser.newContext({ javaScriptEnabled: false, baseURL });
-			const seite = await ohneJs.newPage();
-			await seite.goto(`/Fakt-des-Tages/${pfad}`);
+		test(`${path} is readable without JavaScript`, async ({ browser, baseURL }) => {
+			const noJs = await browser.newContext({ javaScriptEnabled: false, baseURL });
+			const noJsPage = await noJs.newPage();
+			await noJsPage.goto(`/Fakt-des-Tages/${path}`);
 
-			await expect(seite.getByRole('heading', { level: 1 })).toHaveText(ueberschrift);
+			await expect(noJsPage.getByRole('heading', { level: 1 })).toHaveText(heading);
 			// The footer is in the layout, so each legal page also reaches the other one — and the
 			// way back to the facts sits in the page itself. None of the three needs JavaScript.
 			// Named rather than counted: the footer also carries the Wikipedia and licence links of
 			// the attribution notice, so a count would fail on an unrelated edit to that sentence.
 			await expect(
-				seite.getByRole('contentinfo').getByRole('link', { name: 'Impressum' })
+				noJsPage.getByRole('contentinfo').getByRole('link', { name: 'Impressum' })
 			).toBeVisible();
 			await expect(
-				seite.getByRole('contentinfo').getByRole('link', { name: 'Datenschutz' })
+				noJsPage.getByRole('contentinfo').getByRole('link', { name: 'Datenschutz' })
 			).toBeVisible();
 			await expect(
-				seite.getByRole('main').getByRole('link', { name: 'Zum Fakt des Tages' })
+				noJsPage.getByRole('main').getByRole('link', { name: 'Zum Fakt des Tages' })
 			).toBeVisible();
-			await ohneJs.close();
+			await noJs.close();
 		});
 
-		test(`${pfad} führt zurück zu den Fakten`, async ({ page }) => {
-			await page.goto(`/Fakt-des-Tages/${pfad}`);
+		test(`${path} leads back to the facts`, async ({ page }) => {
+			await page.goto(`/Fakt-des-Tages/${path}`);
 
 			await page.getByRole('main').getByRole('link', { name: 'Zum Fakt des Tages' }).click();
 
@@ -70,16 +70,16 @@ test.describe('Rechtsseiten', () => {
 	// `hashchange` fires and the URL would claim today while the previously chosen fact stayed on
 	// screen. Keeping the back link inside the two legal pages is what prevents that — this
 	// asserts the property itself, so it also catches someone re-adding such a link to the layout.
-	test('verlinkt auf der Startseite nirgends auf sich selbst', async ({ page }) => {
+	test('never links the home page to itself', async ({ page }) => {
 		await page.goto('/Fakt-des-Tages/#2026-07-30');
 		await expect(page.getByText('30. Juli 2026', { exact: true })).toBeVisible();
 
-		const ziele = await page
+		const targets = await page
 			.locator('a[href]')
 			.evaluateAll((as) =>
 				as.map((a) => new URL((a as HTMLAnchorElement).href).pathname.replace(/\/$/, ''))
 			);
-		expect(ziele).not.toContain('/Fakt-des-Tages');
+		expect(targets).not.toContain('/Fakt-des-Tages');
 	});
 });
 
@@ -87,36 +87,37 @@ test.describe('Rechtsseiten', () => {
 // source named, the licence named and the fact that something was changed disclosed. All three live
 // in one static sentence in the layout, so deleting it breaks a licence condition while every other
 // check stays green. Same shape as the `AUSFÜLLEN` guard on the Impressum: assert the obligation.
-test('nennt Herkunft und Lizenz der Fakten in der Fußzeile', async ({ page }) => {
+test("names the facts' source and licence in the footer", async ({ page }) => {
 	await page.goto('/Fakt-des-Tages/');
-	const fusszeile = page.getByRole('contentinfo');
+	const footer = page.getByRole('contentinfo');
 
 	// One link per language edition, each pinned to its own host: the accessible names come from
 	// `aria-label`, because the visible `deutsch-` would otherwise be a link named after a fragment.
-	await expect(fusszeile.getByRole('link', { name: 'Deutschsprachige Wikipedia' })).toHaveAttribute(
+	await expect(footer.getByRole('link', { name: 'Deutschsprachige Wikipedia' })).toHaveAttribute(
 		'href',
 		'https://de.wikipedia.org/'
 	);
-	await expect(
-		fusszeile.getByRole('link', { name: 'Englischsprachige Wikipedia' })
-	).toHaveAttribute('href', 'https://en.wikipedia.org/');
-	await expect(fusszeile.getByRole('link', { name: 'CC BY-SA 4.0' })).toHaveAttribute(
+	await expect(footer.getByRole('link', { name: 'Englischsprachige Wikipedia' })).toHaveAttribute(
+		'href',
+		'https://en.wikipedia.org/'
+	);
+	await expect(footer.getByRole('link', { name: 'CC BY-SA 4.0' })).toHaveAttribute(
 		'href',
 		/creativecommons\.org\/licenses\/by-sa\/4\.0/
 	);
-	await expect(fusszeile).toContainText('bearbeitet');
+	await expect(footer).toContainText('bearbeitet');
 });
 
 // The Datenschutz page states that the site loads no external fonts, maps, videos or scripts. That
 // is a claim about the build, not about the page, and the build is what can quietly stop honouring
 // it — one web font or one embedded video and the page becomes a false statement with every check
 // still green. So assert the property itself rather than the sentence describing it.
-test('lädt nichts von fremden Servern', async ({ page, baseURL }) => {
-	const fremd = new Set<string>();
-	const eigen = new URL(baseURL!).origin;
+test('loads nothing from third-party servers', async ({ page, baseURL }) => {
+	const foreign = new Set<string>();
+	const own = new URL(baseURL!).origin;
 	page.on('request', (req) => {
 		const origin = new URL(req.url()).origin;
-		if (origin !== eigen) fremd.add(origin);
+		if (origin !== own) foreign.add(origin);
 	});
 
 	await page.goto('/Fakt-des-Tages/');
@@ -126,5 +127,5 @@ test('lädt nichts von fremden Servern', async ({ page, baseURL }) => {
 	await page.goto('/Fakt-des-Tages/datenschutz');
 	await page.goto('/Fakt-des-Tages/impressum');
 
-	expect([...fremd]).toEqual([]);
+	expect([...foreign]).toEqual([]);
 });

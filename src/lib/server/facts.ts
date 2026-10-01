@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { imageMeta } from 'image-meta';
 import { Marked, Renderer } from 'marked';
 import YAML from 'yaml';
-import { isIsoDate, type FaktHtml } from '$lib/fakten';
+import { isIsoDate, type FactHtml } from '$lib/facts';
 
 // Everything here runs at build time only. It lives under `$lib/server/` so that SvelteKit *fails
 // the build* if it is ever imported from client code — which is what keeps `yaml` and `marked` out
@@ -13,7 +13,7 @@ import { isIsoDate, type FaktHtml } from '$lib/fakten';
  * policy a single bad entry fails the whole load, so the message always names what to fix. Since
  * this runs during prerendering, that failure stops the build instead of reaching a visitor.
  */
-export function parseFakten(text: string): Map<string, string> {
+export function parseFacts(text: string): Map<string, string> {
 	let data: unknown;
 	try {
 		data = YAML.parse(text);
@@ -30,17 +30,17 @@ export function parseFakten(text: string): Map<string, string> {
 		throw new Error('Die Faktendatei hat kein gültiges Format.');
 	}
 
-	const fakten = new Map<string, string>();
-	for (const [datum, fakt] of Object.entries(data)) {
-		if (!isIsoDate(datum)) {
-			throw new Error(`Ungültiges Datum in der Faktendatei: „${datum}“ (erwartet: JJJJ-MM-TT).`);
+	const facts = new Map<string, string>();
+	for (const [date, fact] of Object.entries(data)) {
+		if (!isIsoDate(date)) {
+			throw new Error(`Ungültiges Datum in der Faktendatei: „${date}“ (erwartet: JJJJ-MM-TT).`);
 		}
-		if (typeof fakt !== 'string' || fakt.trim() === '') {
-			throw new Error(`Der Fakt für ${datum} ist leer oder kein Text.`);
+		if (typeof fact !== 'string' || fact.trim() === '') {
+			throw new Error(`Der Fakt für ${date} ist leer oder kein Text.`);
 		}
-		fakten.set(datum, fakt);
+		facts.set(date, fact);
 	}
-	return fakten;
+	return facts;
 }
 
 /**
@@ -61,25 +61,25 @@ export function parseFakten(text: string): Map<string, string> {
 const markdown = new Marked({
 	renderer: {
 		image(token) {
-			const bild = Renderer.prototype.image.call(this, token);
-			const quelle = /^<img src="([^"]*)"/.exec(bild)?.[1];
-			if (!quelle) return bild;
-			let größe;
+			const img = Renderer.prototype.image.call(this, token);
+			const src = /^<img src="([^"]*)"/.exec(img)?.[1];
+			if (!src) return img;
+			let size;
 			try {
-				größe = imageMeta(readFileSync(`static/${token.href}`));
+				size = imageMeta(readFileSync(`static/${token.href}`));
 			} catch (cause) {
 				const detail = cause instanceof Error ? cause.message : String(cause);
 				throw new Error(`Das Bild „${token.href}“ lässt sich nicht vermessen: ${detail}`, {
 					cause
 				});
 			}
-			const maße = ` width="${größe.width}" height="${größe.height}">`;
-			return `<a href="${quelle}">${bild.replace(/>$/, maße)}</a>`;
+			const dimensions = ` width="${size.width}" height="${size.height}">`;
+			return `<a href="${src}">${img.replace(/>$/, dimensions)}</a>`;
 		}
 	}
 });
 
 /** CommonMark → HTML. `async: false` picks marked's synchronous overload, which returns `string`. */
-export function renderFakt(text: string): FaktHtml {
-	return markdown.parse(text, { async: false }) as FaktHtml;
+export function renderFact(text: string): FactHtml {
+	return markdown.parse(text, { async: false }) as FactHtml;
 }

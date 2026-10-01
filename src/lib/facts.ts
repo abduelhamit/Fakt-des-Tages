@@ -1,5 +1,5 @@
 // Imported by `+page.svelte`, so everything in here ships to the browser: keep it dependency-free
-// and keep the functions pure. Build-time-only code belongs in `$lib/server/fakten.ts`, which the
+// and keep the functions pure. Build-time-only code belongs in `$lib/server/facts.ts`, which the
 // framework will fail the build over if it is ever pulled into client code — nothing enforces this
 // side, so it has to be remembered.
 
@@ -8,10 +8,10 @@
  * without this, dropping the render step from the build-time load would still type-check and feed
  * raw Markdown into `{@html}`. The brand exists only at compile time — at runtime it is a string.
  */
-export type FaktHtml = string & { readonly __faktHtml: true };
+export type FactHtml = string & { readonly __factHtml: true };
 
 /** ISO date (`2026-08-22`) → that day's fact, rendered. */
-export type Fakten = Map<string, FaktHtml>;
+export type Facts = Map<string, FactHtml>;
 
 /**
  * A `Date` as `YYYY-MM-DD` in the *visitor's* timezone.
@@ -40,31 +40,31 @@ export function fromIsoDate(iso: string): Date {
  * formats as `NaN-NaN-NaN`) or normalises to a different string, so `2026-3-15`, `2026-02-31` and
  * `2026-02-29` are all rejected.
  */
-export function isIsoDate(wert: string): boolean {
-	return toIsoDate(fromIsoDate(wert)) === wert;
+export function isIsoDate(value: string): boolean {
+	return toIsoDate(fromIsoDate(value)) === value;
 }
 
 /** Shortest query the search accepts, and so the shortest suffix worth indexing — one constant for
  *  both, since a query shorter than the shortest stored suffix could never match. */
-export const KUERZESTE_SUCHE = 3;
+export const MIN_QUERY_LENGTH = 3;
 
 /** Words, split on any run of characters that is neither letter nor digit. The `filter` drops the
  *  empty pieces a leading or trailing separator splits off. */
-export function worte(text: string): string[] {
+export function words(text: string): string[] {
 	return text.split(/[^\p{L}\p{N}]+/u).filter(Boolean);
 }
 
 /**
- * What goes *into* the index: every word, plus every suffix of it down to {@link KUERZESTE_SUCHE}.
+ * What goes *into* the index: every word, plus every suffix of it down to {@link MIN_QUERY_LENGTH}.
  * That is what lets `turm` reach `Fernsehturm` — MiniSearch matches whole terms, never substrings,
  * and German welds the noun onto the end of the compound.
  *
- * Indexing only. A query must be tokenised with {@link worte}, or typing `turm` also asks for `urm`.
+ * Indexing only. A query must be tokenised with {@link words}, or typing `turm` also asks for `urm`.
  * The measured cost is in CLAUDE.md, under "The search".
  */
-export function suchterme(text: string): string[] {
-	return worte(text).flatMap((wort) =>
-		Array.from({ length: Math.max(0, wort.length - KUERZESTE_SUCHE + 1) }, (_, i) => wort.slice(i))
+export function indexTerms(text: string): string[] {
+	return words(text).flatMap((word) =>
+		Array.from({ length: Math.max(0, word.length - MIN_QUERY_LENGTH + 1) }, (_, i) => word.slice(i))
 	);
 }
 
@@ -77,8 +77,8 @@ export function suchterme(text: string): string[] {
  * bare vowel rather than the `ae` a dictionary would use, so `Muenchen` still does not reach
  * `München`. What that buys and what it cannot reach is in CLAUDE.md, under "The search".
  */
-export function suchbegriff(begriff: string): string {
-	return begriff
+export function foldTerm(term: string): string {
+	return term
 		.normalize('NFKD')
 		.replace(/[\u0300-\u036f]/g, '')
 		.toLowerCase()
@@ -86,21 +86,21 @@ export function suchbegriff(begriff: string): string {
 }
 
 /**
- * The cells of one calendar month, Monday first. `monat` is zero-based, like `Date`.
+ * The cells of one calendar month, Monday first. `month` is zero-based, like `Date`.
  *
- * `versatz` is how many columns the 1st is indented by. `getDay()` counts from Sunday, so the
- * `+ 6` rotates the week onto the German start; without it every month is off by a day. `tage`
+ * `offset` is how many columns the 1st is indented by. `getDay()` counts from Sunday, so the
+ * `+ 6` rotates the week onto the German start; without it every month is off by a day. `days`
  * holds one ISO date per day — day 0 of the following month is the last of this one, which is
  * also where February gets its leap day from rather than from a rule of its own.
  */
-export function monatsRaster(
-	jahr: number,
-	monat: number
-): { versatz: number; tage: readonly string[] } {
+export function monthGrid(
+	year: number,
+	month: number
+): { offset: number; days: readonly string[] } {
 	return {
-		versatz: (new Date(jahr, monat, 1).getDay() + 6) % 7,
-		tage: Array.from({ length: new Date(jahr, monat + 1, 0).getDate() }, (_, i) =>
-			toIsoDate(new Date(jahr, monat, i + 1))
+		offset: (new Date(year, month, 1).getDay() + 6) % 7,
+		days: Array.from({ length: new Date(year, month + 1, 0).getDate() }, (_, i) =>
+			toIsoDate(new Date(year, month, i + 1))
 		)
 	};
 }

@@ -4,6 +4,12 @@ How the page itself behaves and why: the loading placeholder, the calendar, the 
 search, the random fact, and the legal pages. Read with the root [CLAUDE.md](../../CLAUDE.md),
 which covers the content pipeline, adding a fact, the build and the tests.
 
+Which text is German and which English is settled there, under "German and English". Two
+consequences surface here more than anywhere else. The e2e titles are English while every locator
+they use matches German page text (`getByRole('button', { name: 'Nächster Fakt' })`), so changing a
+UI string breaks the tests that look it up, whatever language the titles are in. And the routes
+`/impressum` and `/datenschutz` keep their German names: they are public URLs, not identifiers.
+
 ## The visitor's clock cannot be known at build time
 
 This is the one thing SSG genuinely costs here. `new Date()` during prerendering is the _build_ date,
@@ -16,11 +22,11 @@ That placeholder is a mock of the finished page rather than a bare line of text.
 date bar sit _outside_ the `{#if}`s that need a selection, so before hydration they render themselves:
 every arrow bounded, both text slots a grey bar, six full rows of stand-in days in the archive's own
 rhythm — Mo–Fr shaped like a day with a fact, Sa/So like one without. This is why the month arrows
-test `!monat` as well as their month bound: `angezeigt` is `''` before hydration, which happens to
-fall below `grenzen.von` but not above `grenzen.bis`, so the forward arrow would otherwise come up
-looking live. Both arrows carry it rather than only that one: it mirrors `verschiebe`'s own `!monat`
+test `!month` as well as their month bound: `shownMonth` is `''` before hydration, which happens to
+fall below `bounds.from` but not above `bounds.to`, so the forward arrow would otherwise come up
+looking live. Both arrows carry it rather than only that one: it mirrors `shiftMonth`'s own `!month`
 return instead of leaning on the accident that `''` sorts below every date, and it short-circuits
-before `grenzen`, so the archive is never sorted during prerendering. The stand-in cells are `h-8`, a
+before `bounds`, so the archive is never sorted during prerendering. The stand-in cells are `h-8`, a
 day cell's height to the pixel, so the page arrives at its final size — the e2e test compares the
 date bar's resting offset with JavaScript switched off against the same offset once hydrated, and a
 one-step change to that height fails it. `aria-busy` belongs on `<main>` and not on the
@@ -37,17 +43,17 @@ applies to both. Four things are not shared, and the test only half-covers the f
   move together: `1fr` sizes each row to its tallest cell, and every month in the archive has a
   factless day left holding the old height. Verified by mutation both ways — changing only the
   button passes green.
-- **The six-row count**, written twice: `repeat(6,1fr)` on the grid, `6 * WOCHENTAGE.length` in the
+- **The six-row count**, written twice: `repeat(6,1fr)` on the grid, `6 * WEEKDAYS.length` in the
   mock's loop.
 - **The colours.** A day with a fact is `bg-sky-50`, and the mock's weekday cell repeats that literal.
   Nothing tests it, so a restyled calendar leaves the placeholder on the old palette.
 - **The two grey bars** (`h-4 w-28`), duplicated on purpose: nothing couples the size of the month
   heading's placeholder to the date line's, so changing one is a decision about the other rather than
-  a bug. Do not fold them into a `{#snippet}` — unlike `pfeil` below, both are already literal
+  a bug. Do not fold them into a `{#snippet}` — unlike `arrow` below, both are already literal
   `class="..."` attributes that Prettier sorts, so the snippet would be pure overhead.
 
 To look at the thing, switch JavaScript off and reload; hydration is far too quick to catch it
-otherwise. That is exactly what the `Ladezustand` e2e test does, in a second browser context.
+otherwise. That is exactly what the `loading state` e2e test does, in a second browser context.
 
 ## The calendar
 
@@ -61,7 +67,7 @@ second reader disagrees, not before. These decisions in it are not obvious from 
   same function. Back/forward and shared links therefore work without a second code path. Do not
   "simplify" it by also setting the state in the click handler — that is how the two get out of sync.
   The heading is the one control that cannot take that path: _removing_ the hash needs
-  `history.pushState`, which fires no `hashchange`, so `zurueckZuHeute` calls `ausHash` itself — the
+  `history.pushState`, which fires no `hashchange`, so `backToToday` calls `readHash` itself — the
   same call `onMount` makes. One function still decides the selection; what the rule forbids is two
   functions writing it. `location.hash = ''` is not an alternative, because it leaves a bare `#`
   behind, and neither is a link to `/`: SvelteKit routes that click client-side, so the hash goes
@@ -74,16 +80,16 @@ second reader disagrees, not before. These decisions in it are not obvious from 
   not.** The two look alike and behave oppositely. SvelteKit's click handler special-cases a
   same-page link whose hash _differs_: it sets `hash_navigating`, deliberately does **not**
   `preventDefault`, and lets the browser navigate natively, precisely so `hashchange` fires
-  (`client.js`, "use the browser default behavior in that case"). `ausHash` then runs like any
+  (`client.js`, "use the browser default behavior in that case"). `readHash` then runs like any
   other selection. Removing the hash is the case that has no native path, which is the whole
-  reason `zurueckZuHeute` exists. Verified in a browser against the real archive, not just read:
+  reason `backToToday` exists. Verified in a browser against the real archive, not just read:
   the fact swaps, the URL ends `#2026-08-24`, and Back returns to the previous fact. 2026-09-23 is
-  the first entry doing this. Two caveats. Such a link bypasses `springe`, so it does not pull the
+  the first entry doing this. Two caveats. Such a link bypasses `jump`, so it does not pull the
   next fact's top back under the sticky bar — tolerable because the link sits in the fact the
-  reader is already at. And `verlinkt auf der Startseite nirgends auf sich selbst` in
-  [rechtsseiten.e2e.ts](rechtsseiten.e2e.ts) compares **pathnames**, so it would read a
+  reader is already at. And `never links the home page to itself` in
+  [legal-pages.e2e.ts](legal-pages.e2e.ts) compares **pathnames**, so it would read a
   hash-only link as a self-link; it stays green only because the e2e suite builds against
-  `fakten.probe.yaml`, which has none. Put one in that fixture and the test needs to exclude
+  `facts.probe.yaml`, which has none. Put one in that fixture and the test needs to exclude
   hash-only hrefs first.
 - **The arrows are bounded by the content, and the bounds include today and the selection.** Bounding
   on the fact keys alone strands a visitor: once the whole archive is in the past, both arrows go
@@ -92,7 +98,7 @@ second reader disagrees, not before. These decisions in it are not obvious from 
 - **Today stays clickable even with no fact of its own.** A deliberate exception to the "days without
   a fact are non-interactive" rule, because today is the cell you navigate back to. It has its own
   e2e test, since the ordinary "not clickable" test cannot catch it.
-- **Monday is column one.** `getDay()` counts from Sunday, so `monatsRaster` rotates it with
+- **Monday is column one.** `getDay()` counts from Sunday, so `monthGrid` rotates it with
   `(getDay() + 6) % 7`. Verified against a month that starts on a Sunday, which is the case a bare
   `getDay()` gets wrong.
 
@@ -102,7 +108,7 @@ second reader disagrees, not before. These decisions in it are not obvious from 
   its own. Two details there are deliberate and easy to undo by accident. The month arrows use
   `aria-disabled` rather than the native attribute — a natively disabled button drops keyboard focus
   to `<body>` the instant it is disabled, stranding the visitor who just pressed it — which is why
-  `verschiebe` enforces the bound itself rather than trusting the attribute. The cursor rule in
+  `shiftMonth` enforces the bound itself rather than trusting the attribute. The cursor rule in
   [layout.css](layout.css) matches on that same attribute (see Misc in the root CLAUDE.md), so swapping the
   mechanism here quietly makes a bounded arrow look clickable again. And the selected day is
   named in its `aria-label` (`… (angezeigt)`) instead of carrying `aria-pressed`, which would claim
@@ -138,7 +144,7 @@ would shove the calendar off screen for a visitor who was already at the top.
 is stuck — literally the scroll position — not where it belongs: scroll to 500 and it reports 500,
 whatever it read at rest. Any `scrollY > bar.offsetTop` test is therefore never true while pinned, and the
 jump silently never happens; that shipped once and two tests missed it. The fact underneath stays in
-normal flow, so `fakttext.offsetTop - leiste.offsetHeight` is the honest answer. The e2e test has to
+normal flow, so `factText.offsetTop - bar.offsetHeight` is the honest answer. The e2e test has to
 read the resting offset _before_ scrolling for the same reason — measured afterwards it compares a
 number with itself and passes with the feature deleted. Wrapping the bar in a static box to measure
 does not work either: the wrapper becomes sticky's containing block and caps its travel at its own
@@ -153,7 +159,7 @@ because the behaviour it buys cannot be tested here.
 
 Without it, scrolling on iOS puts one or two lines of the fact _above_ the pinned bar, dimmed, behind
 the status bar, splitting a sentence in half. The cause is not a safe-area inset. Measured on the
-device: `leiste.getBoundingClientRect().top` is `0` while the bar renders ~67 px down the screen, and
+device: `bar.getBoundingClientRect().top` is `0` while the bar renders ~67 px down the screen, and
 the article reports a negative `top` and paints anyway. The viewport origin simply sits below the
 status bar, and Safari 26 paints page content into the strip above it.
 
@@ -179,7 +185,7 @@ Accepted limitation: on a viewport wider than `max-w-2xl` plus its padding — a
 `main` no longer reaches the edges, the row stops being uniform, and the strip shows content again.
 Only phones are covered, which is where the bar is pinned often enough to matter.
 
-All four arrows on the page come from one `{#snippet pfeil(...)}`. The snippet is what keeps the
+All four arrows on the page come from one `{#snippet arrow(...)}`. The snippet is what keeps the
 shared class list inside a `class="..."` attribute, where Prettier's Tailwind plugin still sorts it —
 a hoisted `const` is silently skipped by the sorter. Verified both ways.
 
@@ -220,12 +226,12 @@ even as a `modulepreload`, so a visitor who never searches never fetches it.
   MiniSearch matches whole terms — by prefix or by edit distance — never substrings, and German
   welds the noun onto the end of the compound. `turm` therefore used to return exactly one entry,
   the only one using the bare word, while missing `Fernsehturm`, `Eiffelturm`, `Hauptturm` and
-  `Bühnenturm`. `suchterme` in [fakten.ts](../lib/fakten.ts) emits each word plus every suffix down
-  to `KUERZESTE_SUCHE`, turning prefix matching into substring matching. Measured on the real
+  `Bühnenturm`. `indexTerms` in [facts.ts](../lib/facts.ts) emits each word plus every suffix down
+  to `MIN_QUERY_LENGTH`, turning prefix matching into substring matching. Measured on the real
   archive: the term count goes up about fourfold (roughly 3,700 to 14,900), the build costs tens of
   milliseconds once in the browser, and queries stay under a millisecond. Re-measure rather than
-  trusting those figures — they move with the archive. **A query must be tokenised with `worte`, not
-  `suchterme`** — the `tokenize`
+  trusting those figures — they move with the archive. **A query must be tokenised with `words`, not
+  `indexTerms`** — the `tokenize`
   passed to `search()` is there for exactly that, and without it typing `turm` also asks for `urm`.
 - **Every hit is kept, ranked by score, capped at eight.** Substring matching does let a short query
   pick up unrelated tails — `turm` reaches `Kultur`, `Herzogtum` and `Absturz` through short fuzzy
@@ -235,20 +241,20 @@ even as a `modulepreload`, so a visitor who never searches never fetches it.
   because of the umlaut folding. Measured on the real archive, `turm` returns all four `Turm`
   compounds first, then the tail, with `Türmen` last — eight in total, which is the cap rather than
   the end of the list.
-- **`suchbegriff` flattens diacritics, with `normalize('NFKD')` rather than a hand-written umlaut
+- **`foldTerm` flattens diacritics, with `normalize('NFKD')` rather than a hand-written umlaut
   map.** The same one line that lets `Munchen` reach `München` also covers `Édouard`, `Småländer`,
   `Florianópolis`, `Pokémon`, `Maracanã`, `Ålesund` and `Hyōgo`, all of which are in the archive and
   none of which an ä/ö/ü table would have touched. `ß` does not decompose under NFKD and keeps its
   own case. Folding is to the bare vowel, not the `ae` a dictionary would use, so `Muenchen` still
   does not reach `München` — that half is given up knowingly.
-  `findet ein angefangenes Wort` types a half-finished word on purpose, because the search runs on
+  `finds a half-typed word` types a half-finished word on purpose, because the search runs on
   every keystroke and a part-word is the state a visitor is in for all but the last one.
-- **Three characters minimum, eight hits shown.** `KUERZESTE_SUCHE` is one constant for both the
+- **Three characters minimum, eight hits shown.** `MIN_QUERY_LENGTH` is one constant for both the
   query minimum and the shortest indexed suffix, because a query shorter than the shortest suffix
   could never match. Above eight hits the list is taller than the calendar under it.
 - **The search is driven by an `$effect`, not `oninput`.** With `bind:value` the two would race on
   listener order; the effect runs once the state has already moved.
-- **Re-read `suche` after the `await`.** Loading the module is asynchronous, so an earlier keystroke
+- **Re-read `query` after the `await`.** Loading the module is asynchronous, so an earlier keystroke
   can resolve after a later one and write a stale list. That read is deliberately outside the
   effect's tracking — it is a guard, not a dependency.
 - **The input is `disabled` until hydration,** unlike the calendar beside it, which renders a mock.
@@ -277,7 +283,7 @@ is "surprise me", so the two belong together. It sits _outside_ the `search` ele
 a search and the landmark should not claim it — which also means the hit panel covers it while a
 query is running, exactly as the panel covers the calendar.
 
-- **It goes through `springe`.** Writing the hash and pulling the top of the fact back when the bar
+- **It goes through `jump`.** Writing the hash and pulling the top of the fact back when the bar
   has pinned both come for free that way, and there is no second navigation path to keep in step.
 - **It never returns the fact already on screen.** A repeat, however rare, makes the button look
   broken. The e2e test stubs `Math.random` so the pick is deterministic, and
@@ -285,8 +291,8 @@ query is running, exactly as the panel covers the calendar.
   and it fails rather than passing on a coincidence.
 - **`aria-disabled`, not the native attribute,** like every other button here, and bounded before
   hydration as well. That second half needs its own reason, because unlike the arrows it does not
-  come for free: `monat` and `nachbarn` are `undefined` before hydration, but `andereFakten` comes
-  from `data.fakten`, which is already there at prerender time. Without `!gewaehlt` the button ships
+  come for free: `month` and `neighbours` are `undefined` before hydration, but `otherFacts` comes
+  from `data.facts`, which is already there at prerender time. Without `!selected` the button ships
   in the HTML claiming `aria-disabled="false"` while no listener exists — enabled-looking and inert,
   and permanently so for a visitor without JavaScript. The loading-state test happens to catch it
   too, since it asserts that no button in the placeholder is pressable by either mechanism.
@@ -302,12 +308,12 @@ Two prerendered routes, `/impressum` and `/datenschutz`, reached from a footer i
 "ausschließlich persönlichen oder familiären Zwecken", so § 18 Abs. 1 MStV wants a name and a
 ladungsfähige Anschrift even though nothing here is commercial.
 
-- **[src/lib/anbieter.ts](../lib/anbieter.ts) is the single source for name, address and email,**
+- **[src/lib/provider.ts](../lib/provider.ts) is the single source for name, address and email,**
   because both pages need them — § 5 DDG in the Impressum, Art. 13 Abs. 1 lit. a DSGVO for the
   `Verantwortlicher` in the Datenschutzerklärung. Two hand-kept copies of a postal address drift,
   and the copy that drifts is the one nobody re-reads. It ships to the client, which is the point.
-- **An unfilled address fails the deploy gate.** `anschrift` carries an `AUSFÜLLEN` marker and
-  [anbieter.spec.ts](../lib/anbieter.spec.ts) asserts no marker survives; `pnpm vitest run` is in
+- **An unfilled address fails the deploy gate.** `address` carries an `AUSFÜLLEN` marker and
+  [provider.spec.ts](../lib/provider.spec.ts) asserts no marker survives; `pnpm vitest run` is in
   [deploy.yml](../../.github/workflows/deploy.yml), so a placeholder Impressum cannot go live. Same trick
   as the facts-file parse test, and for the same reason: a fake Impressum is a worse problem than a
   missing one, and neither `pnpm build` nor `pnpm lint` would say a word about it.
@@ -315,8 +321,8 @@ ladungsfähige Anschrift even though nothing here is commercial.
   API appears anywhere in the source, nothing fetches at runtime, the font stack is system fonts,
   and every `img`/`script`/`link` in the built HTML is same-origin. The page says so in those terms,
   which means **the code can turn the page into a false statement** — one web font, one embedded
-  video, one counter. `lädt nichts von fremden Servern` in
-  [rechtsseiten.e2e.ts](rechtsseiten.e2e.ts) is the guard: it watches every request
+  video, one counter. `loads nothing from third-party servers` in
+  [legal-pages.e2e.ts](legal-pages.e2e.ts) is the guard: it watches every request
   origin across the home page, a search (so the lazily imported MiniSearch chunk is inside the
   window) and both legal pages. Verified by adding a `fonts.googleapis.com` stylesheet to
   [app.html](../app.html), which turns it red and names the host.
@@ -325,7 +331,7 @@ ladungsfähige Anschrift even though nothing here is commercial.
   prerender crawler refuses it and `pnpm build` dies with "does not begin with `base`". The build is
   the harder gate, and a test that cannot fail reads like cover for something that is not covered.
 - **`<main>` stays in each page rather than moving into the layout.** The home page's carries
-  `aria-busy={!gewaehlt}`, which is page state; hoisting it would mean plumbing that state upward to
+  `aria-busy={!selected}`, which is page state; hoisting it would mean plumbing that state upward to
   serve two pages that are never busy. The footer sits _outside_ `<main>` for the mirror-image
   reason — it is never provisional, so it has no business inside something that is.
 - **The way back to the facts lives in the two legal pages, not in the footer,** and that is not
@@ -337,8 +343,8 @@ ladungsfähige Anschrift even though nothing here is commercial.
   page **structurally**: the files it lives in are only rendered on those two routes, so there is
   no condition to get wrong. A footer version gated on `page.route.id` worked, but enforced at
   runtime what file layout enforces for free. The footer therefore stays two links on
-  every route. `verlinkt auf der Startseite nirgends auf sich selbst` in
-  [rechtsseiten.e2e.ts](rechtsseiten.e2e.ts) guards it by collecting every `a[href]` on
+  every route. `never links the home page to itself` in
+  [legal-pages.e2e.ts](legal-pages.e2e.ts) guards it by collecting every `a[href]` on
   the home page rather than counting footer links, so it also catches a self-link re-added to the
   layout; verified by doing exactly that, and it fails alone.
 - **Unverified: what GitHub Pages does with a trailing slash.** adapter-static writes
