@@ -9,13 +9,13 @@
      section and a reader is entitled to find it under either heading. One snippet rather than two
      copies, for the same reason `anbieter.ts` exists at all. -->
 {#snippet anschrift()}
-	<p>
+	<p class="hyphens-none">
 		{ANBIETER.name}<br />
 		{#each ANBIETER.anschrift as zeile, i (i)}{zeile}<br />{/each}
 	</p>
 {/snippet}
 
-<main class="mx-auto max-w-2xl p-6">
+<main class="mx-auto max-w-2xl p-6 hyphens-auto">
 	<h1 class="text-3xl font-bold">Impressum</h1>
 
 	<div class="prose mt-6">
@@ -23,7 +23,7 @@
 		{@render anschrift()}
 
 		<h2>Kontakt</h2>
-		<p>
+		<p class="hyphens-none">
 			E-Mail: <a href="mailto:{ANBIETER.email}">{ANBIETER.email}</a>
 		</p>
 

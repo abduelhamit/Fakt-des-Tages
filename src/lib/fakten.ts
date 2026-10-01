@@ -69,21 +69,16 @@ export function suchterme(text: string): string[] {
 }
 
 /**
- * One search term, folded to what the index stores: soft hyphens out, diacritics flattened, lower
- * case.
+ * One search term, folded to what the index stores: diacritics flattened, lower case.
  *
- * The archive needs all three. It is full of soft hyphens inside words — written `Flug\u00adhafen`
- * here because the character is invisible in source — where no tokeniser splits, and it carries
- * names from half of Europe: Édouard, Småländer, Florianópolis, Pokémon. `normalize('NFKD')`
- * separates a letter from its accents so the accents can be dropped; ß does not decompose that way
- * and needs its own case. What this buys and what it still cannot reach is in CLAUDE.md, under
- * "The search".
- *
- * MiniSearch drops a term this returns empty, which is what should happen to a lone soft hyphen.
+ * The archive carries names from half of Europe — Édouard, Småländer, Florianópolis, Pokémon,
+ * Maracanã, Ålesund, Hyōgo — and `normalize('NFKD')` separates a letter from its accents so the
+ * accents can be dropped; ß does not decompose that way and needs its own case. Folding is to the
+ * bare vowel rather than the `ae` a dictionary would use, so `Muenchen` still does not reach
+ * `München`. What that buys and what it cannot reach is in CLAUDE.md, under "The search".
  */
 export function suchbegriff(begriff: string): string {
 	return begriff
-		.replace(/\u00ad/g, '')
 		.normalize('NFKD')
 		.replace(/[\u0300-\u036f]/g, '')
 		.toLowerCase()

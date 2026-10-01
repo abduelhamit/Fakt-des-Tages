@@ -348,8 +348,7 @@ test.describe('Ladezustand', () => {
 });
 
 // The fixture's entries all begin "Testdaten", so these queries deliberately name the words that
-// tell them apart. The 26th carries a soft hyphen inside "Hintergrund" — see the note in
-// fakten.probe.yaml — which is the case the whole `suchbegriff` helper exists for.
+// tell them apart.
 test.describe('Suche', () => {
 	test.use({ timezoneId: 'Europe/Berlin' });
 
@@ -376,10 +375,10 @@ test.describe('Suche', () => {
 		await expect(page.getByRole('status')).toHaveText('');
 	});
 
-	// Deliberately a *part* of the word. The whole word would pass even without `suchbegriff`, since
-	// fuzzy matching swallows the hidden character as one insertion — verified, that mutation went
-	// green. Prefix matching cannot cross it, and mid-word is where every keystroke but the last is.
-	test('sieht durch die weichen Trennzeichen hindurch', async ({ page }) => {
+	// Deliberately a *part* of the word: the search runs on every keystroke, so a half-typed word is
+	// the state the visitor is actually in for all but the last one. This is the only test on plain
+	// prefix matching — the others cover fuzziness, the suffix index and the alt texts.
+	test('findet ein angefangenes Wort', async ({ page }) => {
 		await page.getByLabel('Fakt suchen').fill('Hinterg');
 
 		await expect(page.getByRole('status')).toHaveText('1 Treffer');
