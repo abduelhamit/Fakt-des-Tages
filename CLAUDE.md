@@ -87,18 +87,21 @@ applied in and what is checked, so nothing depends on remembering a past session
      threshold for applied art since BGH _Geburtstagszug_ (2013), and a photograph of a
      public-domain two-dimensional work carries its own § 72 UrhG protection under BGH
      _Reiss-Engelhorn_ (2018), whatever the Commons tag says.
-   - **Credit line:** CC → credit, PD/CC0 → none, rights-holder declaration → verbatim, per the
-     credit rules under the content pipeline.
-   - **Format and size, measured at the 624 px the column displays.** 1000–1280 px wide covers 2×
-     screens. Photographs progressive JPEG at 4:4:4, line art Adam7-interlaced PNG (an undithered
-     palette usually wins; dithering inflates the file), alpha per the transparency rule — see the
-     interlacing rule for when a PNG stays non-interlaced. Always `-strip`; if the source is already
-     a high-quality JPEG at the target size, `jpegtran -copy none -optimize -progressive` instead of
-     re-encoding. Most images land under 250 KB — say the size, and why when it is more.
-   - **File** `static/fakten/YYYY-MM-DD-N.ext`.
+   - **Credit line:** CC → credit linked to the file page, § 51 quotation or US-only PD → source
+     line with the author, rights-holder declaration → verbatim, PD/CC0 → none, per the credit
+     rules under the content pipeline.
+   - **Format and size: AVIF 4:4:4, the smallest file that still scores SSIMULACRA2 80.** 1000–1280
+     px wide covers 2× screens. Build the reference first — the original with its embedded profile
+     converted (`magick … -profile "/System/Library/ColorSync/Profiles/sRGB Profile.icc"`), resized
+     to the shipped size, alpha per the transparency rule, `-strip` — then binary-search
+     `avifenc -s 3 -y 444 -q N` for the lowest `N` whose decode still scores 80 in
+     `ssimulacra2 ref.png decoded.png`. An animation is the same search over its frames, scored one
+     by one against the GIF's own and averaged. Most images land under 250 KB — say the size, and
+     why when it is more.
+   - **File** `static/fakten/YYYY-MM-DD-N.avif`.
    - **Alt text in German**, describing what is visible — subject, colours, layout, any lettering
      quoted in „…“. It is the only description a screen reader gets and it feeds the search. It
-     must not claim what the file lacks: a transparent PNG has no `weißer Grund`.
+     must not claim what the file lacks: a transparent image has no `weißer Grund`.
 6. **The gate.** `git check-attr filter -- static/fakten/<file>` must say `lfs`; then `pnpm lint`,
    `pnpm vitest run`, `pnpm build`. Then read the entry back out of `build/index.html`: the
    invisible characters literal, no `&nbsp;`, `&#8239;` or `&shy;` anywhere, and the image in
@@ -237,7 +240,7 @@ Consequences worth knowing before changing any of this:
   entered the index as `flug` and `hafen`, and typing `Flughafen` matched nothing. Nothing in the
   gate would notice one coming back, and the character is invisible in every editor.
 - **Images live in [static/fakten/](static/fakten/)** and are referenced relatively —
-  `![…](fakten/2026-03-06-1.jpg)`, so the path resolves against the page and the base path stays in
+  `![…](fakten/2026-03-06-1.avif)`, so the path resolves against the page and the base path stays in
   one place. **That works because facts are only ever rendered on `/`** — not because `/` is the
   only route. Render a fact on any other route
   and every image on it 404s, because `fakten/…` would resolve against _that_ route's directory.
@@ -269,7 +272,11 @@ Consequences worth knowing before changing any of this:
   throws, was passed over for its tiny user base, and `sharp` because it is async-only, which the
   synchronous renderer cannot use, and ships native binaries to read a header.
 - **A CC-licensed image carries its credit in the entry**, on the line after it, as
-  `_Foto: Name, [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/)_`. Same paragraph as
+  `_Foto: [Name](https://commons.wikimedia.org/wiki/File:…), [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/)_`.
+  The name links to the file page because every CC version in the archive — 2.0, 3.0 and 4.0 —
+  asks for a link to the work where that is practicable, and the file page carries author, title
+  and licence in one place. The name is the file page's `Artist`, minus any `©` or user-page markup.
+  Two images on one line each get their own credit straight after them, which splits the line. Same paragraph as
   the image, and **no hard break** between them: Preflight makes `img` a block, so the credit starts
   on its own line regardless, and a `<br>` there buys nothing but an extra empty line — measured, it
   left the credit 37 px from both pictures, belonging to neither.
@@ -294,10 +301,20 @@ Consequences worth knowing before changing any of this:
   **verbatim** — do not translate it, shorten it or fold it into a German credit, because the
   wording is the condition rather than a courtesy. It sits in the same slot as a CC credit, so the
   `:has(+ em)` spacing rule picks it up for free. Note what this does _not_ do: the permission is
-  non-commercial only and revocable, so it would lapse if this site ever took money. The other
-  non-free images here (the Hobbit and Naruto covers, Crash, the Lego box, the Nevermind cover)
-  rest on a § 51 UrhG quotation argument instead and carry no line, because no rights holder has
-  asked for one.
+  non-commercial only and revocable, so it would lapse if this site ever took money. The BnF's
+  `gallica.bnf.fr / BnF` under 2026-08-31 is the same case: Gallica's terms make that mention the
+  condition of free non-commercial reuse.
+- **An image quoted under § 51 UrhG carries a source line too, naming its author.** § 63 Abs. 2
+  UrhG asks for "die Quelle einschließlich des Namens des Urhebers" on every public use of a
+  quotation, unless that is impossible — so `_Cover: Kirk Weddle (Foto), Robert Fisher
+(Gestaltung), DGC Records 1991_`, and where no author is known, the rights holder or the place
+  the copy came from (`via [Know Your Meme](…)`). This covers the covers, box art, film scenes and
+  memes. It also covers anything Commons tags public domain on US grounds alone: `PD-textlogo` (see the
+  _Geburtstagszug_ caveat) and `PD-Pre1978`. That tag is a missing copyright notice, and Germany asks
+  no formalities, so the NBC publicity photos on 2026-09-08 may well be protected here and fall
+  back on § 51. An earlier version of this file said quotations "carry no line, because no rights
+  holder has asked for one". That reading gets § 63 backwards: the line is what the quotation
+  right itself requires.
 - **The fact texts are reworked Wikipedia prose, and one sentence in the footer carries what that
   licence requires.** Nearly every entry leans on the German or English Wikipedia; 2026-10-01 is the
   extreme, where both of the last two paragraphs are word for word from `Zeitball` and
@@ -314,43 +331,50 @@ Consequences worth knowing before changing any of this:
   fail with the sentence deleted; without it the notice is static markup whose removal nothing would
   announce. It is also why the no-JavaScript test names the two legal links rather than counting the
   footer's links.
-- **Those images are in Git LFS** ([.gitattributes](.gitattributes) tracks `static/fakten/*.jpg`,
-  `*.gif` and `*.png`), so the repo carries pointers instead of binaries. Add the
+- **Those images are in Git LFS** ([.gitattributes](.gitattributes) tracks `static/fakten/*.avif`),
+  so the repo carries pointers instead of binaries. Add the
   pattern before the first file of a new format, or it lands in the repo as a real binary and no
-  check notices. Photographs are JPEG; PNG is there for line art, where JPEG rings around the edges
-  — the tughra on 2026-08-31 is half the size as a 16-colour PNG8 and sharp, against a JPEG at the
-  same width. Two consequences, both load-bearing:
+  check notices. Two consequences, both load-bearing:
   - `actions/checkout` in [deploy.yml](.github/workflows/deploy.yml) needs **`lfs: true`**. Without
     it the build gets 130-byte pointer files, copies them into `build/fakten/` and deploys every
     image on the site broken. The gate test below reads the file headers to catch that, and since
     `renderFact` measures every image, `pnpm build` itself fails on a pointer too.
   - Adding or replacing an image needs a local clone with `git lfs install`. Editing the _text_ of
     a fact in GitHub's web editor is unaffected.
-- **Decide JPEG against PNG at the size the image is shown, not at full size — the two disagree.**
-  The 1876 engraving on 2026-10-01 is the case that proves it. Hatching looks like line art, and as
-  a 256-colour PNG it did score better than JPEG at full width: RMSE 0.016 against 0.032. At the
-  624 px the prose column actually gives it, the order reverses — 0.019 for the PNG against 0.012
-  for the JPEG. Palette error is per pixel and survives downsampling, while the high-frequency
-  hatching JPEG discards averages out of existence on the way down. So it is a photograph for this
-  purpose and ships as one. Chroma subsampling lost as well, which is worth knowing because it
-  normally wins on anything photographic: 4:2:0 saved 23 % of the file and tripled the display-size
-  error, because the hand-colouring has hard edges in the flags, figures and foliage. Everything
-  here stays 4:4:4.
-- **Images load coarse-to-fine: JPEGs progressive, PNGs Adam7-interlaced.** On a slow connection
-  the picture appears whole and blurry and then sharpens, instead of filling in from the top. For
-  JPEG it is free: `jpegtran -progressive` is lossless — verified pixel-identical with
-  `magick compare -metric AE` — and usually makes the file slightly smaller. For PNG it is not:
-  Adam7 compresses worse, and on small palette line art it can cost a third of the file. Encode a
-  new PNG both ways with the same encoder, interlace it unless that clearly grows the file, and say
-  which way it went; a non-interlaced PNG in the archive is one where it did. The animated GIFs are
-  not interlaced either: their weight is the frame count, which interlacing does nothing about.
-- **Transparency is a consequence of choosing PNG, never a reason to choose it.** Settle the format
-  on the ringing question alone — photographs JPEG, line art PNG, as above. Only once PNG has won on
-  its own merits is the background a question at all, and then the default is to keep the alpha
-  channel rather than flatten it onto white. The Cheers wordmark on 2026-09-30 is the first one that
-  does: it looks identical on today's white page and is the smaller file, 52,762 bytes against
-  54,055 flattened. Two questions decide it, and the two older PNGs each answer no to one, which is
-  why both are flattened:
+- **Every image is AVIF 4:4:4, and that was measured, not assumed.** In October 2026 the whole
+  archive was re-encoded from its originals. Every candidate was searched to its smallest file that
+  scores SSIMULACRA2 80, roughly what the old q80 JPEGs scored: AVIF at 4:4:4 and 4:2:0, lossy and
+  lossless WebP, PNG, and palette PNG or WebP for the flat graphics. AVIF won every image,
+  photographs and line art alike, and cut the still images by two fifths. Three things that
+  sweep found, worth keeping:
+  - **Score at the served size, not at the 624 px column.** On a 2× screen the served pixels are
+    the ones a visitor sees. The column size flatters every format on a 1× screen only.
+  - **4:4:4, never 4:2:0 or 4:0:0.** Safari decodes AVIF through ImageIO, whose 4:2:0 chroma
+    upsampling is not libavif's. Two 4:2:0 encodes that scored 80 in libavif dropped to 75.6 and
+    77.3 through `sips`, while every 4:4:4 encode stayed within 0.6 of its libavif score. 4:2:0 was
+    never more than 11 KB smaller. Monochrome 4:0:0 saved at most 1 KB on the greyscale images, too
+    little to justify a decoder path nothing else in the archive uses.
+  - **Convert the embedded profile before stripping.** `-strip` alone throws an Adobe RGB, Display
+    P3 or camera profile away without converting the pixels, and six originals had shipped that
+    way: the LEGO box's black came out grey, and the photo of the Lego Himeji on 2026-03-27 washed out.
+
+  **Animations are animated AVIF in a plain `<img>`, which behaves exactly like a GIF:** it plays at
+  once, loops forever (libavif writes an infinite repeat count) and needs no code. Verified looping
+  in Chromium, Firefox and WebKit. `<video autoplay loop muted playsinline>` was measured too, as
+  H.264 and as AV1, and was larger than animated AVIF on four of the five GIFs. It would also have
+  cost `renderFact` a second element type, `image-meta` cannot measure a video, the search reads
+  alt texts off `doc.images`, and iOS refuses to autoplay video in Low Power Mode.
+
+  Accepted limitation: AVIF needs Chrome 85, Firefox 93, Edge 121 or Safari 16.4 (iOS 16), and an
+  older browser shows the alt text where the picture should be. It also renders only once complete,
+  so the coarse-to-fine loading the progressive JPEGs had is gone, traded for files two fifths
+  smaller. If either ever matters, have `renderFact` emit a `<picture>` with a JPEG fallback.
+
+- **Transparency is never a reason to choose a format.** AVIF carries alpha as cheaply as it
+  carries anything, so the background is a question about the picture alone, and the default is to
+  keep the alpha channel rather than flatten it onto white. The Cheers wordmark on 2026-09-30 is the
+  one that keeps it: it looks identical on today's white page. Two questions decide it, and the
+  two other flat graphics each answer no to one, which is why both are flattened:
   - **Is the white part of the picture, or just where the picture stops?** The Malaysian flag on
     2026-09-16 is a rectangle whose white stripes _are_ the artwork — there is no
     outside-the-subject to remove, and a flag with holes in it is a mistake rather than an option.

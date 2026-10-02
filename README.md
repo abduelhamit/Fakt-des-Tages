@@ -50,7 +50,7 @@ Bilder liegen in [`static/fakten/`](static/fakten/) und werden relativ eingebund
 2026-03-06: |
   Ein Fakt mit Bild.
 
-  ![Was auf dem Bild zu sehen ist](fakten/2026-03-06-1.jpg)
+  ![Was auf dem Bild zu sehen ist](fakten/2026-03-06-1.avif)
 ```
 
 - **Der Text in den eckigen Klammern ist die Bildbeschreibung** für Menschen, die die Seite
