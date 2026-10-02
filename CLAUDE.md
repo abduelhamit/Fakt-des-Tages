@@ -214,6 +214,16 @@ Consequences worth knowing before changing any of this:
   different construction and deliberately untouched: `Area 51`, `Nintendo 64`, `Platz 1` and
   `Artikel 1` keep ordinary spaces, because this rule is about a numeral standing before its own
   word.
+- **Initials in a name take both characters, by the same boundary.** Between two initials
+  **U+202F**, because `J. R. R.` is built like `z. B.`; after the last one **U+00A0**, binding it to
+  the word after it, as in `St. Ulrich` — so `J. R. R. Tolkien`, `James T. Kirk`,
+  `Sam S. Shubert`. A line ending in a bare `T.` reads as a finished sentence, the ordinal's failure
+  again. This is a house rule rather than a citation: checked in October 2026, neither Duden nor DIN
+  5008 names initials outright — Duden only shows them spaced, and the bond is their abbreviation
+  rule applied. The initial binds to whatever follows it, so the studio `W. & D. Downey` binds
+  `W.` to the ampersand. A name its owner writes unspaced stays unspaced: `F.A.O. Schwarz` binds
+  only before `Schwarz`, and `E.T.` is a title, not initials. An `I.` ending a sentence
+  (`Apple I.`) is the sentence-end case above and stays alone.
 - **Hyphenation is the browser's job, and a soft hyphen is never to be typed into a fact.** The
   fact column is `prose hyphens-auto` on the `<article>` in
   [+page.svelte](src/routes/+page.svelte), which together with the `lang="de"` already on `<html>`
