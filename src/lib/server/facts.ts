@@ -1,7 +1,8 @@
 import { readFileSync } from 'node:fs';
 import { imageMeta } from 'image-meta';
-import { Marked, Renderer } from 'marked';
+import { Marked, Renderer, type Token } from 'marked';
 import YAML from 'yaml';
+import source from '$lib/facts.yaml?raw';
 import { isIsoDate, type FactHtml } from '$lib/facts';
 
 // Everything here runs at build time only. It lives under `$lib/server/` so that SvelteKit *fails
@@ -43,6 +44,18 @@ export function parseFacts(text: string): Map<string, string> {
 	return facts;
 }
 
+let archive: Map<string, string> | undefined;
+
+/**
+ * The site's facts file, parsed once per build. The layout, every date page and the search file
+ * all read it, and prerendering calls each of their loads separately, so without the cache the
+ * whole file would be parsed again for every page. Lazy rather than at import, so the unit tests
+ * of the functions in this file do not depend on the real file being valid.
+ */
+export function facts(): Map<string, string> {
+	return (archive ??= parseFacts(source));
+}
+
 /**
  * Every image links to its own file, which is the whole zoom feature: the browser's image viewer
  * already toggles between fit-to-window and 100 % on click, pinches on a phone and zooms with the
@@ -82,4 +95,36 @@ const markdown = new Marked({
 /** CommonMark → HTML. `async: false` picks marked's synchronous overload, which returns `string`. */
 export function renderFact(text: string): FactHtml {
 	return markdown.parse(text, { async: false }) as FactHtml;
+}
+
+/** Tokens that end a run of text, so what comes after them must not weld onto it. */
+const BLOCKS = new Set(['paragraph', 'heading', 'list_item', 'blockquote', 'code', 'br']);
+
+/**
+ * The readable text of one fact, for the search and the page description, straight from the
+ * Markdown. A walk over marked's tokens rather than its `TextRenderer`: that one hands back an
+ * emphasis as raw Markdown, so the credit line `_Foto: [Name](https://…)_` came out with its URL.
+ * Links contribute their text and never their target or title, which is what keeps `example` and
+ * every `commons.wikimedia.org` out of the index.
+ *
+ * An image contributes its alt text, padded, because runs of images sit back to back and their
+ * descriptions would otherwise weld into one word. Block-level tokens are padded for the same
+ * reason. Only ordinary whitespace is collapsed: U+00A0 and U+202F stay, since the description is
+ * read by people and the search splits on them anyway.
+ */
+export function factText(text: string): string {
+	const walk = (tokens: Token[]): string =>
+		tokens
+			.map((t) => {
+				if (t.type === 'image') return ` ${t.text} `;
+				if (t.type === 'html') return '';
+				if (t.type === 'list') return walk(t.items);
+				const inner =
+					'tokens' in t && t.tokens ? walk(t.tokens) : 'text' in t ? String(t.text) : '';
+				return BLOCKS.has(t.type) ? ` ${inner} ` : inner;
+			})
+			.join('');
+	return walk(markdown.lexer(text))
+		.replace(/[\t\n\r ]+/g, ' ')
+		.trim();
 }

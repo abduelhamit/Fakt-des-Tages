@@ -57,29 +57,34 @@ test.describe('legal pages', () => {
 
 			await page.getByRole('main').getByRole('link', { name: 'Zum Fakt des Tages' }).click();
 
-			await expect(page).toHaveURL(/\/Fakt-des-Tages\/?$/);
-			// The heading, not the fact: this suite runs on the real clock, and whether the fixture
-			// has an entry for today depends on the date the suite happens to run. The heading is a
-			// button only on the home page, so it identifies the destination without pinning time.
-			await expect(page.getByRole('button', { name: 'Fakt des Tages' })).toBeVisible();
+			// Today, whichever way the home page's head script sent it: this suite runs on the real
+			// clock, and whether the fixture has an entry for today depends on when it runs. Either
+			// way the address names the day and the calendar is there.
+			await expect(page).toHaveURL(/\/Fakt-des-Tages\/\d{4}-\d\d-\d\d$/);
+			await expect(page.getByRole('region', { name: 'Kalender' })).toBeVisible();
 		});
 	}
 
-	// A link to `/` on the home page is the trap CLAUDE.md records under the location hash:
-	// SvelteKit routes the click client-side, the home component never remounts, so no
-	// `hashchange` fires and the URL would claim today while the previously chosen fact stayed on
-	// screen. Keeping the back link inside the two legal pages is what prevents that — this
-	// asserts the property itself, so it also catches someone re-adding such a link to the layout.
-	test('never links the home page to itself', async ({ page }) => {
-		await page.goto('/Fakt-des-Tages/#2026-07-30');
-		await expect(page.getByText('30. Juli 2026', { exact: true })).toBeVisible();
-
-		const targets = await page
-			.locator('a[href]')
-			.evaluateAll((as) =>
-				as.map((a) => new URL((a as HTMLAnchorElement).href).pathname.replace(/\/$/, ''))
-			);
-		expect(targets).not.toContain('/Fakt-des-Tages');
+	// Today's date is picked by the head script on `/`, which only a real page load runs: routed
+	// client-side, a link to `/` lands on the calendar with no day chosen. So every link to `/` has
+	// to opt out of the router — checked on every kind of page that has one, so it also catches such a
+	// link added to the layout. Before hydration, which is when the fact pages' heading points at `/`.
+	test('reaches the home page only by a real page load', async ({ browser, baseURL }) => {
+		const noJs = await browser.newContext({ javaScriptEnabled: false, baseURL });
+		const page = await noJs.newPage();
+		for (const path of ['2026-07-30', '2026-08-21', 'impressum', 'datenschutz']) {
+			await page.goto(`/Fakt-des-Tages/${path}`);
+			const links = await page
+				.locator('a[href]')
+				.evaluateAll((as) =>
+					as
+						.filter((a) => new URL((a as HTMLAnchorElement).href).pathname === '/Fakt-des-Tages/')
+						.map((a) => a.getAttribute('data-sveltekit-reload'))
+				);
+			expect(links.length, path).toBeGreaterThan(0);
+			expect(links, path).not.toContain(null);
+		}
+		await noJs.close();
 	});
 });
 
@@ -121,9 +126,13 @@ test('loads nothing from third-party servers', async ({ page, baseURL }) => {
 	});
 
 	await page.goto('/Fakt-des-Tages/');
-	// Exercise the one lazily loaded chunk too, so its fetch is inside the window being watched.
+	// Exercise what loads later too, so it is inside the window being watched: the search's chunk
+	// and text, a client-side step to another fact, and the page for a day without one.
 	await page.getByLabel('Fakt suchen').fill('lang');
 	await expect(page.getByRole('status')).not.toBeEmpty();
+	await page.getByRole('search').getByRole('link').first().click();
+	await expect(page.getByRole('article')).toBeVisible();
+	await page.goto('/Fakt-des-Tages/2026-08-21');
 	await page.goto('/Fakt-des-Tages/datenschutz');
 	await page.goto('/Fakt-des-Tages/impressum');
 

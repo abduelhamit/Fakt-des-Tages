@@ -3,37 +3,121 @@ import { expect, test, type Page } from '@playwright/test';
 // Shared by every pinned suite below, so they cannot drift apart: a Saturday the fixture gives a
 // fact, sitting between its July and September entries, in a month that starts on a Saturday.
 const TODAY = new Date('2026-08-22T10:00:00Z');
+// A Friday the fixture has no fact for, between two that it has.
+const FACTLESS_DAY = new Date('2026-08-21T10:00:00Z');
 
 // Where the date bar comes to rest: the height of everything above it in one number. Always read it
 // before scrolling — on a *stuck* sticky element `offsetTop` reports the scroll position instead.
 const barRestingTop = (page: Page) =>
 	page
-		.getByRole('button', { name: 'Vorheriger Fakt' })
+		.getByRole('link', { name: 'Vorheriger Fakt' })
 		.evaluate((el) => (el.parentElement as HTMLElement).offsetTop);
 
-// Deliberately says nothing about *which* fact is shown: src/lib/facts.yaml has gaps, so asserting
-// today's text would start failing on the first day without an entry.
-test('renders the fact without a runtime fetch', async ({ page }) => {
+// Deliberately says nothing about *which* fact is shown: on a clock nobody chose, `/` may land on
+// a fact or on a day without one, and both have to work.
+test('shows today on the visitor’s own clock, without fetching the facts', async ({ page }) => {
 	const requests: string[] = [];
 	page.on('request', (req) => requests.push(req.url()));
 
 	await page.goto('/Fakt-des-Tages/');
 
 	await expect(page.getByRole('heading', { level: 1 })).toHaveText('Fakt des Tages');
-
-	// The date line appears only once hydration has read the visitor's clock, so waiting for it is
-	// how we know the client-side half ran at all.
+	// Whichever way the head script went, the address bar now names a day, and the date line
+	// appears only once hydration has read the clock — so this is how we know both halves ran.
+	await expect(page).toHaveURL(/\/Fakt-des-Tages\/\d{4}-\d\d-\d\d$/);
 	await expect(page.getByText(/^\d{1,2}\. \p{L}+ \d{4}$/u)).toBeVisible();
 
-	await expect(page.getByText('Fakten werden geladen …')).toHaveCount(0);
-
-	// The whole point of the SSG rewrite: the facts are baked into the page.
+	// The whole point of the build-time pipeline: the facts file never reaches the browser, and the
+	// search text is fetched only by someone who searches.
 	expect(requests.filter((url) => url.endsWith('.yaml'))).toEqual([]);
+	expect(requests.filter((url) => url.includes('search.json'))).toEqual([]);
+	await page.getByLabel('Fakt suchen').focus();
+	await expect.poll(() => requests.filter((url) => url.includes('search.json'))).toHaveLength(1);
 });
 
 // Everything below runs against src/lib/facts.probe.yaml, not the site's real content — see the
 // `FACTS_PROBE` note in vite.config.ts. Dates may therefore be named outright, and the clock is
 // pinned to `TODAY`.
+test.describe('home page', () => {
+	test.use({ timezoneId: 'Europe/Berlin' });
+
+	test('sends a day with a fact to its own page, replacing itself', async ({ page }) => {
+		await page.clock.setFixedTime(TODAY);
+		await page.goto('/Fakt-des-Tages/');
+
+		await expect(page).toHaveURL(/\/Fakt-des-Tages\/2026-08-22$/);
+		await expect(page.getByText('22. August 2026', { exact: true })).toBeVisible();
+		await expect(page.getByRole('heading', { level: 2 })).toHaveText('August 2026');
+		await expect(page.getByRole('article')).toContainText('fetter');
+
+		// Back must leave the site, not land on `/` and be sent straight forward again. This pins the
+		// behaviour rather than the call: a navigation that starts before the page has finished
+		// loading replaces the entry whichever way it is written, so `location.assign` passes too.
+		await page.goBack();
+		expect(page.url()).toBe('about:blank');
+	});
+
+	// The accepted limitation, asserted so the hiding cannot quietly go: with the app's JavaScript
+	// failing to load, a page without a fact of its own stays empty rather than show a stand-in month.
+	// `/` hides whatever the day, so this also covers the moment its head script sends a day with a
+	// fact on — which cannot be watched directly, because Playwright waits on the page being loaded
+	// rather than the one leaving. A fact page is complete as prerendered, so it does not hide.
+	test('stays hidden until hydration on a page without a fact', async ({ page }) => {
+		await page.clock.setFixedTime(FACTLESS_DAY);
+		await page.route('**/_app/immutable/**/*.js', (route) => route.abort());
+
+		for (const path of ['', '2026-08-21']) {
+			await page.goto(`/Fakt-des-Tages/${path}`);
+			await expect(page.locator('html')).toBeHidden();
+		}
+
+		await page.goto('/Fakt-des-Tages/2026-08-20');
+		await expect(page.getByRole('article')).toContainText('kurzer Fakt, einzeilig');
+	});
+
+	test('names a day without a fact in the address bar, without loading anything', async ({
+		page
+	}) => {
+		const documents: string[] = [];
+		page.on('request', (req) => req.resourceType() === 'document' && documents.push(req.url()));
+		await page.clock.setFixedTime(FACTLESS_DAY);
+		await page.goto('/Fakt-des-Tages/');
+
+		await expect(page.getByText('Für heute gibt es keinen Fakt.')).toBeVisible();
+		await expect(page.getByText('21. August 2026', { exact: true })).toBeVisible();
+		await expect(page).toHaveURL(/\/Fakt-des-Tages\/2026-08-21$/);
+		expect(documents).toHaveLength(1);
+	});
+
+	// The day of `history.replaceState` has no page of its own, so going back to it is a client-side
+	// step to a `__data.json` that does not exist — which is what `+error.svelte` turns into a reload.
+	test('comes back to a day without a fact', async ({ page }) => {
+		await page.clock.setFixedTime(FACTLESS_DAY);
+		await page.goto('/Fakt-des-Tages/');
+		await expect(page.getByText('Für heute gibt es keinen Fakt.')).toBeVisible();
+
+		await page.getByRole('link', { name: 'Sonntag, 23. August 2026' }).click();
+		await expect(page.getByText('23. August 2026', { exact: true })).toBeVisible();
+
+		await page.goBack();
+		await expect(page.getByText('Für heute gibt es keinen Fakt.')).toBeVisible();
+		await expect(page).toHaveURL(/\/Fakt-des-Tages\/2026-08-21$/);
+	});
+
+	test('is a calendar without JavaScript', async ({ browser, baseURL }) => {
+		const noJs = await browser.newContext({ javaScriptEnabled: false, baseURL });
+		const page = await noJs.newPage();
+		await page.goto('/Fakt-des-Tages/');
+
+		// No clock, so no day is claimed: the latest month with a fact, and an invitation.
+		await expect(page.getByText('Wähle im Kalender einen Tag.')).toBeVisible();
+		await expect(page.getByRole('heading', { level: 2 })).toHaveText('September 2026');
+		await page.getByRole('link', { name: 'Mittwoch, 2. September 2026' }).click();
+		await expect(page.getByRole('article')).toContainText('Testdaten');
+		await noJs.close();
+	});
+});
+
 test.describe('calendar', () => {
 	test.use({ timezoneId: 'Europe/Berlin' });
 
@@ -41,87 +125,79 @@ test.describe('calendar', () => {
 		await page.clock.setFixedTime(TODAY);
 	});
 
-	test('opens on today', async ({ page }) => {
-		await page.goto('/Fakt-des-Tages/');
-
-		await expect(page.getByText('22. August 2026', { exact: true })).toBeVisible();
-		await expect(page.getByRole('heading', { level: 2 })).toHaveText('August 2026');
-		await expect(page.getByRole('article')).toContainText('fetter');
-	});
-
 	test('a click swaps the fact and puts it in the address bar', async ({ page }) => {
-		await page.goto('/Fakt-des-Tages/');
+		await page.goto('/Fakt-des-Tages/2026-08-22');
 
-		await page.getByRole('button', { name: 'Donnerstag, 20. August 2026' }).click();
+		await page.getByRole('link', { name: 'Donnerstag, 20. August 2026' }).click();
 
 		await expect(page.getByText('20. August 2026', { exact: true })).toBeVisible();
 		await expect(page.getByRole('article')).toContainText('kurzer Fakt, einzeilig');
-		expect(page.url()).toContain('#2026-08-20');
-		// The selection is named in the accessible name, since a plain button has no ARIA state that
-		// fits a single-select set — `aria-pressed` would claim toggle semantics this does not have.
+		await expect(page).toHaveURL(/\/Fakt-des-Tages\/2026-08-20$/);
+		// The selection is named in the accessible name, since a link has no ARIA state that fits a
+		// single-select set — `aria-pressed` would claim toggle semantics this does not have.
 		await expect(
-			page.getByRole('button', { name: 'Donnerstag, 20. August 2026 (angezeigt)' })
+			page.getByRole('link', { name: 'Donnerstag, 20. August 2026 (angezeigt)' })
 		).toBeVisible();
 
-		// The hash is the only selection state, so the back button has to undo the click.
 		await page.goBack();
 		await expect(page.getByText('22. August 2026', { exact: true })).toBeVisible();
 	});
 
 	test('follows a shared link to another month', async ({ page }) => {
-		await page.goto('/Fakt-des-Tages/#2026-07-30');
+		await page.goto('/Fakt-des-Tages/2026-07-30');
 
 		await expect(page.getByText('30. Juli 2026', { exact: true })).toBeVisible();
 		await expect(page.getByRole('heading', { level: 2 })).toHaveText('Juli 2026');
 	});
 
-	test('understands a link encoded in transit', async ({ page }) => {
-		// Nothing here writes `%2D`, but a link can pick it up on its way through a chat client.
-		await page.goto('/Fakt-des-Tages/#2026%2D07%2D30');
+	// GitHub Pages answers every address it has no file for with 404.html; the preview plugin in
+	// vite.config.ts does the same. The page reads the date back out of the address bar.
+	test('answers a day without a fact with the calendar for it', async ({ page }) => {
+		const response = await page.goto('/Fakt-des-Tages/2026-08-21');
 
-		await expect(page.getByText('30. Juli 2026', { exact: true })).toBeVisible();
+		expect(response?.status()).toBe(404);
+		await expect(page.getByText('Für diesen Tag gibt es keinen Fakt.')).toBeVisible();
+		await expect(page.getByText('21. August 2026', { exact: true })).toBeVisible();
+		await expect(page.getByRole('heading', { level: 2 })).toHaveText('August 2026');
 	});
 
-	// One test per hash rather than a loop in one: changing only the fragment of a page already open
-	// is a same-document navigation, so a handler that throws leaves the previous selection standing
-	// and the assertion still passes. Only a first load has nothing to fall back on. `#%` is the
-	// interesting case — it is what `decodeURIComponent` chokes on.
-	for (const hash of ['#broken', '#2026-02-30', '#%']) {
-		test(`falls back to today on „${hash}“ in the address bar`, async ({ page }) => {
-			await page.goto(`/Fakt-des-Tages/${hash}`);
-			await expect(page.getByText('22. August 2026', { exact: true })).toBeVisible();
+	// `2026-02-30` is shaped like a date and is not one.
+	for (const path of ['broken', '2026-02-30']) {
+		test(`does not claim „${path}“ is a day`, async ({ page }) => {
+			const response = await page.goto(`/Fakt-des-Tages/${path}`);
+
+			expect(response?.status()).toBe(404);
+			await expect(page.getByText('Diese Seite gibt es nicht.')).toBeVisible();
 		});
 	}
 
 	test('makes days without a fact unclickable', async ({ page }) => {
-		await page.goto('/Fakt-des-Tages/');
+		await page.goto('/Fakt-des-Tages/2026-08-22');
 
 		// 21 August 2026 has no entry and is not today, so it renders as plain text.
-		await expect(page.getByRole('button', { name: 'Freitag, 21. August 2026' })).toHaveCount(0);
-		await expect(page.getByRole('button', { name: 'Samstag, 22. August 2026' })).toBeVisible();
+		await expect(page.getByRole('link', { name: 'Freitag, 21. August 2026' })).toHaveCount(0);
+		await expect(page.getByRole('link', { name: 'Samstag, 22. August 2026' })).toBeVisible();
 	});
 
 	// The one place the rule "no fact, no interaction" is broken on purpose: today is the cell a
 	// visitor navigates back to, so it stays pressable even on a day the archive skips.
 	test('keeps today clickable, even without a fact of its own', async ({ page }) => {
-		await page.clock.setFixedTime(new Date('2026-08-21T10:00:00Z'));
-		await page.goto('/Fakt-des-Tages/');
+		await page.clock.setFixedTime(FACTLESS_DAY);
+		await page.goto('/Fakt-des-Tages/2026-08-23');
 
+		await page.getByRole('link', { name: 'Freitag, 21. August 2026' }).click();
 		await expect(page.getByText('Für heute gibt es keinen Fakt.')).toBeVisible();
-
-		await page.getByRole('button', { name: 'Sonntag, 23. August 2026' }).click();
-		await page.getByRole('button', { name: 'Freitag, 21. August 2026' }).click();
-		await expect(page.getByText('21. August 2026', { exact: true })).toBeVisible();
+		await expect(page).toHaveURL(/\/Fakt-des-Tages\/2026-08-21$/);
 	});
 
-	// Pins the six reserved rows on the calendar grid in +page.svelte: without them everything below
-	// the calendar shifts as the visitor pages through the months.
+	// Pins the six reserved rows on the calendar grid in FactPage.svelte: without them everything
+	// below the calendar shifts as the visitor pages through the months.
 	test('keeps the content below the calendar in place', async ({ page }) => {
 		const tops: number[] = [];
 		// Four rows (February 2027 starts on a Monday and is exactly four weeks), five, and six —
-		// the full range a month can take.
-		for (const hash of ['#2027-02-01', '#2026-07-01', '#2026-08-01']) {
-			await page.goto(`/Fakt-des-Tages/${hash}`);
+		// the full range a month can take. None has a fact, so this goes through 404.html too.
+		for (const day of ['2027-02-01', '2026-07-01', '2026-08-01']) {
+			await page.goto(`/Fakt-des-Tages/${day}`);
 			const dateLine = page.getByText(/^\d{1,2}\. \p{L}+ \d{4}$/u);
 			await expect(dateLine).toBeVisible();
 			tops.push((await dateLine.boundingBox())!.y);
@@ -130,7 +206,7 @@ test.describe('calendar', () => {
 	});
 
 	test('bounds the arrows to the months with facts', async ({ page }) => {
-		await page.goto('/Fakt-des-Tages/');
+		await page.goto('/Fakt-des-Tages/2026-08-22');
 
 		const forward = page.getByRole('button', { name: 'Nächster Monat' });
 		const back = page.getByRole('button', { name: 'Vorheriger Monat' });
@@ -155,7 +231,7 @@ test.describe('calendar', () => {
 		await expect(back).toHaveAttribute('aria-disabled', 'true');
 		await expect(back).toBeFocused();
 
-		// Moving the month must not move the selection — the fact still belongs to today.
+		// Moving the month must not move the selection — the fact still belongs to the 22nd.
 		await expect(page.getByText('22. August 2026', { exact: true })).toBeVisible();
 	});
 });
@@ -170,9 +246,9 @@ test.describe('fact arrows', () => {
 	});
 
 	test('skips the days without a fact', async ({ page }) => {
-		await page.goto('/Fakt-des-Tages/#2026-08-23');
+		await page.goto('/Fakt-des-Tages/2026-08-23');
 
-		await page.getByRole('button', { name: 'Nächster Fakt' }).click();
+		await page.getByRole('link', { name: 'Nächster Fakt' }).click();
 
 		// The 24th and 25th are empty in the fixture, so the next fact is the 26th.
 		await expect(page.getByText('26. August 2026', { exact: true })).toBeVisible();
@@ -180,46 +256,62 @@ test.describe('fact arrows', () => {
 	});
 
 	test('takes the calendar along into the neighbouring month', async ({ page }) => {
-		await page.goto('/Fakt-des-Tages/#2026-08-20');
+		await page.goto('/Fakt-des-Tages/2026-08-20');
 
-		await page.getByRole('button', { name: 'Vorheriger Fakt' }).click();
+		await page.getByRole('link', { name: 'Vorheriger Fakt' }).click();
 
 		await expect(page.getByText('30. Juli 2026', { exact: true })).toBeVisible();
 		await expect(page.getByRole('heading', { level: 2 })).toHaveText('Juli 2026');
 	});
 
 	test('also moves on from a day without a fact', async ({ page }) => {
-		await page.goto('/Fakt-des-Tages/#2026-08-21');
+		await page.goto('/Fakt-des-Tages/2026-08-21');
 		await expect(page.getByText('Für diesen Tag gibt es keinen Fakt.')).toBeVisible();
 
-		await page.getByRole('button', { name: 'Nächster Fakt' }).click();
+		await page.getByRole('link', { name: 'Nächster Fakt' }).click();
 		await expect(page.getByText('22. August 2026', { exact: true })).toBeVisible();
 
 		await page.goBack();
-		await page.getByRole('button', { name: 'Vorheriger Fakt' }).click();
+		await expect(page.getByText('Für diesen Tag gibt es keinen Fakt.')).toBeVisible();
+		await page.getByRole('link', { name: 'Vorheriger Fakt' }).click();
 		await expect(page.getByText('20. August 2026', { exact: true })).toBeVisible();
 	});
 
-	for (const [hash, name, date] of [
-		['#2026-07-30', 'Vorheriger Fakt', '30. Juli 2026'],
-		['#2026-09-02', 'Nächster Fakt', '2. September 2026']
+	for (const [day, name, date] of [
+		['2026-07-30', 'Vorheriger Fakt', '30. Juli 2026'],
+		['2026-09-02', 'Nächster Fakt', '2. September 2026']
 	]) {
 		test(`bounds „${name}“ at the edge of the archive`, async ({ page }) => {
-			await page.goto(`/Fakt-des-Tages/${hash}`);
+			await page.goto(`/Fakt-des-Tages/${day}`);
 
-			const arrow = page.getByRole('button', { name });
+			const arrow = page.getByRole('link', { name });
 			await expect(arrow).toHaveAttribute('aria-disabled', 'true');
+			await expect(arrow).not.toHaveAttribute('href');
 
-			// Inert but still focusable, like the month arrows — see the guard in `jump`.
+			// Inert but still focusable, like the month arrows.
 			await arrow.click({ force: true });
 			await expect(page.getByText(date, { exact: true })).toBeVisible();
 		});
 	}
 
+	// The arrow loses its `href` under the visitor who just pressed it. Keeping the element, its role
+	// and a `tabindex`, plus `keepfocus` on the navigation, is what leaves focus where it was.
+	test('keeps focus on the arrow that reached the edge', async ({ page }) => {
+		await page.goto('/Fakt-des-Tages/2026-08-31');
+
+		const arrow = page.getByRole('link', { name: 'Nächster Fakt' });
+		await arrow.focus();
+		await page.keyboard.press('Enter');
+
+		await expect(page.getByText('2. September 2026', { exact: true })).toBeVisible();
+		await expect(arrow).toHaveAttribute('aria-disabled', 'true');
+		await expect(arrow).toBeFocused();
+	});
+
 	// Both halves matter: it must move up when the bar has pinned, and stay put when it has not.
 	// An unconditional scroll would shove the calendar off screen for someone reading from the top.
 	test('brings back the start of the fact when the bar is pinned', async ({ page }) => {
-		await page.goto('/Fakt-des-Tages/#2026-08-23');
+		await page.goto('/Fakt-des-Tages/2026-08-23');
 		await expect(page.getByText('23. August 2026', { exact: true })).toBeVisible();
 
 		// Read at rest: measured after scrolling it would compare a number with itself and pass no
@@ -230,17 +322,17 @@ test.describe('fact arrows', () => {
 		await page.evaluate(() => window.scrollTo(0, 99999));
 		expect(await page.evaluate(() => window.scrollY)).toBeGreaterThan(stickPoint);
 
-		await page.getByRole('button', { name: 'Nächster Fakt' }).click();
+		await page.getByRole('link', { name: 'Nächster Fakt' }).click();
 		await expect(page.getByText('26. August 2026', { exact: true })).toBeVisible();
 
-		expect(await page.evaluate(() => window.scrollY)).toBe(stickPoint);
+		await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(stickPoint);
 	});
 
 	test('leaves the page alone while nothing is pinned yet', async ({ page }) => {
-		await page.goto('/Fakt-des-Tages/#2026-08-23');
+		await page.goto('/Fakt-des-Tages/2026-08-23');
 		await expect(page.getByText('23. August 2026', { exact: true })).toBeVisible();
 
-		await page.getByRole('button', { name: 'Nächster Fakt' }).click();
+		await page.getByRole('link', { name: 'Nächster Fakt' }).click();
 		await expect(page.getByText('26. August 2026', { exact: true })).toBeVisible();
 
 		// Still at the top, with the calendar in view — not pushed down to the bar's offset.
@@ -252,25 +344,22 @@ test.describe('fact arrows', () => {
 	// geometry instead: the bar's `-mx-6` cancels `main`'s `p-6`, making it exactly as wide as
 	// `main`'s border box. Drop `-mx-6` and it comes out 48px narrower.
 	test('stretches the date bar across the full width', async ({ page }) => {
-		await page.goto('/Fakt-des-Tages/#2026-08-23');
-		await expect(page.getByText('23. August 2026', { exact: true })).toBeVisible();
+		await page.goto('/Fakt-des-Tages/2026-08-23');
 
-		const widths = await page.getByRole('button', { name: 'Vorheriger Fakt' }).evaluate((el) => ({
+		const widths = await page.getByRole('link', { name: 'Vorheriger Fakt' }).evaluate((el) => ({
 			bar: (el.parentElement as HTMLElement).getBoundingClientRect().width,
 			main: el.closest('main')!.getBoundingClientRect().width
 		}));
 		expect(widths.bar).toBe(widths.main);
 	});
 
-	// `#2026-07-30` is the fixture's first entry, so back is bounded and on is not. The day button is
-	// not along for the ride: it is the only one of the three that fails if the rule is ever narrowed
-	// to the bar, verified by mutation — put the cursor on `arrow` alone and both arrows still pass.
+	// `2026-07-30` is the fixture's first entry, so back is bounded and on is not. The day link is
+	// along to show the hand is there on every live link, not only on the arrows.
 	test('shows the hand only over what actually does something', async ({ page }) => {
-		await page.goto('/Fakt-des-Tages/#2026-07-30');
-		await expect(page.getByText('30. Juli 2026', { exact: true })).toBeVisible();
+		await page.goto('/Fakt-des-Tages/2026-07-30');
 
 		const cursor = (name: string) =>
-			page.getByRole('button', { name }).evaluate((el) => getComputedStyle(el).cursor);
+			page.getByRole('link', { name }).evaluate((el) => getComputedStyle(el).cursor);
 
 		expect(await cursor('Nächster Fakt')).toBe('pointer');
 		expect(await cursor('30. Juli 2026')).toBe('pointer');
@@ -280,10 +369,7 @@ test.describe('fact arrows', () => {
 	// Runs at the default viewport, which only works because the fixture's 2026-08-23 is deliberately
 	// long. Shorten that entry and this test keeps passing while proving nothing.
 	test('keeps the date bar in view while scrolling', async ({ page }) => {
-		await page.goto('/Fakt-des-Tages/#2026-08-23');
-		// Wait for hydration before scrolling: the calendar only renders then, and measuring against
-		// a page that is still growing underneath makes this test flaky rather than wrong.
-		await expect(page.getByText('23. August 2026', { exact: true })).toBeVisible();
+		await page.goto('/Fakt-des-Tages/2026-08-23');
 
 		await page.evaluate(() => window.scrollTo(0, 99999));
 		expect(await page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
@@ -293,52 +379,39 @@ test.describe('fact arrows', () => {
 		// pass with `sticky` removed. Pinned, the bar's contents sit at its `pt-2`; without `sticky`
 		// they ride up with the text and measure negative.
 		const top = await page
-			.getByRole('button', { name: 'Vorheriger Fakt' })
+			.getByRole('link', { name: 'Vorheriger Fakt' })
 			.evaluate((el) => el.getBoundingClientRect().top);
 		expect(top).toBe(8);
 	});
 });
 
-// The prerendered page: what every visitor sees for the moment before hydration, and what someone
-// browsing without JavaScript keeps for good. It stands in for the finished page without naming a
-// single date, because the build's clock is not the visitor's.
-test.describe('loading state', () => {
+// A fact's page is complete as prerendered: hydration only adds the today ring and the search.
+test.describe('without JavaScript', () => {
 	test.use({ timezoneId: 'Europe/Berlin' });
 
-	test('already has its final size before hydration', async ({ page, browser, baseURL }) => {
+	test('a fact is readable and the archive navigable', async ({ page, browser, baseURL }) => {
 		await page.clock.setFixedTime(TODAY);
-		await page.goto('/Fakt-des-Tages/');
-		await expect(page.getByText('22. August 2026', { exact: true })).toBeVisible();
-		await expect(page.locator('main')).toHaveAttribute('aria-busy', 'false');
+		await page.goto('/Fakt-des-Tages/2026-08-23');
+		await expect(page.getByLabel('Fakt suchen')).toBeEnabled();
 		const hydrated = await barRestingTop(page);
 
-		// Hydration is far too quick to catch mid-flight, so the placeholder is held still by taking
-		// JavaScript away entirely.
 		const noJs = await browser.newContext({ javaScriptEnabled: false, baseURL });
-		const placeholder = await noJs.newPage();
-		await placeholder.goto('/Fakt-des-Tages/');
+		const prerendered = await noJs.newPage();
+		await prerendered.goto('/Fakt-des-Tages/2026-08-23');
 
-		await expect(placeholder.getByText('Fakten werden geladen …')).toBeVisible();
-		// The whole of `main` is provisional here, not just the line that says so.
-		await expect(placeholder.locator('main')).toHaveAttribute('aria-busy', 'true');
-		// Nothing may look actionable yet: with no month and no selection there is nowhere to go, which
-		// is why the month arrows test `!month` and not only their month bound. Either mechanism
-		// counts — the heading uses native `disabled`, since its bound only flips at hydration.
-		await expect(
-			placeholder.locator('button:not([aria-disabled="true"]):not(:disabled)')
-		).toHaveCount(0);
-		// And nothing may offer the hand either. The heading is bounded the native way, which the
-		// cursor rule has to exclude as well as the aria one.
-		expect(
-			await placeholder.locator('h1 button').evaluate((el) => getComputedStyle(el).cursor)
-		).toBe('default');
-		// Not one digit inside `main`: no date, no day number, nothing carried over from the build's
-		// clock — which is the whole reason the clock is only read in `onMount`.
-		await expect(placeholder.locator('main').getByText(/\d/)).toHaveCount(0);
-		// Six full rows of stand-in days, sized like real ones, so the calendar cannot change height
-		// under the visitor the moment the actual month arrives.
-		expect(await barRestingTop(placeholder)).toBe(hydrated);
+		await expect(prerendered.getByText('23. August 2026', { exact: true })).toBeVisible();
+		await expect(prerendered.getByRole('article')).toContainText('Bildschirmhöhe');
+		// Hydration must not move anything: the page arrives at the size it keeps.
+		expect(await barRestingTop(prerendered)).toBe(hydrated);
+		// Only what needs JavaScript admits it: the search box is disabled, the shuffle bounded.
+		await expect(prerendered.getByLabel('Fakt suchen')).toBeDisabled();
+		await expect(prerendered.getByRole('button', { name: 'Zufälliger Fakt' })).toHaveAttribute(
+			'aria-disabled',
+			'true'
+		);
 
+		await prerendered.getByRole('link', { name: 'Nächster Fakt' }).click();
+		await expect(prerendered.getByText('26. August 2026', { exact: true })).toBeVisible();
 		await noJs.close();
 	});
 });
@@ -350,8 +423,7 @@ test.describe('search', () => {
 
 	test.beforeEach(async ({ page }) => {
 		await page.clock.setFixedTime(TODAY);
-		await page.goto('/Fakt-des-Tages/');
-		await expect(page.getByText('22. August 2026', { exact: true })).toBeVisible();
+		await page.goto('/Fakt-des-Tages/2026-08-22');
 	});
 
 	test('finds a fact despite a typo and opens it', async ({ page }) => {
@@ -359,13 +431,13 @@ test.describe('search', () => {
 		await page.getByLabel('Fakt suchen').fill('einzeilg');
 
 		await expect(page.getByRole('status')).toHaveText('1 Treffer');
-		// Scoped to the `search` landmark: the calendar has a button for that date too, and its
+		// Scoped to the `search` landmark: the calendar has a link for that date too, and its
 		// `aria-label` carries the same words.
-		const hit = page.getByRole('search').getByRole('button', { name: /20\. August 2026/ });
+		const hit = page.getByRole('search').getByRole('link', { name: /20\. August 2026/ });
 		await expect(hit).toContainText('einzeilig');
 
 		await hit.click();
-		expect(page.url()).toContain('#2026-08-20');
+		await expect(page).toHaveURL(/\/Fakt-des-Tages\/2026-08-20$/);
 		await expect(page.getByRole('article')).toContainText('kurzer Fakt, einzeilig');
 		// Picking a hit empties the box, which is what closes the list.
 		await expect(page.getByRole('status')).toHaveText('');
@@ -379,12 +451,12 @@ test.describe('search', () => {
 
 		await expect(page.getByRole('status')).toHaveText('1 Treffer');
 		await expect(
-			page.getByRole('search').getByRole('button', { name: /26\. August 2026/ })
+			page.getByRole('search').getByRole('link', { name: /26\. August 2026/ })
 		).toBeVisible();
 	});
 
-	// The index is built from the rendered HTML, so the tags and the hrefs must not be in it. Search
-	// the HTML instead of its text and both of these come back with a hit.
+	// The search text is the Markdown's words, so neither its markup nor its link targets may be in
+	// it. `factText` has a unit test for the same; this one holds it end to end.
 	for (const word of ['strong', 'example']) {
 		test(`does not find „${word}“, because only the text is indexed`, async ({ page }) => {
 			await page.getByLabel('Fakt suchen').fill(word);
@@ -399,18 +471,18 @@ test.describe('search', () => {
 
 		await expect(page.getByRole('status')).toHaveText('1 Treffer');
 		await expect(
-			page.getByRole('search').getByRole('button', { name: /23\. August 2026/ })
+			page.getByRole('search').getByRole('link', { name: /23\. August 2026/ })
 		).toBeVisible();
 	});
 
-	// `textContent` drops `alt` attributes — see `plainText` for what that quietly cost the real
-	// archive. The fixture's only image carries this word and nothing else does.
+	// An image is only an alt text to the search — see `factText`. The fixture's only image carries
+	// this word and nothing else does.
 	test("searches the images' alt texts too", async ({ page }) => {
 		await page.getByLabel('Fakt suchen').fill('Wasserspeier');
 
 		await expect(page.getByRole('status')).toHaveText('1 Treffer');
 		await expect(
-			page.getByRole('search').getByRole('button', { name: /31\. August 2026/ })
+			page.getByRole('search').getByRole('link', { name: /31\. August 2026/ })
 		).toBeVisible();
 	});
 
@@ -435,12 +507,38 @@ test.describe('search', () => {
 		await expect(page.getByRole('status')).toHaveText('');
 		expect(await top()).toBe(before);
 	});
+
+	// Without this the first query would announce „Keine Treffer“ while the text is still on its way.
+	test('says so while its text is loading', async ({ page }) => {
+		let release!: () => void;
+		const held = new Promise<void>((resolve) => (release = resolve));
+		await page.route('**/search.json', async (route) => {
+			await held;
+			await route.continue();
+		});
+
+		await page.getByLabel('Fakt suchen').fill('einzeilg');
+		await expect(page.getByRole('status')).toHaveText('Suche wird geladen…');
+
+		release();
+		await expect(page.getByRole('status')).toHaveText('1 Treffer');
+	});
+
+	test('says so when its text cannot be loaded', async ({ page }) => {
+		await page.route('**/search.json', (route) => route.abort());
+		await page.getByLabel('Fakt suchen').fill('lang');
+		await expect(page.getByRole('status')).toHaveText('Suche nicht verfügbar');
+
+		// Not for good: the next keystroke tries again, even one that leaves the query as it was.
+		await page.unroute('**/search.json');
+		await page.getByLabel('Fakt suchen').fill('lang ');
+		await expect(page.getByRole('status')).toHaveText('2 Treffer');
+	});
 });
 
-// The die is stubbed so the pick is deterministic. Pinned to 2026-08-22, the fixture's other six
-// facts are the candidates and 0.3 lands on the second of them. Without the "never the fact already
-// on screen" filter the same 0.3 would land on 2026-08-22 itself, so this pins the filter as much as
-// the jump.
+// The die is stubbed so the pick is deterministic. On 2026-08-22, the fixture's other six facts are
+// the candidates and 0.3 lands on the second of them. Without the "never the fact already on screen"
+// filter the same 0.3 would land on 2026-08-22 itself, so this pins the filter as much as the step.
 test.describe('random fact', () => {
 	test.use({ timezoneId: 'Europe/Berlin' });
 
@@ -449,18 +547,16 @@ test.describe('random fact', () => {
 		await page.addInitScript(() => {
 			Math.random = () => 0.3;
 		});
-		await page.goto('/Fakt-des-Tages/');
-		await expect(page.getByText('22. August 2026', { exact: true })).toBeVisible();
+		await page.goto('/Fakt-des-Tages/2026-08-22');
 
 		await page.getByRole('button', { name: 'Zufälliger Fakt' }).click();
 
 		await expect(page.getByText('20. August 2026', { exact: true })).toBeVisible();
-		expect(page.url()).toContain('#2026-08-20');
+		await expect(page).toHaveURL(/\/Fakt-des-Tages\/2026-08-20$/);
 		await expect(page.getByRole('article')).toContainText('kurzer Fakt, einzeilig');
 	});
 });
 
-// An absent hash already means today, so the title is the way back to both at once.
 test.describe('heading', () => {
 	test.use({ timezoneId: 'Europe/Berlin' });
 
@@ -468,41 +564,38 @@ test.describe('heading', () => {
 		await page.clock.setFixedTime(TODAY);
 	});
 
-	test('removes the hash and shows today again', async ({ page }) => {
-		await page.goto('/Fakt-des-Tages/#2026-07-30');
-		await expect(page.getByText('30. Juli 2026', { exact: true })).toBeVisible();
+	test('leads back to today', async ({ page }) => {
+		await page.goto('/Fakt-des-Tages/2026-07-30');
 
-		await page.getByRole('button', { name: 'Fakt des Tages' }).click();
+		await page.getByRole('link', { name: 'Fakt des Tages' }).click();
 
-		// Both halves matter: a plain link cleans the URL but leaves the page on the old fact, since
-		// SvelteKit routes the click without firing `hashchange`. Measured — that is why this is a
-		// button and not an anchor.
-		// On the raw URL, not `new URL(...).hash`: that reports `''` for a trailing bare `#` too, so
-		// it cannot tell `pushState` from `location.hash = ''`. Verified — the weaker assertion
-		// passed with the mutation in place.
-		expect(page.url()).not.toContain('#');
+		await expect(page).toHaveURL(/\/Fakt-des-Tages\/2026-08-22$/);
 		await expect(page.getByText('22. August 2026', { exact: true })).toBeVisible();
 
-		// Pushed, not replaced, so the way back is the same as after clicking a day in the calendar.
-		// Both directions are checked: `pushState` fires no event of its own, but traversing into or
-		// out of that entry always changes the fragment, so the existing `hashchange` listener sees
-		// it. Measured — two events, one per direction — rather than assumed.
 		await page.goBack();
 		await expect(page.getByText('30. Juli 2026', { exact: true })).toBeVisible();
 		await page.goForward();
 		await expect(page.getByText('22. August 2026', { exact: true })).toBeVisible();
-		expect(page.url()).not.toContain('#');
 	});
 
-	// Without the early return this would stack a history entry pointing at the identical URL, and
-	// the back button would look dead.
-	test('adds no history entry without a hash', async ({ page }) => {
-		await page.goto('/Fakt-des-Tages/#2026-07-30');
-		await page.getByRole('button', { name: 'Fakt des Tages' }).click();
+	// Linking `/` from today's page would push `/`, which the head script then replaces with the
+	// same date: two identical entries, and a back button that looks dead.
+	test('adds no history entry on today’s own page', async ({ page }) => {
+		await page.goto('/Fakt-des-Tages/2026-07-30');
+		await page.getByRole('link', { name: 'Fakt des Tages' }).click();
 		await expect(page.getByText('22. August 2026', { exact: true })).toBeVisible();
+		// Hydrated, so the heading points at today's date rather than at `/`.
+		await expect(page.getByLabel('Fakt suchen')).toBeEnabled();
 
-		await page.getByRole('button', { name: 'Fakt des Tages' }).click();
-		await page.getByRole('button', { name: 'Fakt des Tages' }).click();
+		// Each click is a client-side navigation that finishes after `click()` returns. Waiting for
+		// its history update keeps Back from overtaking it, which no visitor's hand is quick enough
+		// to do.
+		for (let i = 0; i < 2; i++) {
+			await Promise.all([
+				page.waitForEvent('framenavigated'),
+				page.getByRole('link', { name: 'Fakt des Tages' }).click()
+			]);
+		}
 
 		await page.goBack();
 		await expect(page.getByText('30. Juli 2026', { exact: true })).toBeVisible();
@@ -517,11 +610,8 @@ test.describe('heading', () => {
 // the first attempt. Comparing distances rather than asserting pixel counts, so the test survives a
 // change of font metrics.
 test.describe('image credit', () => {
-	test.use({ timezoneId: 'Europe/Berlin' });
-
 	test.beforeEach(async ({ page }) => {
-		await page.clock.setFixedTime(TODAY);
-		await page.goto('/Fakt-des-Tages/#2026-08-31');
+		await page.goto('/Fakt-des-Tages/2026-08-31');
 	});
 
 	test('sits closer to its own image than to the next element', async ({ page }) => {

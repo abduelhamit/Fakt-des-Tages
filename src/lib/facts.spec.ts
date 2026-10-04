@@ -16,8 +16,8 @@ describe('toIsoDate', () => {
 });
 
 describe('isIsoDate', () => {
-	// A trust boundary: it is what decides whether a location hash a visitor can type by hand gets
-	// used as a date key.
+	// A trust boundary: on the pages served for a day without a fact, it is what decides whether an
+	// address a visitor can type by hand gets read as a date.
 	it('rejects anything that is not an exact calendar day', () => {
 		expect(isIsoDate('2026-08-22')).toBe(true);
 		expect(isIsoDate('2026-8-22')).toBe(false);

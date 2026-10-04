@@ -1,4 +1,4 @@
-// Imported by `+page.svelte`, so everything in here ships to the browser: keep it dependency-free
+// Imported by `FactPage.svelte`, so everything in here ships to the browser: keep it dependency-free
 // and keep the functions pure. Build-time-only code belongs in `$lib/server/facts.ts`, which the
 // framework will fail the build over if it is ever pulled into client code — nothing enforces this
 // side, so it has to be remembered.
@@ -9,9 +9,6 @@
  * raw Markdown into `{@html}`. The brand exists only at compile time — at runtime it is a string.
  */
 export type FactHtml = string & { readonly __factHtml: true };
-
-/** ISO date (`2026-08-22`) → that day's fact, rendered. */
-export type Facts = Map<string, FactHtml>;
 
 /**
  * A `Date` as `YYYY-MM-DD` in the *visitor's* timezone.
@@ -83,6 +80,24 @@ export function foldTerm(term: string): string {
 		.replace(/[\u0300-\u036f]/g, '')
 		.toLowerCase()
 		.replace(/\u00df/g, 'ss');
+}
+
+/**
+ * A window around the first term that matched, so a hit is recognisable without opening it.
+ * Falls back to the start of the fact when no term can be located — a fuzzy hit, or a folded
+ * umlaut, means the text does not always contain the query verbatim. With no terms at all it is
+ * simply the opening of the fact, which is what the page description uses it for.
+ */
+export function excerpt(text: string, terms: string[]): string {
+	const lower = text.toLowerCase();
+	const positions = terms.map((t) => lower.indexOf(t)).filter((i) => i >= 0);
+	const from = Math.max(0, (positions.length ? Math.min(...positions) : 0) - 30);
+	const to = Math.min(text.length, from + 140);
+	let piece = text.slice(from, to);
+	// Both ends land mid-word otherwise, and the snippet reads as noise: „… berschrift, ebenfalls“.
+	if (from > 0) piece = piece.replace(/^\S+\s*/, '');
+	if (to < text.length) piece = piece.replace(/\s*\S+$/, '');
+	return (from > 0 ? '… ' : '') + piece.trim() + (to < text.length ? ' …' : '');
 }
 
 /**

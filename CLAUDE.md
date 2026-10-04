@@ -4,9 +4,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-**Fakt des Tages** — a German-language calendar web app. The home page shows today's fact (if one
-exists for today's date) plus a calendar; clicking a day that has a fact swaps the displayed fact
-client-side. Days without a fact are visually distinct and non-interactive. Static site on GitHub
+**Fakt des Tages** — a German-language calendar web app. Every fact has a page of its own
+(`/2026-03-15`) with a calendar on it, and the home page sends the visitor to today's; clicking a
+day that has a fact moves to its page client-side. Days without a fact are visually distinct and
+non-interactive. Static site on GitHub
 Pages, German UI only (no i18n).
 
 Product rules that are easy to get wrong:
@@ -17,8 +18,8 @@ Product rules that are easy to get wrong:
   visitor's local `Date`, read in the browser: nothing runs at request time, so the build can never
   know what day it is for a visitor.
 
-How the page itself behaves (the loading placeholder, calendar, sticky bar, search, random fact and
-legal pages) is in [src/routes/CLAUDE.md](src/routes/CLAUDE.md). It loads once a file there is
+How the pages themselves behave (the home page and the 404 page, calendar, sticky bar, search,
+random fact and legal pages) is in [src/routes/CLAUDE.md](src/routes/CLAUDE.md). It loads once a file there is
 read; if it is not in context yet, read it before answering about or changing anything there.
 
 ## German and English
@@ -103,7 +104,7 @@ applied in and what is checked, so nothing depends on remembering a past session
      quoted in „…“. It is the only description a screen reader gets and it feeds the search. It
      must not claim what the file lacks: a transparent image has no `weißer Grund`.
 6. **The gate.** `git check-attr filter -- static/fakten/<file>` must say `lfs`; then `pnpm lint`,
-   `pnpm vitest run`, `pnpm build`. Then read the entry back out of `build/index.html`: the
+   `pnpm vitest run`, `pnpm build`. Then read the entry back out of `build/YYYY-MM-DD.html`: the
    invisible characters literal, no `&nbsp;`, `&#8239;` or `&shy;` anywhere, and the image in
    `build/fakten/` a real file according to `file`, not a pointer.
 7. **Report:** what changed, what was left and why, the licence verdict and its caveats, and the
@@ -144,9 +145,13 @@ Facts live in **one YAML file**, [src/lib/facts.yaml](src/lib/facts.yaml), mappi
 2026-03-16: Ein kurzer Fakt passt auch einzeilig.
 ```
 
-The site is fully static (SSG): [src/routes/+page.server.ts](src/routes/+page.server.ts) imports
-that file with Vite's `?raw`, parses the YAML and renders the Markdown **during prerendering**. The
-browser receives finished HTML strings as page data and fetches nothing at runtime.
+The site is fully static (SSG): `facts()` in [src/lib/server/facts.ts](src/lib/server/facts.ts)
+imports that file with Vite's `?raw` and parses it once per build,
+[src/routes/[date]/+page.server.ts](src/routes/[date]/+page.server.ts) renders one entry per page
+**during prerendering**, and [+layout.server.ts](src/routes/+layout.server.ts) hands every page the
+sorted list of dates. The browser receives finished HTML. At runtime it fetches only files the
+build wrote, from the same origin: a day's `__data.json` when it steps there, and `search.json`
+when the search box is first focused.
 
 **Do not move this to a runtime `fetch()` to avoid rebuilds.** Every push to `main`, including an
 edit made in GitHub's web UI, already triggers a full rebuild and deploy via
@@ -154,24 +159,29 @@ edit made in GitHub's web UI, already triggers a full rebuild and deploy via
 
 Consequences worth knowing before changing any of this:
 
-- **[src/lib/facts.ts](src/lib/facts.ts) must stay dependency-free.** It holds the
-  `Facts`/`FactHtml` types and the pure date helpers (`toIsoDate`, `fromIsoDate`, `isIsoDate`,
-  `monthGrid`) and is imported by the page component, so anything added there ships to the
-  client. `isIsoDate` lives here rather than in `$lib/server/` because the calendar validates the
-  location hash with it — that _is_ a trust boundary, unlike the facts file.
+- **[src/lib/facts.ts](src/lib/facts.ts) must stay dependency-free.** It holds the `FactHtml`
+  type, the pure date helpers (`toIsoDate`, `fromIsoDate`, `isIsoDate`, `monthGrid`) and the
+  search's (`words`, `indexTerms`, `foldTerm`, `excerpt`), and is imported by
+  [FactPage.svelte](src/lib/FactPage.svelte), so anything added there ships to the client.
+  `isIsoDate` lives here rather than in `$lib/server/` because the page served for a day without a
+  fact reads the date out of the address bar with it — that _is_ a trust boundary, unlike the
+  facts file.
 - **`FactHtml` is a branded string, and the brand needs an anchor.** `renderFact` is the only place
-  it is applied, so a load that returns `parseFacts`'s output unrendered fails to compile. That
-  only works because [+page.server.ts](src/routes/+page.server.ts) pins the output type as
-  `PageServerLoad<{ facts: Facts }>` — a bare `PageServerLoad` accepts any serialisable shape, and
-  the page would simply infer whatever load returned. Do not drop that type argument.
+  it is applied, so a load that returns the Markdown unrendered fails to compile. That only works
+  because [[date]/+page.server.ts](src/routes/[date]/+page.server.ts) pins the output type as
+  `PageServerLoad<{ date: string; html: FactHtml; description: string }>` — a bare
+  `PageServerLoad` accepts any serialisable shape, and the page would simply infer whatever load
+  returned. Do not drop that type argument.
 - **A malformed facts file fails `pnpm build`,** so broken content never deploys and the previous
-  version stays live. The UI has no runtime error state, and needs none.
-- **All facts are embedded in the page.** Accepted limitation: the payload grows with the archive —
-  all of it on the document's critical path, so measure it (`gzip -c build/index.html | wc -c`)
-  rather than trusting a remembered figure. If that ever bites, prerender one route per date and
-  keep only the date keys on the home page for the calendar. The UI is not what
-  costs: measured by removing each from the built HTML and re-gzipping, the search bar is 153 bytes
-  gzipped and the loading mock's 42 cells are 113 (5.1 KB raw — repeated markup compresses away).
+  version stays live. The UI has no runtime error state for the facts, and needs none.
+- **A page carries its own fact and the list of dates, nothing more.** This used to be one page
+  holding every fact, which put the whole archive on the critical path of every visit; in October
+  2026 it became one page per fact, cutting a page to a tenth of what it had grown to. What still
+  grows with the archive is the date list every page needs for the calendar — twice on `/`, whose
+  head script carries its own copy — and `search.json`, which is the text of every fact but is
+  fetched only by someone who searches. Accepted limitation: measure both rather than trusting a
+  remembered figure (`gzip -c build/2026-08-21.html | wc -c`, and the same for
+  `build/search.json`).
 - **`Heute vor N Jahren …` opens nearly every entry, and N is a numeral — always.** Not one entry
   spells it out. Do not "correct" a small number to a word there. German style
   does prefer words below twelve, but that is a rule for running prose and the opener is a fixed
@@ -229,7 +239,7 @@ Consequences worth knowing before changing any of this:
   (`Apple I.`) is the sentence-end case above and stays alone.
 - **Hyphenation is the browser's job, and a soft hyphen is never to be typed into a fact.** The
   fact column is `prose hyphens-auto` on the `<article>` in
-  [+page.svelte](src/routes/+page.svelte), which together with the `lang="de"` already on `<html>`
+  [FactPage.svelte](src/lib/FactPage.svelte), which together with the `lang="de"` already on `<html>`
   in [app.html](src/app.html) hands the whole problem to the browser's German dictionary. Measured
   at a 375 px viewport on the 2026-10-01 entry: the median gap at the right margin falls from 28 px
   to 12 px and the lines ending more than 30 px short go from 9 to 1, breaking correctly at
@@ -241,15 +251,16 @@ Consequences worth knowing before changing any of this:
   gate would notice one coming back, and the character is invisible in every editor.
 - **Images live in [static/fakten/](static/fakten/)** and are referenced relatively —
   `![…](fakten/2026-03-06-1.avif)`, so the path resolves against the page and the base path stays in
-  one place. **That works because facts are only ever rendered on `/`** — not because `/` is the
-  only route. Render a fact on any other route
-  and every image on it 404s, because `fakten/…` would resolve against _that_ route's directory.
-  They are exempt from the payload note above: only the selected day's `{@html}` is in the DOM, so a
-  visitor downloads the images of the day they are looking at and no others.
+  one place. **That works because facts are only ever rendered on `/[date]`,** one segment below
+  the base exactly like `/`, so `fakten/…` lands in the same directory from both. Render a fact on
+  a deeper route, or set `trailingSlash: 'always'` — which turns `2026-08-22.html` into
+  `2026-08-22/index.html` — and every image 404s. A link from one fact to another,
+  `[…](2026-08-24)`, depends on the same depth. A visitor downloads only the images of the day they
+  are looking at.
 - **Clicking an image opens its file, and that link is the whole zoom feature.** `renderFact` wraps
   every `<img>` in `<a href>` to its own `src`, at build time, so nothing is written per entry. The
   browser's image viewer then toggles fit-to-window and 100 % on click, pinches on a phone and
-  zooms with the keyboard, and Back returns to the same fact with its hash. It needs no JavaScript.
+  zooms with the keyboard, and Back returns to the same fact. It needs no JavaScript.
   An in-page `<dialog>` with on-screen −/100 %/+ buttons was weighed and passed over as roughly
   50 lines doing what the browser already does. The wrapper changes no layout: every image and
   credit across every illustrated entry measured identically at 375 and 1024 px, before and
@@ -362,8 +373,8 @@ Consequences worth knowing before changing any of this:
   once, loops forever (libavif writes an infinite repeat count) and needs no code. Verified looping
   in Chromium, Firefox and WebKit. `<video autoplay loop muted playsinline>` was measured too, as
   H.264 and as AV1, and was larger than animated AVIF on four of the five GIFs. It would also have
-  cost `renderFact` a second element type, `image-meta` cannot measure a video, the search reads
-  alt texts off `doc.images`, and iOS refuses to autoplay video in Low Power Mode.
+  cost `renderFact` a second element type, `image-meta` cannot measure a video, the search takes
+  an image's alt text from its Markdown, and iOS refuses to autoplay video in Low Power Mode.
 
   Accepted limitation: AVIF needs Chrome 85, Firefox 93, Edge 121 or Safari 16.4 (iOS 16), and an
   older browser shows the alt text where the picture should be. It also renders only once complete,
@@ -458,21 +469,29 @@ Two things are configured there today:
 
 ## Static build / GitHub Pages
 
-Deployed as a GitHub Pages **project** site, so everything lives under `/Fakt-des-Tages/`. Four
-pieces make that work; none is optional:
+Deployed as a GitHub Pages **project** site, so everything lives under `/Fakt-des-Tages/`. These pieces make that work; none is optional:
 
 - [src/routes/+layout.ts](src/routes/+layout.ts) — `export const prerender = true`. Without it
   adapter-static rejects `src/routes/` as a dynamic route and `pnpm build` fails outright.
-- `paths.base = '/Fakt-des-Tages'` in [vite.config.ts](vite.config.ts). Prerendered HTML happens to
-  use _relative_ asset paths (`paths.relative` defaults to true), so assets survive without it — but
-  the base path is what the browser bundle uses at runtime, which today means only links and
-  client-referenced assets. Should you add a runtime asset request, resolve it through `asset()`
-  from `$app/paths` — `base` and `assets` are **deprecated** (`asset(file)` for `static/`,
-  `resolve(pathname)` for routes), and `asset()` only autocompletes filenames rather than enforcing
-  them.
+- `paths.base = '/Fakt-des-Tages'` in [vite.config.ts](vite.config.ts), with `relative: false`.
+  Every asset path in the built HTML is therefore absolute, because `404.html` is served at
+  whatever depth was asked for, and a relative `./_app/…` from `/Fakt-des-Tages/a/b` points
+  nowhere — measured in a spike before it went in. So the base path is load-bearing for every
+  asset, not just for links. Should you add a runtime request, resolve it through `asset()` or
+  `resolve()` from `$app/paths` — `base` and `assets` are **deprecated** (`asset(file)` for
+  `static/`, `resolve(pathname)` for routes, which is how `search.json` is fetched), and `asset()`
+  only autocompletes filenames rather than enforcing them.
+- `404.html` — the prerendered [/404](src/routes/404/+page.svelte) route, which the prerenderer
+  finds without being told: `'*'`, the default entry, covers every route without parameters.
+  GitHub Pages serves it, with status 404, for every path it has no file for, so it is the page of
+  every day without a fact. Checked on a real Pages deployment in October 2026, not assumed:
+  `/2026-08-23` serves `2026-08-23.html` even with the directory `2026-08-23/` (holding
+  `__data.json`) beside it, a missing `__data.json` gets `404.html` too, and `/2026-08-23/` with
+  a trailing slash 404s.
 - [static/.nojekyll](static/.nojekyll) — insurance, not load-bearing today: an artifact deployed by
   `actions/deploy-pages` is served as-is and never sees Jekyll. It matters only if Pages is ever
-  switched back to deploy-from-a-branch, where Jekyll would drop the `_app/` directory. Nothing in
+  switched back to deploy-from-a-branch, where Jekyll would drop the `_app/` directory and every
+  `__data.json`. Nothing in
   the toolchain writes one, so it is checked in (0 bytes).
 - `packageManager` in [package.json](package.json) — pins pnpm so `pnpm/action-setup` resolves a
   version in CI.
@@ -481,6 +500,13 @@ pieces make that work; none is optional:
 is redirected there (dev answers 302, preview 307), but that redirect is conditional on an
 `Accept: text/html` header — `curl` without one gets a 404 and a hint string instead. Do not read
 that 404 as a broken base path.
+
+`pnpm preview` answers a miss the way Pages does: the `pages-preview` plugin in
+[vite.config.ts](vite.config.ts) serves `build/404.html` with status 404 for any path `build/` has
+no file for. Left alone, SvelteKit's preview renders the route on its own server instead, which
+looks the same to a visitor — the plugin is what makes the e2e suite exercise the file Pages
+actually serves. Verified by deleting the `/404` route, which turns the tests of days without a fact red. `pnpm dev` has no such plugin and renders a missing date through
+[+error.svelte](src/routes/+error.svelte), which shows the same page.
 
 [.github/workflows/deploy.yml](.github/workflows/deploy.yml) builds on push to `main`: check → lint
 → node tests → build → upload `build/`, then a separate job deploys. Only the **node** vitest
@@ -529,7 +555,8 @@ in particular leaves the sticky-bar and jump tests passing while proving nothing
 stops scrolling far enough for `sticky` to engage.
 
 [src/routes/page.e2e.ts](src/routes/page.e2e.ts) is what pins the SSG guarantees end to end: that
-hydration fills the date in, and that **no `.yaml` request happens at runtime**. That second
+`/` lands on a day and hydration fills the date in, that **no `.yaml` request happens at
+runtime**, and that `search.json` is fetched only once the search box is focused. The `.yaml`
 assertion is the regression guard for the whole build-time pipeline, so do not drop it.
 
 Playwright's `boundingBox()` **scrolls the element into view before measuring**, so it cannot test
@@ -548,7 +575,9 @@ it to a fixture. It also walks every `fakten/…` path a fact references and rea
 each file, which catches both a mistyped path and an LFS pointer left behind by a checkout without
 `lfs: true` — the one failure mode that is otherwise completely silent. Both verified by mutation.
 Note it scans the _parsed_ entries rather than the raw YAML, because the file's header comment
-contains an example image path that any regex over the raw text will happily match.
+contains an example image path that any regex over the raw text will happily match. The same file
+tests `factText`, the search's and the description's text: no markup, no link target, alt texts
+padded apart. Verified by mutation for the padding and for a link's target.
 
 ## Misc
 
@@ -556,11 +585,13 @@ contains an example image path that any regex over the raw text will happily mat
   no `tailwind.config.js`. `typography` and `forms` plugins are loaded. Prettier sorts classes and
   is pointed at that stylesheet, so run `pnpm format` after touching class lists. One base rule lives
   in that file as well: v4's Preflight dropped v3's `cursor: pointer` on buttons, leaving nothing on
-  the page looking clickable, so `button:not([aria-disabled='true']):not(:disabled)` puts the hand
-  back. Both exclusions are the point, and they are not interchangeable — a bounded arrow is only
-  `aria-disabled` and stays focusable, while the heading is natively `disabled` before hydration.
-  Leave either one out and an inert control offers the hand; the `:disabled` half was missing at
-  first and the heading button caught it. Each has an e2e test, verified to fail when reverted.
+  the page looking clickable, so `button:not([aria-disabled='true'])` puts the hand back. The
+  exclusion is the point: a bounded month arrow is only `aria-disabled` and stays focusable, and
+  without it the inert control offers the hand. No button on the site is natively `disabled`; add
+  one and it needs `:not(:disabled)` here too, which the rule carried while the heading was such a
+  button. The bounded fact arrows are links without an `href`, whose cursor is `auto` — a text
+  cursor over the glyph — so the arrow snippet sets `aria-disabled:cursor-default` itself. `shows
+the hand only over what actually does something` covers both arrow kinds.
 - The facts file is **deliberately not** prettier-ignored (only `/static/` is). Prettier has to parse
   YAML to format it, so `pnpm lint` rejects a facts file that is syntactically broken — one step
   earlier than the parse test, and a second independent signal. Prettier is silent on duplicate or

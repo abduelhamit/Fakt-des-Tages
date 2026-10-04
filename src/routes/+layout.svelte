@@ -9,10 +9,10 @@
 <svelte:head><link rel="icon" href={favicon} /></svelte:head>
 {@render children()}
 
-<!-- In the layout rather than the home page, so „leicht erkennbar, unmittelbar erreichbar“ holds
+<!-- In the layout rather than the fact pages, so „leicht erkennbar, unmittelbar erreichbar“ holds
      on every route — including from one legal page to the other. Outside `<main>` on purpose: the
-     home page's `<main>` carries `aria-busy` until hydration, and a footer that is never
-     provisional has no business inside something that is.
+     fact pages' `<main>` keeps the scroll position and focus across a navigation, and the footer's
+     links should not.
 
      `resolve()` and not a bare `/impressum`: the site is served under `/Fakt-des-Tages`, and only
      `resolve` knows that. `base` from '$app/paths' would work too and is deprecated. -->

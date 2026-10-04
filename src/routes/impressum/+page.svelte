@@ -33,9 +33,9 @@
 		<h2>Verantwortlich für den Inhalt nach § 18 Abs. 2 MStV</h2>
 		{@render address()}
 
-		<!-- The way back, here rather than in the layout's footer: a link to `/` must never be
-		     rendered on the home page itself, and living in this file is what guarantees that
-		     structurally, with no condition to get wrong. See CLAUDE.md, under the location hash. -->
-		<p><a href={resolve('/')}>Zum Fakt des Tages</a></p>
+		<!-- `data-sveltekit-reload`, like every link to `/`: today's date is picked by an inline script
+		     in that page's head, and only a real page load runs it. Routed client-side, the link would
+		     land on the calendar with no day chosen. See CLAUDE.md, under "The home page". -->
+		<p><a href={resolve('/')} data-sveltekit-reload>Zum Fakt des Tages</a></p>
 	</div>
 </main>

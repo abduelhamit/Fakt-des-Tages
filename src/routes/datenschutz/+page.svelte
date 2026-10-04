@@ -6,8 +6,8 @@
 <svelte:head><title>Datenschutz — Fakt des Tages</title></svelte:head>
 
 <!-- Every claim below was checked against the build rather than copied from a generator: no
-     storage API appears anywhere in the source, nothing fetches at runtime, and every img/script/
-     link in the built HTML is same-origin. If that ever stops being true — an embedded video, a
+     storage API appears anywhere in the source, nothing is fetched from anywhere but this site, and
+     every img/script/link in the built HTML is same-origin. If that ever stops being true — an embedded video, a
      web font, a counter — this page becomes wrong before anything else on the site does. -->
 <main class="mx-auto max-w-2xl p-6 hyphens-auto">
 	<h1 class="text-3xl font-bold">Datenschutzerklärung</h1>
@@ -30,9 +30,10 @@
 			keinen Newsletter und keine Benutzerkonten.
 		</p>
 		<p>
-			Auch die Suche und der Kalender laufen vollständig in Ihrem Browser: Alle Fakten sind bereits
-			in der ausgelieferten Seite enthalten, es wird währenddessen nichts nachgeladen. Was Sie in
-			das Suchfeld tippen, verlässt Ihr Gerät nicht.
+			Auch die Suche und der Kalender laufen vollständig in Ihrem Browser. Wenn Sie zu einem anderen
+			Tag wechseln oder das Suchfeld verwenden, lädt Ihr Browser die dafür nötigen Daten nach —
+			ausschließlich von dieser Website, nie von Dritten. Was Sie in das Suchfeld tippen, verlässt
+			Ihr Gerät nicht.
 		</p>
 
 		<h2>Hosting und Server-Logfiles</h2>
@@ -84,9 +85,9 @@
 			DSGVO findet nicht statt.
 		</p>
 
-		<!-- The way back, here rather than in the layout's footer: a link to `/` must never be
-		     rendered on the home page itself, and living in this file is what guarantees that
-		     structurally, with no condition to get wrong. See CLAUDE.md, under the location hash. -->
-		<p><a href={resolve('/')}>Zum Fakt des Tages</a></p>
+		<!-- `data-sveltekit-reload`, like every link to `/`: today's date is picked by an inline script
+		     in that page's head, and only a real page load runs it. Routed client-side, the link would
+		     land on the calendar with no day chosen. See CLAUDE.md, under "The home page". -->
+		<p><a href={resolve('/')} data-sveltekit-reload>Zum Fakt des Tages</a></p>
 	</div>
 </main>

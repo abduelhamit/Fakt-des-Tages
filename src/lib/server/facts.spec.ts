@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { parseFacts, renderFact } from './facts';
+import { factText, parseFacts, renderFact } from './facts';
 
 describe('parseFacts', () => {
 	it('reads single-line and block-scalar entries', () => {
@@ -96,5 +96,29 @@ describe('renderFact', () => {
 		expect(() => renderFact('![Fehlt](fakten/1999-01-01-1.jpg)')).toThrow(
 			/fakten\/1999-01-01-1\.jpg/
 		);
+	});
+});
+
+describe('factText', () => {
+	const text = factText(
+		'Ein **fetter** [Verweis](https://example.com "Titel") mit Golden\\_Gate & Co.\n\n' +
+			'![Erstes Bild](fakten/a.avif)![Zweites Bild](fakten/b.avif)\n' +
+			'_Foto: [Name](https://commons.wikimedia.org/wiki/File:A.avif), [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)_\n\n' +
+			'Vor 35\u00a0Jahren, 25\u202fMio.'
+	);
+
+	it('keeps the words and drops the markup and every link target', () => {
+		expect(text).toContain('Ein fetter Verweis mit Golden_Gate & Co.');
+		expect(text).not.toMatch(/strong|example|Titel|commons|creativecommons|\*|_Foto/);
+		expect(text).toContain('Foto: Name, CC BY 4.0');
+	});
+
+	it('reads images as their alt text without welding neighbours together', () => {
+		expect(text).toContain('Erstes Bild Zweites Bild Foto:');
+	});
+
+	it('separates paragraphs and keeps the no-break spaces', () => {
+		expect(text).toContain('Co. Erstes');
+		expect(text).toContain('Vor 35\u00a0Jahren, 25\u202fMio.');
 	});
 });

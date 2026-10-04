@@ -1,119 +1,137 @@
 # CLAUDE.md — src/routes
 
-How the page itself behaves and why: the loading placeholder, the calendar, the sticky bar, the
-search, the random fact, and the legal pages. Read with the root [CLAUDE.md](../../CLAUDE.md),
+How the pages themselves behave and why: the home page and the 404 page, the calendar, the sticky
+bar, the search, the random fact, and the legal pages. Read with the root [CLAUDE.md](../../CLAUDE.md),
 which covers the content pipeline, adding a fact, the build and the tests.
 
 Which text is German and which English is settled there, under "German and English". Two
 consequences surface here more than anywhere else. The e2e titles are English while every locator
-they use matches German page text (`getByRole('button', { name: 'Nächster Fakt' })`), so changing a
+they use matches German page text (`getByRole('link', { name: 'Nächster Fakt' })`), so changing a
 UI string breaks the tests that look it up, whatever language the titles are in. And the routes
 `/impressum` and `/datenschutz` keep their German names: they are public URLs, not identifiers.
 
-## The visitor's clock cannot be known at build time
+## The home page
 
-This is the one thing SSG genuinely costs here. `new Date()` during prerendering is the _build_ date,
-so [src/routes/+page.svelte](+page.svelte) deliberately reads the clock in `onMount`, and
-renders a placeholder rather than anything date-specific until then. Computing it at component init
-instead would bake the build day into the HTML and visibly flash the wrong fact before hydration
-corrected it. That placeholder is the point — do not "fix" it by moving the date out of `onMount`.
+Every fact is a prerendered page of its own, [[date]](%5Bdate%5D/+page.svelte), complete before any
+JavaScript runs. What the build cannot know is _today_: `new Date()` during prerendering is the
+build's clock, not the visitor's. So `/` decides in the browser, with an inline script in its head
+that runs before the page paints:
 
-That placeholder is a mock of the finished page rather than a bare line of text. The calendar and the
-date bar sit _outside_ the `{#if}`s that need a selection, so before hydration they render themselves:
-every arrow bounded, both text slots a grey bar, six full rows of stand-in days in the archive's own
-rhythm — Mo–Fr shaped like a day with a fact, Sa/So like one without. This is why the month arrows
-test `!month` as well as their month bound: `shownMonth` is `''` before hydration, which happens to
-fall below `bounds.from` but not above `bounds.to`, so the forward arrow would otherwise come up
-looking live. Both arrows carry it rather than only that one: it mirrors `shiftMonth`'s own `!month`
-return instead of leaning on the accident that `''` sorts below every date, and it short-circuits
-before `bounds`, so the archive is never sorted during prerendering. The stand-in cells are `h-8`, a
-day cell's height to the pixel, so the page arrives at its final size — the e2e test compares the
-date bar's resting offset with JavaScript switched off against the same offset once hydrated, and a
-one-step change to that height fails it. `aria-busy` belongs on `<main>` and not on the
-"Fakten werden geladen …" line, because the calendar and the bar are provisional too and a screen
-reader reaches them first; both states are asserted.
+- **Today has a fact:** `location.replace` to its page. Back then leaves the site rather than
+  landing on `/` and being sent forward again — though a navigation that starts before the page has
+  loaded replaces the entry whichever way it is written, which is why the e2e test pins the
+  behaviour and not the call.
+- **Today has none:** `history.replaceState` puts the date in the address bar and the page stays —
+  `/` already _is_ the calendar, rendered with the latest month that has a fact, and hydration
+  corrects it from the address bar. SvelteKit starts cleanly after the address has changed under
+  it: it reports the route as `/[date]` while rendering `/`'s components, verified in a spike and
+  on real Pages. That is also why the page reads the date from `location` and not `page.url`.
 
-**Keep the mock in step when you restyle the calendar.** Most of that is free — the mock _is_ the
-real section, grid and sticky bar with different leaves, so anything changed on those elements
-applies to both. Four things are not shared, and the test only half-covers the first:
+The script duplicates `toIsoDate`, because no module has loaded yet, and carries its own copy of
+the date list. Two consequences:
 
-- **The day cell's height** — `h-8` in the mock, against `py-1.5` plus the grid's `text-sm` on the
-  real day button _and_ on the `<span>` that a day without a fact renders as. 32 px all round. The
-  e2e test fails on any change to the mock's `h-8`, but on the real side only if button and span
-  move together: `1fr` sizes each row to its tallest cell, and every month in the archive has a
-  factless day left holding the old height. Verified by mutation both ways — changing only the
-  button passes green.
-- **The six-row count**, written twice: `repeat(6,1fr)` on the grid, `6 * WEEKDAYS.length` in the
-  mock's loop.
-- **The colours.** A day with a fact is `bg-sky-50`, and the mock's weekday cell repeats that literal.
-  Nothing tests it, so a restyled calendar leaves the placeholder on the old palette.
-- **The two grey bars** (`h-4 w-28`), duplicated on purpose: nothing couples the size of the month
-  heading's placeholder to the date line's, so changing one is a decision about the other rather than
-  a bug. Do not fold them into a `{#snippet}` — unlike `arrow` below, both are already literal
-  `class="..."` attributes that Prettier sorts, so the snippet would be pure overhead.
+- **Every link to `/` is a real page load** (`data-sveltekit-reload`): the heading before hydration,
+  the way back on both legal pages, and the error page's fallback. Routed client-side, the head
+  script would not run and the visitor would land on a calendar with no day chosen. `reaches the
+home page only by a real page load` in [legal-pages.e2e.ts](legal-pages.e2e.ts) checks every
+  such link on a fact page, a 404 page and both legal pages; verified by removing the attribute
+  from the Impressum's link.
+- **Once hydrated, the heading links today's date directly,** not `/`. A click on today's own page
+  is then a link to the current address, which SvelteKit turns into a replace — linking `/` there
+  stacked two identical entries, and Back looked dead. `adds no history entry on today’s own page`
+  waits for each click's history update before pressing Back: SvelteKit finishes that navigation
+  after `click()` returns, and a Back that overtakes it gets rewritten to the page it left. No
+  hand is that quick, but the test was.
 
-To look at the thing, switch JavaScript off and reload; hydration is far too quick to catch it
-otherwise. That is exactly what the `loading state` e2e test does, in a second browser context.
+### The 404 page and the error page
+
+A day without a fact has no page. GitHub Pages answers it with `404.html`, which is the
+prerendered [/404](404/+page.svelte) route: the same `FactPage` as `/`, told only that it was
+served for a miss, so without JavaScript it says „Für diesen Tag gibt es keinen Fakt.“ where `/`
+says „Wähle im Kalender einen Tag.“ — `/` never learns a date then, so it claims none. Hydration
+reads the last path segment with `isIsoDate`: a date gets its month, its date line
+and arrows to its neighbours, anything else „Diese Seite gibt es nicht.“ Accepted limitation:
+without JavaScript a mistyped address reads as a day without a fact.
+
+Stepping to such a day client-side — Back to the address `/` rewrote, or today's cell — asks for a
+`__data.json` that does not exist, and SvelteKit's root error page then lacks the layout's data as
+well ([sveltejs/kit#6124](https://github.com/sveltejs/kit/discussions/6124)), so it cannot draw the
+calendar. [+error.svelte](+error.svelte) reloads instead, and Pages answers with `404.html`. Only
+after a client-side navigation, never on a first load, which would load the error page again
+forever; `afterNavigate`'s `type` tells the two apart without storage, which the Datenschutz page
+promises is never used. An earlier version keyed on `performance`'s navigation type, which
+describes the document rather than the step, and would have stranded anyone who had pressed F5
+earlier. Where the layout's data _is_ there — `pnpm dev` renders a missing date through the error
+page on its server — it shows the no-fact page itself. Today's cell skips the failing attempt
+altogether: it knows it has no page, so it is a real load from the start.
+
+The first step from `/` or `/404` to a fact swaps route components, so `FactPage` mounts afresh
+and the displayed month and any search text start over once. Steps between facts keep it.
+
+### What waits for hydration
+
+**A page without a fact of its own stays hidden until then.** `/` and `404.html` are prerendered
+before anyone knows which day they are for, so they hold the latest month and a stand-in line, and
+hydration swapped both under the visitor's eyes — on `/` on a day with a fact, even for the moment
+before the head script's redirect landed. With JavaScript, a script in the head of every
+fact-less `FactPage` now sets `hidden` on `<html>`, and `onMount` clears it once the corrected
+month and message are in the DOM. Without JavaScript the script never runs and the prerendered
+page is what there is. Accepted limitation, chosen knowingly: a visitor whose JavaScript fails to
+load sees an empty page. `stays hidden until hydration on a page without a fact` blocks the app's
+scripts and asserts exactly that, which is what keeps the hiding from quietly going; dropping the
+script fails it, and dropping the unhide fails every test of such a page. The moment of the
+redirect itself cannot be watched: Playwright waits on the page being loaded, not on the one
+leaving.
+
+On a fact page only what depends on today or needs JavaScript waits: the today ring and today's cell, the arrows' reach
+(which includes today), the search box, which is `disabled` until then, and the random fact,
+`aria-disabled`. Nothing changes size. `a fact is readable and the archive navigable` compares the
+date bar's resting offset with JavaScript off against the hydrated page, and walks to the next fact
+without JavaScript.
 
 ## The calendar
 
-[src/routes/+page.svelte](+page.svelte) holds the whole thing; there is no separate
-component. The search lives there too and shares almost nothing with the calendar, so a component
-would be a clean cut — but with no vitest browser project it buys nothing testable. Split it when a
-second reader disagrees, not before. These decisions in it are not obvious from the code:
+[FactPage.svelte](../lib/FactPage.svelte) holds the whole page, and four route files render it: `/`,
+`/404`, `/[date]` and the error page. The search lives there too and shares almost nothing with the
+calendar, so a component would be a clean cut — but with no vitest browser project it buys nothing
+testable. Split it when a second reader disagrees, not before. These decisions in it are not obvious from the code:
 
-- **The location hash is the single source of truth for the selection.** Clicking a day only writes
-  `location.hash`; the `hashchange` handler is what actually moves the state, and `onMount` calls the
-  same function. Back/forward and shared links therefore work without a second code path. Do not
-  "simplify" it by also setting the state in the click handler — that is how the two get out of sync.
-  The heading is the one control that cannot take that path: _removing_ the hash needs
-  `history.pushState`, which fires no `hashchange`, so `backToToday` calls `readHash` itself — the
-  same call `onMount` makes. One function still decides the selection; what the rule forbids is two
-  functions writing it. `location.hash = ''` is not an alternative, because it leaves a bare `#`
-  behind, and neither is a link to `/`: SvelteKit routes that click client-side, so the hash goes
-  without a `hashchange` and the URL says today while the page still shows the old fact. Measured,
-  not assumed. Nothing is pushed when there is no hash, or Back lands on an identical URL and looks
-  dead. Watch the assertion when testing this: `new URL(url).hash` reports `''` for a trailing bare
-  `#` as well, so it cannot tell the two apart — the e2e test checks the raw URL string, after the
-  weaker version was verified to pass against `location.hash = ''`.
-- **A fact may link to another fact, as `[…](#2026-08-24)`, and that is safe where a link to `/` is
-  not.** The two look alike and behave oppositely. SvelteKit's click handler special-cases a
-  same-page link whose hash _differs_: it sets `hash_navigating`, deliberately does **not**
-  `preventDefault`, and lets the browser navigate natively, precisely so `hashchange` fires
-  (`client.js`, "use the browser default behavior in that case"). `readHash` then runs like any
-  other selection. Removing the hash is the case that has no native path, which is the whole
-  reason `backToToday` exists. Verified in a browser against the real archive, not just read:
-  the fact swaps, the URL ends `#2026-08-24`, and Back returns to the previous fact. 2026-09-23 is
-  the first entry doing this. Two caveats. Such a link bypasses `jump`, so it does not pull the
-  next fact's top back under the sticky bar — tolerable because the link sits in the fact the
-  reader is already at. And `never links the home page to itself` in
-  [legal-pages.e2e.ts](legal-pages.e2e.ts) compares **pathnames**, so it would read a
-  hash-only link as a self-link; it stays green only because the e2e suite builds against
-  `facts.probe.yaml`, which has none. Put one in that fixture and the test needs to exclude
-  hash-only hrefs first.
+- **The address is the selection.** Every day with a fact is a page, and every day cell, fact arrow
+  and search hit is a link to one, so Back, Forward and shared links are the router's and need no
+  code here. The displayed month is a writable `$derived`: it follows the selection, the month
+  arrows assign to it, and the next selection takes over again.
+- **A fact may link to another fact, as `[…](2026-08-24)`.** Relative, so it resolves like the
+  images do — date pages sit one segment below the base — and SvelteKit routes it like any other
+  link. The prerender crawler follows it, and a link to a date without a page fails `pnpm build`
+  naming the page it came from; a leftover `#2026-08-24` fails it too, because the crawler checks
+  fragment targets. Both verified. 2026-09-23 is the first entry doing this.
 - **The arrows are bounded by the content, and the bounds include today and the selection.** Bounding
   on the fact keys alone strands a visitor: once the whole archive is in the past, both arrows go
   dead in the current month. Comparison is on `YYYY-MM` strings, which sort chronologically, so no
   date arithmetic is involved.
 - **Today stays clickable even with no fact of its own.** A deliberate exception to the "days without
-  a fact are non-interactive" rule, because today is the cell you navigate back to. It has its own
-  e2e test, since the ordinary "not clickable" test cannot catch it.
+  a fact are non-interactive" rule, because today is the cell you navigate back to. It has no page,
+  so its link is a real load of `404.html` (see "The home page"). It has its own e2e test, since
+  the ordinary "not clickable" test cannot catch it.
 - **Monday is column one.** `getDay()` counts from Sunday, so `monthGrid` rotates it with
   `(getDay() + 6) % 7`. Verified against a month that starts on a Sunday, which is the case a bare
   `getDay()` gets wrong.
 
-- **Accessibility is carried by the day buttons, not by grid semantics.** This is a CSS grid, not
-  an ARIA `grid`, so each button's `aria-label` is its full German date; the `Mo Di Mi …` row is
+- **Accessibility is carried by the day links, not by grid semantics.** This is a CSS grid, not
+  an ARIA `grid`, so each link's `aria-label` is its full German date; the `Mo Di Mi …` row is
   `aria-hidden`, and so are the days without a fact, since a bare number carries no date context of
   its own. Two details there are deliberate and easy to undo by accident. The month arrows use
   `aria-disabled` rather than the native attribute — a natively disabled button drops keyboard focus
   to `<body>` the instant it is disabled, stranding the visitor who just pressed it — which is why
   `shiftMonth` enforces the bound itself rather than trusting the attribute. The cursor rule in
   [layout.css](layout.css) matches on that same attribute (see Misc in the root CLAUDE.md), so swapping the
-  mechanism here quietly makes a bounded arrow look clickable again. And the selected day is
-  named in its `aria-label` (`… (angezeigt)`) instead of carrying `aria-pressed`, which would claim
-  toggle semantics that a single-select set does not have. Both have e2e tests, both verified to
-  fail when reverted. Note Playwright honours `aria-disabled` in its actionability checks, so a test
+  mechanism here quietly makes a bounded arrow look clickable again. The fact arrows are links, and
+  the one that reaches the edge of the archive loses its `href` under the visitor who just pressed
+  it — so it keeps its element, takes `role="link"` and `tabindex="0"`, and `keepfocus` on the
+  navigation leaves focus on it. Dropping either the `tabindex` or `keepfocus` fails `keeps focus on
+the arrow that reached the edge`. And the selected day is named in its `aria-label`
+  (`… (angezeigt)`) instead of carrying `aria-pressed`, which would claim toggle semantics that a
+  single-select set does not have. Both have e2e tests, both verified to fail when reverted. Note Playwright honours `aria-disabled` in its actionability checks, so a test
   that clicks a bounded arrow on purpose needs `{ force: true }`.
 
 Watch the muted greys: Tailwind's `gray-300` is 1.47:1 against white and `gray-400` is 2.6:1, both
@@ -127,7 +145,7 @@ rather than a convenience.
 ## Moving between facts
 
 The arrows either side of the date step to the next and previous **entry**, skipping the days that
-have none. They write the hash like everything else, so the calendar follows them into another month
+have none. They are links like everything else, so the calendar follows them into another month
 for free — there is no second navigation path to keep in sync.
 
 The date and its two arrows are one `sticky top-0` bar, so a fact longer than the screen keeps both
@@ -138,7 +156,12 @@ white-to-transparent fade greying in the middle.
 
 Stepping to another fact from below the point where the bar pins scrolls back up to it, so the next
 fact opens at its top instead of somewhere in its middle. Upwards only: scrolling unconditionally
-would shove the calendar off screen for a visitor who was already at the top.
+would shove the calendar off screen for a visitor who was already at the top. `<main>` carries
+`data-sveltekit-noscroll`, so SvelteKit leaves the position alone for every link inside it, and an
+`afterNavigate` in `FactPage` does this instead — measuring the new fact, since it runs once the
+page has changed. It skips `popstate`, where SvelteKit restores the position the visitor left. A
+link inside a fact gets the same treatment, and the footer, outside `<main>`, scrolls to the top
+like any page change.
 
 **Do not compute that offset from the bar.** `offsetTop` on a _stuck_ sticky element reports where it
 is stuck — literally the scroll position — not where it belongs: scroll to 500 and it reports 500,
@@ -185,15 +208,16 @@ Accepted limitation: on a viewport wider than `max-w-2xl` plus its padding — a
 `main` no longer reaches the edges, the row stops being uniform, and the strip shows content again.
 Only phones are covered, which is where the bar is pinned often enough to matter.
 
-All four arrows on the page come from one `{#snippet arrow(...)}`. The snippet is what keeps the
-shared class list inside a `class="..."` attribute, where Prettier's Tailwind plugin still sorts it —
-a hoisted `const` is silently skipped by the sorter. Verified both ways.
+All four arrows on the page come from one `{#snippet arrow(...)}`: a button for the month arrows,
+a link for the fact arrows. The snippet is what keeps the shared class list inside a `class="..."`
+attribute, where Prettier's Tailwind plugin still sorts it — a hoisted `const` is silently skipped
+by the sorter. Verified both ways. The two branches repeat the list, so keep them in step.
 
 ## The search
 
 Between the heading and the calendar, matching on every keystroke, with the hits in a panel laid
-over the calendar. Picking one writes `location.hash` like everything else, so it is not a second
-way to navigate.
+over the calendar. A hit is a link to its day like everything else, so it is not a second way to
+navigate; the navigation empties the box in `afterNavigate`, which is what closes the list.
 
 **MiniSearch, and it is the only third-party code the browser gets.** Everything else here —
 `marked`, `yaml` — is build-time. The alternatives were measured against the real archive rather
@@ -203,25 +227,27 @@ of the box missed both the transposition `Fernsehtrum` and the two-word `nintend
 strings, not prose; MiniSearch (5.9 KB) is a real inverted index with per-term edit distance and
 prefix matching, and found everything. Do not switch to Fuse without re-running that comparison.
 
-It loads behind a **dynamic `import()`**, triggered by focusing the box or the first keystroke,
-whichever comes first. Verified in the build: its chunk is not named anywhere in `index.html`, not
-even as a `modulepreload`, so a visitor who never searches never fetches it.
+It loads behind a **dynamic `import()`**, together with `search.json`, triggered by focusing the
+box or the first keystroke, whichever comes first. Verified in the build: its chunk is not named
+anywhere in `index.html`, not even as a `modulepreload`, so a visitor who never searches never
+fetches it. The first test in [page.e2e.ts](page.e2e.ts) asserts the same for `search.json`.
 
-- **The index is built in the browser from the rendered HTML,** with `DOMParser` for the text. Do
-  not ship a plain-text copy of every fact alongside the HTML to save that one pass — it would
-  double the part of the payload that actually costs something. And do not skip the parse and index
-  the HTML itself: `strong` and every `href` in the archive become searchable, which two e2e tests
-  pin by asserting `strong` and `example` find nothing. Verified by mutation: index `html` directly
-  and both go red.
-- **The images are swapped for their `alt` text before that, and it is not a nicety.**
-  `textContent` ignores attributes, so the several thousand characters of German description across
-  the illustrated entries were simply not in the index: `Bühnenturm` and `Hauptturm` live only in an
-  alt text and could not be found at all. The padding spaces around the substitution matter too —
-  the archive has runs of images sitting back to back, and without them the last word of one
-  description welds onto the first of the next. `doc.images` is live, hence the copy before
-  mutating it. The probe
-  fixture carries one image for this, whose alt text is the only place the word `Wasserspeier`
-  appears.
+- **The text is taken from the Markdown at build time,** by `factText` in
+  [$lib/server/facts.ts](../lib/server/facts.ts), and `search.json` maps each date to it. The same
+  text gives each fact page its `description` and `og:description`. It used to be recovered in the
+  browser from the HTML every page carried, with `DOMParser` — but a page carries one fact now, and
+  a separate download of HTML would cost more than text for nothing. A walk over marked's tokens
+  rather than its `TextRenderer`: that one returns an emphasis as raw Markdown, so the credit line
+  `_Foto: [Name](https://…)_` came out with its URL. Links contribute their text, never their target
+  or title, which two e2e tests pin by asserting `strong` and `example` find nothing; the unit test
+  pins it again in the gate.
+- **The images contribute their `alt` text, and it is not a nicety.** Several thousand characters of
+  German description sit in the illustrated entries: `Bühnenturm` and `Hauptturm` live only in an
+  alt text, and before alt texts were indexed they could not be found at all. The padding spaces
+  around each matter too — the archive has runs of images sitting back to back, and without them
+  the last word of one description welds onto the first of the next. Both verified by mutation in
+  the unit test. The probe fixture carries one image for this, whose alt text is the only place the
+  word `Wasserspeier` appears.
 - **Every suffix of every word is indexed, which is what makes `turm` find `Fernsehturm`.**
   MiniSearch matches whole terms — by prefix or by edit distance — never substrings, and German
   welds the noun onto the end of the compound. `turm` therefore used to return exactly one entry,
@@ -254,13 +280,18 @@ even as a `modulepreload`, so a visitor who never searches never fetches it.
   could never match. Above eight hits the list is taller than the calendar under it.
 - **The search is driven by an `$effect`, not `oninput`.** With `bind:value` the two would race on
   listener order; the effect runs once the state has already moved.
-- **Re-read `query` after the `await`.** Loading the module is asynchronous, so an earlier keystroke
+- **Re-read `query` after the `await`.** Loading is asynchronous, so an earlier keystroke
   can resolve after a later one and write a stale list. That read is deliberately outside the
   effect's tracking — it is a guard, not a dependency.
-- **The input is `disabled` until hydration,** unlike the calendar beside it, which renders a mock.
-  The search needs no clock, but it does need JavaScript, and a box that swallows what you type
-  without answering is worse than one that admits it is not ready. It keeps its size either way, so
-  the page still arrives at its final height.
+- **The input is `disabled` until hydration.** The search needs no clock, but it does need
+  JavaScript, and a box that swallows what you type without answering is worse than one that admits
+  it is not ready. It keeps its size either way, so the page still arrives at its final height.
+- **The download is visible, and so is its failure.** The search could not wait or fail while its
+  text was part of the page; now `search.json` can do both, and „Keine Treffer“ would be a lie
+  either way. Until the index exists the status reads „Suche wird geladen…“; if the download fails
+  it reads „Suche nicht verfügbar“, and the failed promise is forgotten so the next keystroke tries
+  again. `says so while its text is loading` and `says so when its text cannot be loaded` cover
+  them.
 - **The panel is absolutely positioned, and that is a requirement rather than a look.** In normal
   flow it shoved the calendar 200 px down the moment a query matched. An e2e test measures the
   month heading's top before and after typing; mutate the panel back to `static` and it fails by
@@ -283,19 +314,18 @@ is "surprise me", so the two belong together. It sits _outside_ the `search` ele
 a search and the landmark should not claim it — which also means the hit panel covers it while a
 query is running, exactly as the panel covers the calendar.
 
-- **It goes through `jump`.** Writing the hash and pulling the top of the fact back when the bar
-  has pinned both come for free that way, and there is no second navigation path to keep in step.
+- **A button calling `goto`, not a link,** because its target is drawn only when it is pressed.
+  With `noScroll` and `keepFocus`, so `afterNavigate` pulls the fact back under a pinned bar exactly
+  as it does for the arrows, and there is no second navigation path to keep in step.
 - **It never returns the fact already on screen.** A repeat, however rare, makes the button look
   broken. The e2e test stubs `Math.random` so the pick is deterministic, and
   is built so the stub would land on the current fact if the filter were gone — remove the filter
   and it fails rather than passing on a coincidence.
-- **`aria-disabled`, not the native attribute,** like every other button here, and bounded before
-  hydration as well. That second half needs its own reason, because unlike the arrows it does not
-  come for free: `month` and `neighbours` are `undefined` before hydration, but `otherFacts` comes
-  from `data.facts`, which is already there at prerender time. Without `!selected` the button ships
-  in the HTML claiming `aria-disabled="false"` while no listener exists — enabled-looking and inert,
-  and permanently so for a visitor without JavaScript. The loading-state test happens to catch it
-  too, since it asserts that no button in the placeholder is pressable by either mechanism.
+- **`aria-disabled`, not the native attribute,** like every other button here, and bounded until
+  hydration. `otherFacts` comes from the date list, which is there at prerender time, so without
+  `!today` the button would ship claiming `aria-disabled="false"` while no listener exists —
+  enabled-looking and inert, and permanently so for a visitor without JavaScript. `a fact is
+readable and the archive navigable` asserts it from a page with JavaScript off.
 - **`🔀` and not the die `⚄`.** U+2684 is a real glyph rather than tofu — checked by advance width
   against U+FFFF — but at 14 px its five pips each fall under a pixel and it reads as an empty box.
   The shuffle emoji is legible at that size and was chosen for it, at the price of being the only
@@ -318,41 +348,31 @@ ladungsfähige Anschrift even though nothing here is commercial.
   as the facts-file parse test, and for the same reason: a fake Impressum is a worse problem than a
   missing one, and neither `pnpm build` nor `pnpm lint` would say a word about it.
 - **Every claim on the Datenschutz page was read off the build, not off a generator.** No storage
-  API appears anywhere in the source, nothing fetches at runtime, the font stack is system fonts,
-  and every `img`/`script`/`link` in the built HTML is same-origin. The page says so in those terms,
+  API appears anywhere in the source, nothing is fetched from anywhere but this site, the font
+  stack is system fonts, and every `img`/`script`/`link` in the built HTML is same-origin. The page says so in those terms,
   which means **the code can turn the page into a false statement** — one web font, one embedded
   video, one counter. `loads nothing from third-party servers` in
   [legal-pages.e2e.ts](legal-pages.e2e.ts) is the guard: it watches every request
-  origin across the home page, a search (so the lazily imported MiniSearch chunk is inside the
-  window) and both legal pages. Verified by adding a `fonts.googleapis.com` stylesheet to
+  origin across the home page, a search (so MiniSearch's chunk and `search.json` are inside the
+  window), a client-side step to a fact, a day without one and both legal pages. Verified by adding a `fonts.googleapis.com` stylesheet to
   [app.html](../app.html), which turns it red and names the host.
 - **There is no test that the footer links carry the base path.** One was written and then deleted:
   mutating `resolve('/impressum')` to a bare `/impressum` never reaches a browser, because the
   prerender crawler refuses it and `pnpm build` dies with "does not begin with `base`". The build is
   the harder gate, and a test that cannot fail reads like cover for something that is not covered.
-- **`<main>` stays in each page rather than moving into the layout.** The home page's carries
-  `aria-busy={!selected}`, which is page state; hoisting it would mean plumbing that state upward to
-  serve two pages that are never busy. The footer sits _outside_ `<main>` for the mirror-image
-  reason — it is never provisional, so it has no business inside something that is.
-- **The way back to the facts lives in the two legal pages, not in the footer,** and that is not
-  tidiness. A link to `/` is the trap recorded above under the location hash: clicked _on_ the home
-  page SvelteKit routes it client-side, the component never remounts, no `hashchange` fires, and
-  the URL says today while the previously chosen fact stays on screen. Clicked from a legal page it
-  is a real route change — the home component mounts and `onMount` resolves the date — so the link
-  is correct exactly where it sits. Putting it in the page bodies is what keeps it off the home
-  page **structurally**: the files it lives in are only rendered on those two routes, so there is
-  no condition to get wrong. A footer version gated on `page.route.id` worked, but enforced at
-  runtime what file layout enforces for free. The footer therefore stays two links on
-  every route. `never links the home page to itself` in
-  [legal-pages.e2e.ts](legal-pages.e2e.ts) guards it by collecting every `a[href]` on
-  the home page rather than counting footer links, so it also catches a self-link re-added to the
-  layout; verified by doing exactly that, and it fails alone.
-- **Unverified: what GitHub Pages does with a trailing slash.** adapter-static writes
-  `impressum.html`, not `impressum/index.html`, so `/impressum` works and `/impressum/` probably
-  404s on Pages — `pnpm preview` answers 307 there, but Pages is a different server and this cannot
-  be tested from here. Every link the site generates omits the slash, so it only bites a hand-typed
-  or externally-published URL. Check it after the first deploy; if it does 404, `trailingSlash:
-'always'` in [vite.config.ts](../../vite.config.ts) emits directories instead and fixes it.
+- **`<main>` stays in each page rather than moving into the layout.** The fact pages' carries
+  `data-sveltekit-noscroll` and `data-sveltekit-keepfocus`, which reach every link inside it; the
+  footer sits _outside_ `<main>` so that its links navigate like any page change.
+- **The way back to the facts lives in the two legal pages, not in the footer,** and it is a real
+  page load like every link to `/` — see "The home page". It used to sit there to keep a link to `/`
+  off the home page structurally, which the hash design needed; that reason is gone, since the fact
+  pages have the heading, and the link stayed where it was.
+- **Trailing slashes are not served.** Checked on a real Pages deployment for the date pages:
+  `/2026-08-23/` gets `404.html`, which then says „Diese Seite gibt es nicht.“ The legal pages were
+  not part of that check but are written the same way. Every link the site generates omits the
+  slash, so it only bites a hand-typed URL. `trailingSlash: 'always'` is no longer the way out: it
+  would move every date page one directory deeper and break every `fakten/…` image path (see the
+  root CLAUDE.md).
 - **Both pages hyphenate, and the identity blocks deliberately do not.** `hyphens-auto` sits on
   `<main>` rather than on the inner `.prose`, because the `<h1>` is outside that div: at 320 px
   `Datenschutzerklärung` ran 16 px past the viewport and gave the page a horizontal scrollbar, which

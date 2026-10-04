@@ -38,9 +38,11 @@ Regeln:
   ausgegraut.
 - Die Pfeile neben dem Datum springen zum nächsten bzw. vorherigen **Eintrag** und überspringen
   dabei die Tage ohne Fakt. Der Kalender wandert mit, notfalls in einen anderen Monat.
-- Ein angehängtes Datum öffnet direkt diesen Tag, etwa
-  <https://abduelhamit.github.io/Fakt-des-Tages/#2026-08-22>. So lässt sich ein einzelner Fakt
+- Jeder Tag mit einem Fakt hat eine eigene Adresse, etwa
+  <https://abduelhamit.github.io/Fakt-des-Tages/2026-08-21>. So lässt sich ein einzelner Fakt
   verlinken.
+- Ein Fakt verweist auf einen anderen mit dem bloßen Datum als Ziel, etwa
+  `[Fakt vom 24.08.](2026-08-24)`. Gibt es für das Datum keinen Eintrag, schlägt der Build fehl.
 
 ### Bilder
 
@@ -71,7 +73,7 @@ Bitte beachten:
   und es würde stillschweigend kein einziger Fakt mehr gefunden.
 
 Nach einem Push auf `main` baut GitHub Actions die Seite neu und veröffentlicht sie (etwa eine
-Minute). Die Fakten werden dabei fest in die Seite eingebaut; im Browser wird nichts nachgeladen.
+Minute). Dabei entsteht für jeden Fakt eine eigene, fertige Seite.
 Zum Pflegen der Inhalte genügt trotzdem der Webeditor — der Build läuft ja automatisch.
 
 ## Entwicklung
@@ -120,5 +122,5 @@ ersten erfolgreichen Durchlauf automatisch aktiviert.
 ## Technisches
 
 Aufbau, Konventionen und die Fallstricke des Projekts sind in [CLAUDE.md](CLAUDE.md) dokumentiert —
-unter anderem, warum es keine `svelte.config.js` gibt und warum die Fakten schon beim Build fest
-in die Seite eingebaut werden.
+unter anderem, warum es keine `svelte.config.js` gibt und warum jeder Fakt schon beim Build eine
+eigene Seite bekommt.
