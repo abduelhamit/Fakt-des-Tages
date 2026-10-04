@@ -72,8 +72,8 @@ Bitte beachten:
 - **Niemals eine `%YAML 1.1`-Zeile ergänzen.** Die Datumsschlüssel würden dadurch zu Datumsobjekten,
   und es würde stillschweigend kein einziger Fakt mehr gefunden.
 
-Nach einem Push auf `main` baut GitHub Actions die Seite neu und veröffentlicht sie (etwa eine
-Minute). Dabei entsteht für jeden Fakt eine eigene, fertige Seite.
+Nach einem Push auf `main` baut GitHub Actions die Seite neu und veröffentlicht sie. Dabei entsteht
+für jeden Fakt eine eigene, fertige Seite.
 Zum Pflegen der Inhalte genügt trotzdem der Webeditor — der Build läuft ja automatisch.
 
 ## Entwicklung
