@@ -11,15 +11,16 @@ export const entries: EntryGenerator = () => [...facts().keys()].map((date) => (
  * time it reaches the browser and neither parser ships to the client. A malformed facts file
  * therefore fails `pnpm build` rather than the running site.
  *
- * Keep the type argument. It is what anchors the `FactHtml` brand: a bare `PageServerLoad` infers
- * whatever is returned, so dropping the `renderFact` call would then type-check and feed raw
- * Markdown to `{@html}`. It looks redundant and is not.
+ * Keep the type argument. It is one of two anchors for the `FactHtml` brand, the other being the
+ * `fact` prop of `FactPage`: drop the `renderFact` call and both fail to compile. This one fails
+ * here, where the mistake is, and still holds should a page ever render `{@html data.html}` itself.
  */
 export const load: PageServerLoad<{ date: string; html: FactHtml; description: string }> = ({
 	params
 }) => {
 	const fact = facts().get(params.date);
-	// Only `pnpm dev` asks for a date without a fact; the prerenderer asks for `entries` alone.
+	// Asked for by `pnpm dev`, and by the prerenderer when it follows a fact's link to another day,
+	// `[…](2026-08-24)`: this throw is what fails the build when that day has no fact.
 	if (fact === undefined) error(404);
 	return {
 		date: params.date,

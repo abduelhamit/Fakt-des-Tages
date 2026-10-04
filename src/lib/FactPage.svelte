@@ -371,10 +371,14 @@
 	</div>
 
 	<section class="mt-6" aria-label="Kalender">
+		<!-- `aria-disabled` until hydration, like the random fact: a button does nothing without
+		     JavaScript, so it must not look as if it would. -->
 		<div class="flex items-center justify-between">
-			{@render arrow('‹', 'Vorheriger Monat', shownMonth <= bounds.from, () => shiftMonth(-1))}
+			{@render arrow('‹', 'Vorheriger Monat', !today || shownMonth <= bounds.from, () =>
+				shiftMonth(-1)
+			)}
 			<h2 class="font-semibold">{monthName}</h2>
-			{@render arrow('›', 'Nächster Monat', shownMonth >= bounds.to, () => shiftMonth(1))}
+			{@render arrow('›', 'Nächster Monat', !today || shownMonth >= bounds.to, () => shiftMonth(1))}
 		</div>
 
 		<!-- Six day rows are always in the template, not just the ones this month fills: a grid is

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { foldTerm, indexTerms, isIsoDate, monthGrid, toIsoDate, words } from './facts';
+import { excerpt, foldTerm, indexTerms, isIsoDate, monthGrid, toIsoDate, words } from './facts';
 
 describe('toIsoDate', () => {
 	it('uses the local calendar day, not UTC', () => {
@@ -89,5 +89,24 @@ describe('indexTerms', () => {
 	it('leaves a word shorter than the shortest query alone', () => {
 		expect(indexTerms('am')).toEqual([]);
 		expect(indexTerms('und')).toEqual(['und']);
+	});
+});
+
+describe('excerpt', () => {
+	const fact =
+		'Heute vor 70 Jahren wurde der Fernsehturm in Stuttgart eröffnet. Er war der erste seiner Art und wurde zum Vorbild für die Fernsehtürme in aller Welt, von Johannesburg bis Tokio.';
+
+	// What every page's description is: the opening, cut at a word rather than inside one.
+	it('opens the fact when there is no term to find', () => {
+		expect(excerpt(fact, [])).toBe(
+			'Heute vor 70 Jahren wurde der Fernsehturm in Stuttgart eröffnet. Er war der erste seiner Art und wurde zum Vorbild für die Fernsehtürme in …'
+		);
+		expect(excerpt('Ein kurzer Fakt.', [])).toBe('Ein kurzer Fakt.');
+	});
+
+	it('starts shortly before a term deep in the fact, at a whole word', () => {
+		expect(excerpt(fact, ['vorbild'])).toBe(
+			'… seiner Art und wurde zum Vorbild für die Fernsehtürme in aller Welt, von Johannesburg bis Tokio.'
+		);
 	});
 });

@@ -167,21 +167,24 @@ Consequences worth knowing before changing any of this:
   fact reads the date out of the address bar with it — that _is_ a trust boundary, unlike the
   facts file.
 - **`FactHtml` is a branded string, and the brand needs an anchor.** `renderFact` is the only place
-  it is applied, so a load that returns the Markdown unrendered fails to compile. That only works
-  because [[date]/+page.server.ts](src/routes/[date]/+page.server.ts) pins the output type as
-  `PageServerLoad<{ date: string; html: FactHtml; description: string }>` — a bare
-  `PageServerLoad` accepts any serialisable shape, and the page would simply infer whatever load
-  returned. Do not drop that type argument.
+  it is applied, so a load that returns the Markdown unrendered fails to compile. Two anchors hold
+  it, and each fails alone: [[date]/+page.server.ts](src/routes/[date]/+page.server.ts) pins the
+  output type as `PageServerLoad<{ date: string; html: FactHtml; description: string }>`, and the
+  page hands `data` to the `fact` prop of [FactPage.svelte](src/lib/FactPage.svelte), typed with
+  `html: FactHtml`. A bare `PageServerLoad` accepts any serialisable shape, so without the prop the
+  page would infer whatever load returned. Keep both: the type argument fails where the mistake is,
+  and still holds should a page ever render `{@html data.html}` without `FactPage`.
 - **A malformed facts file fails `pnpm build`,** so broken content never deploys and the previous
   version stays live. The UI has no runtime error state for the facts, and needs none.
 - **A page carries its own fact and the list of dates, nothing more.** This used to be one page
   holding every fact, which put the whole archive on the critical path of every visit; in October
   2026 it became one page per fact, cutting a page to a tenth of what it had grown to. What still
   grows with the archive is the date list every page needs for the calendar — twice on `/`, whose
-  head script carries its own copy — and `search.json`, which is the text of every fact but is
-  fetched only by someone who searches. Accepted limitation: measure both rather than trusting a
-  remembered figure (`gzip -c build/2026-08-21.html | wc -c`, and the same for
-  `build/search.json`).
+  head script carries its own copy, and again in every `__data.json` a client-side step fetches,
+  since the prerenderer writes the layout's data into each one — and `search.json`, which is the
+  text of every fact but is fetched only by someone who searches. Accepted limitation: measure
+  them rather than trusting a remembered figure (`gzip -c build/2026-08-21.html | wc -c`, and the
+  same for `build/2026-08-21/__data.json` and `build/search.json`).
 - **`Heute vor N Jahren …` opens nearly every entry, and N is a numeral — always.** Not one entry
   spells it out. Do not "correct" a small number to a word there. German style
   does prefer words below twelve, but that is a rule for running prose and the opener is a fixed

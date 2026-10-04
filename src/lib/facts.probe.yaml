@@ -14,9 +14,10 @@
 # auf Bilder mit Nachweis zielt. Sein Alt-Text enthält „Wasserspeier“ bewusst nicht.
 # Achtung beim Umformulieren: dieser Text landet im Suchindex. „hinter“ stand hier einmal
 # und war ein zweiter Treffer für die Anfrage `Hinterg` — der Präfix-Test fiel um.
+# Der 30. Juli ist absichtlich der letzte Eintrag der Datei, außer der Reihe: neue Einträge werden
+# angehängt, auch wenn ihr Datum früher liegt, und so prüfen die Tests, dass die Seite die Daten
+# selbst sortiert.
 # Die echten Fakten stehen nebenan in facts.yaml und dürfen frei bearbeitet werden.
-
-2026-07-30: Testdaten — einziger Eintrag im Juli, damit der Pfeil ‹ eine Grenze hat.
 
 2026-08-20: Testdaten — kurzer Fakt, einzeilig.
 
@@ -102,3 +103,5 @@
   ![Dasselbe Bild noch einmal, diesmal ohne Nachweis — der Vergleichsfall für den Abstand.](fakten/2026-03-06-1.avif)
 
 2026-09-02: Testdaten — einziger Eintrag im September, damit der Pfeil › eine Grenze hat.
+
+2026-07-30: Testdaten — einziger Eintrag im Juli, damit der Pfeil ‹ eine Grenze hat.

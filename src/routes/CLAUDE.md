@@ -72,22 +72,27 @@ and the displayed month and any search text start over once. Steps between facts
 
 **A page without a fact of its own stays hidden until then.** `/` and `404.html` are prerendered
 before anyone knows which day they are for, so they hold the latest month and a stand-in line, and
-hydration swapped both under the visitor's eyes — on `/` on a day with a fact, even for the moment
-before the head script's redirect landed. With JavaScript, a script in the head of every
+hydration swapped both under the visitor's eyes. With JavaScript, a script in the head of every
 fact-less `FactPage` now sets `hidden` on `<html>`, and `onMount` clears it once the corrected
 month and message are in the DOM. Without JavaScript the script never runs and the prerendered
 page is what there is. Accepted limitation, chosen knowingly: a visitor whose JavaScript fails to
 load sees an empty page. `stays hidden until hydration on a page without a fact` blocks the app's
 scripts and asserts exactly that, which is what keeps the hiding from quietly going; dropping the
-script fails it, and dropping the unhide fails every test of such a page. The moment of the
-redirect itself cannot be watched: Playwright waits on the page being loaded, not on the one
-leaving.
+script fails it, and dropping the unhide fails every test of such a page.
 
-On a fact page only what depends on today or needs JavaScript waits: the today ring and today's cell, the arrows' reach
-(which includes today), the search box, which is `disabled` until then, and the random fact,
-`aria-disabled`. Nothing changes size. `a fact is readable and the archive navigable` compares the
-date bar's resting offset with JavaScript off against the hydrated page, and walks to the next fact
-without JavaScript.
+**`/` on a day with a fact shows nothing at all before it leaves, and needs no hiding for it.**
+The browser stops parsing at the head script's `location.replace`, so `/` never gets a `<body>`,
+its hiding script never runs and nothing hydrates. Measured in October 2026 in Chromium, Firefox
+and WebKit, with a cold and a warm cache, by holding back the response for today's fact page: the
+document stayed at its head while WebKit cancelled every app chunk. So `onMount` there never reads
+the bare root as „Diese Seite gibt es nicht.“, a flash a review predicted from the code.
+
+On a fact page only what depends on today or needs JavaScript waits: the today ring and today's
+cell, the month arrows' reach (which includes today), the search box, which is `disabled` until
+then, and the buttons — the random fact and both month arrows, `aria-disabled` until then because
+a button does nothing without JavaScript. Nothing changes size. `a fact is readable and the
+archive navigable` compares the date bar's resting offset with JavaScript off against the hydrated
+page, and walks to the next fact without JavaScript.
 
 ## The calendar
 

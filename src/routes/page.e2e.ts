@@ -59,9 +59,9 @@ test.describe('home page', () => {
 
 	// The accepted limitation, asserted so the hiding cannot quietly go: with the app's JavaScript
 	// failing to load, a page without a fact of its own stays empty rather than show a stand-in month.
-	// `/` hides whatever the day, so this also covers the moment its head script sends a day with a
-	// fact on — which cannot be watched directly, because Playwright waits on the page being loaded
-	// rather than the one leaving. A fact page is complete as prerendered, so it does not hide.
+	// The clock names a day without a fact, because on a day with one `/` never gets this far: the
+	// browser stops parsing at the head script's redirect. A fact page is complete as prerendered,
+	// so it does not hide.
 	test('stays hidden until hydration on a page without a fact', async ({ page }) => {
 		await page.clock.setFixedTime(FACTLESS_DAY);
 		await page.route('**/_app/immutable/**/*.js', (route) => route.abort());
@@ -114,6 +114,10 @@ test.describe('home page', () => {
 		await expect(page.getByRole('heading', { level: 2 })).toHaveText('September 2026');
 		await page.getByRole('link', { name: 'Mittwoch, 2. September 2026' }).click();
 		await expect(page.getByRole('article')).toContainText('Testdaten');
+
+		// 404.html cannot read the address bar either, but it knows it was served for a missing page.
+		await page.goto('/Fakt-des-Tages/2026-08-21');
+		await expect(page.getByText('Für diesen Tag gibt es keinen Fakt.')).toBeVisible();
 		await noJs.close();
 	});
 });
@@ -127,12 +131,16 @@ test.describe('calendar', () => {
 
 	test('a click swaps the fact and puts it in the address bar', async ({ page }) => {
 		await page.goto('/Fakt-des-Tages/2026-08-22');
+		const documents: string[] = [];
+		page.on('request', (req) => req.resourceType() === 'document' && documents.push(req.url()));
 
 		await page.getByRole('link', { name: 'Donnerstag, 20. August 2026' }).click();
 
 		await expect(page.getByText('20. August 2026', { exact: true })).toBeVisible();
 		await expect(page.getByRole('article')).toContainText('kurzer Fakt, einzeilig');
 		await expect(page).toHaveURL(/\/Fakt-des-Tages\/2026-08-20$/);
+		// A client-side step: a full load would show the same page, so only the request tells.
+		expect(documents).toEqual([]);
 		// The selection is named in the accessible name, since a link has no ARIA state that fits a
 		// single-select set — `aria-pressed` would claim toggle semantics this does not have.
 		await expect(
@@ -385,7 +393,8 @@ test.describe('fact arrows', () => {
 	});
 });
 
-// A fact's page is complete as prerendered: hydration only adds the today ring and the search.
+// A fact's page is complete as prerendered: hydration only adds the today ring and what needs
+// JavaScript — the search and the buttons.
 test.describe('without JavaScript', () => {
 	test.use({ timezoneId: 'Europe/Berlin' });
 
@@ -401,14 +410,22 @@ test.describe('without JavaScript', () => {
 
 		await expect(prerendered.getByText('23. August 2026', { exact: true })).toBeVisible();
 		await expect(prerendered.getByRole('article')).toContainText('Bildschirmhöhe');
+		// What a shared link previews: the day, and the opening of its fact as plain text.
+		await expect(prerendered).toHaveTitle('23. August 2026 – Fakt des Tages');
+		await expect(prerendered.locator('meta[name="description"]')).toHaveAttribute(
+			'content',
+			/^Testdaten — bewusst lang, damit die Seite .* …$/
+		);
 		// Hydration must not move anything: the page arrives at the size it keeps.
 		expect(await barRestingTop(prerendered)).toBe(hydrated);
-		// Only what needs JavaScript admits it: the search box is disabled, the shuffle bounded.
+		// Only what needs JavaScript admits it: the search box is disabled, every button bounded.
 		await expect(prerendered.getByLabel('Fakt suchen')).toBeDisabled();
-		await expect(prerendered.getByRole('button', { name: 'Zufälliger Fakt' })).toHaveAttribute(
-			'aria-disabled',
-			'true'
-		);
+		for (const name of ['Zufälliger Fakt', 'Vorheriger Monat', 'Nächster Monat']) {
+			await expect(prerendered.getByRole('button', { name })).toHaveAttribute(
+				'aria-disabled',
+				'true'
+			);
+		}
 
 		await prerendered.getByRole('link', { name: 'Nächster Fakt' }).click();
 		await expect(prerendered.getByText('26. August 2026', { exact: true })).toBeVisible();
@@ -436,9 +453,12 @@ test.describe('search', () => {
 		const hit = page.getByRole('search').getByRole('link', { name: /20\. August 2026/ });
 		await expect(hit).toContainText('einzeilig');
 
+		const documents: string[] = [];
+		page.on('request', (req) => req.resourceType() === 'document' && documents.push(req.url()));
 		await hit.click();
 		await expect(page).toHaveURL(/\/Fakt-des-Tages\/2026-08-20$/);
 		await expect(page.getByRole('article')).toContainText('kurzer Fakt, einzeilig');
+		expect(documents).toEqual([]);
 		// Picking a hit empties the box, which is what closes the list.
 		await expect(page.getByRole('status')).toHaveText('');
 	});
