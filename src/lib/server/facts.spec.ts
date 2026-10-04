@@ -50,10 +50,11 @@ describe('parseFacts', () => {
 });
 
 describe('src/lib/facts.yaml', () => {
+	const file = new URL('../facts.yaml', import.meta.url);
+
 	// The real file, not a fixture. A bad entry would also fail `pnpm build`, but this fails first
 	// and prints the German message naming the key, which is a far clearer signal in CI.
 	it('parses and is not empty', () => {
-		const file = new URL('../facts.yaml', import.meta.url);
 		expect(parseFacts(readFileSync(file, 'utf8')).size).toBeGreaterThan(0);
 	});
 
@@ -63,9 +64,7 @@ describe('src/lib/facts.yaml', () => {
 	// too.
 	it('references images that exist and are real files, not LFS pointers', () => {
 		// Over the parsed entries, not the raw file: the header comment carries an example path.
-		const facts = [
-			...parseFacts(readFileSync(new URL('../facts.yaml', import.meta.url), 'utf8')).values()
-		];
+		const facts = [...parseFacts(readFileSync(file, 'utf8')).values()];
 		const paths = facts.flatMap((f) =>
 			[...f.matchAll(/!\[[^\]]*\]\((fakten\/[^)]+)\)/g)].map((t) => t[1])
 		);

@@ -532,8 +532,7 @@ test.describe('search', () => {
 	// in memory: a deploy that deletes its chunk, or the network going away, no longer matters.
 	// Fetched on demand it could fail for good — see `onMount` in FactPage.svelte.
 	test('loads MiniSearch after the images, and keeps it', async ({ page }) => {
-		let release!: () => void;
-		const held = new Promise<void>((resolve) => (release = resolve));
+		const { promise: held, resolve: release } = Promise.withResolvers<void>();
 		await page.route('**/fakten/**', async (route) => {
 			await held;
 			await route.continue();
@@ -562,8 +561,7 @@ test.describe('search', () => {
 
 	// Without this the first query would announce „Keine Treffer“ while the text is still on its way.
 	test('says so while its text is loading', async ({ page }) => {
-		let release!: () => void;
-		const held = new Promise<void>((resolve) => (release = resolve));
+		const { promise: held, resolve: release } = Promise.withResolvers<void>();
 		await page.route('**/search.json', async (route) => {
 			await held;
 			await route.continue();

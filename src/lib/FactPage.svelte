@@ -165,17 +165,12 @@
 
 	// What the page says where a fact would be. Before hydration only the route is known: `/404`
 	// is served for a date, `/` has not been given one yet, and without JavaScript never will be.
-	const message = $derived(
-		selected
-			? selected === today
-				? 'Für heute gibt es keinen Fakt.'
-				: 'Für diesen Tag gibt es keinen Fakt.'
-			: urlDate === null
-				? 'Diese Seite gibt es nicht.'
-				: notFound
-					? 'Für diesen Tag gibt es keinen Fakt.'
-					: 'Wähle im Kalender einen Tag.'
-	);
+	const message = $derived.by(() => {
+		if (selected && selected === today) return 'Für heute gibt es keinen Fakt.';
+		if (selected) return 'Für diesen Tag gibt es keinen Fakt.';
+		if (urlDate === null) return 'Diese Seite gibt es nicht.';
+		return notFound ? 'Für diesen Tag gibt es keinen Fakt.' : 'Wähle im Kalender einen Tag.';
+	});
 
 	// --- Search ---------------------------------------------------------------------------------
 
@@ -263,30 +258,24 @@
 	// once the state has already moved.
 	$effect(() => void runSearch(query));
 
-	const hitSummary = $derived(
-		query.trim().length < MIN_QUERY_LENGTH
-			? ''
-			: unavailable
-				? 'Suche nicht verfügbar — bitte die Seite neu laden'
-				: !ready
-					? 'Suche wird geladen…'
-					: hits.length === 0
-						? 'Keine Treffer'
-						: `${hits.length} Treffer`
-	);
+	const hitSummary = $derived.by(() => {
+		if (query.trim().length < MIN_QUERY_LENGTH) return '';
+		if (unavailable) return 'Suche nicht verfügbar — bitte die Seite neu laden';
+		if (!ready) return 'Suche wird geladen…';
+		return hits.length === 0 ? 'Keine Treffer' : `${hits.length} Treffer`;
+	});
 </script>
 
 <svelte:head>
 	<title>{title}</title>
-	{#if !fact}
-		<!-- eslint-disable-next-line svelte/no-at-html-tags -- a constant, see `hideUntilHydrated` -->
-		{@html hideUntilHydrated}
-	{/if}
 	{#if fact}
 		<meta name="description" content={fact.description} />
 		<meta property="og:title" content={title} />
 		<meta property="og:description" content={fact.description} />
 		<meta property="og:type" content="article" />
+	{:else}
+		<!-- eslint-disable-next-line svelte/no-at-html-tags -- a constant, see `hideUntilHydrated` -->
+		{@html hideUntilHydrated}
 	{/if}
 </svelte:head>
 
