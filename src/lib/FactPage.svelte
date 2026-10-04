@@ -267,7 +267,7 @@
 		query.trim().length < MIN_QUERY_LENGTH
 			? ''
 			: unavailable
-				? 'Suche nicht verfügbar'
+				? 'Suche nicht verfügbar — bitte die Seite neu laden'
 				: !ready
 					? 'Suche wird geladen…'
 					: hits.length === 0

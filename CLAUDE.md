@@ -150,8 +150,9 @@ imports that file with Vite's `?raw` and parses it once per build,
 [src/routes/[date]/+page.server.ts](src/routes/[date]/+page.server.ts) renders one entry per page
 **during prerendering**, and [+layout.server.ts](src/routes/+layout.server.ts) hands every page the
 sorted list of dates. The browser receives finished HTML. At runtime it fetches only files the
-build wrote, from the same origin: a day's `__data.json` when it steps there, and `search.json`
-when the search box is first focused.
+build wrote, from the same origin: the search's MiniSearch chunk once the page has loaded, a day's
+`__data.json` when it steps there, and `search.json` when the search box is first focused. The
+Datenschutz page names all three, so a new runtime fetch belongs there too.
 
 **Do not move this to a runtime `fetch()` to avoid rebuilds.** Every push to `main`, including an
 edit made in GitHub's web UI, already triggers a full rebuild and deploy via

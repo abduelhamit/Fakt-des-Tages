@@ -30,10 +30,11 @@
 			keinen Newsletter und keine Benutzerkonten.
 		</p>
 		<p>
-			Auch die Suche und der Kalender laufen vollständig in Ihrem Browser. Wenn Sie zu einem anderen
-			Tag wechseln oder das Suchfeld verwenden, lädt Ihr Browser die dafür nötigen Daten nach —
-			ausschließlich von dieser Website, nie von Dritten. Was Sie in das Suchfeld tippen, verlässt
-			Ihr Gerät nicht.
+			Auch die Suche und der Kalender laufen vollständig in Ihrem Browser. Sobald eine Seite geladen
+			ist, holt Ihr Browser außerdem das Programm für die Suche, damit sie sofort bereitsteht. Wenn
+			Sie zu einem anderen Tag wechseln oder das Suchfeld verwenden, lädt er die dafür nötigen Daten
+			nach — ausschließlich von dieser Website, nie von Dritten. Was Sie in das Suchfeld tippen,
+			verlässt Ihr Gerät nicht.
 		</p>
 
 		<h2>Hosting und Server-Logfiles</h2>

@@ -19,10 +19,14 @@
 	});
 </script>
 
-{#if dates}
+{#if dates && page.status === 404}
 	<!-- `pnpm dev` renders a missing date here, with the layout's data intact. -->
 	<FactPage {dates} notFound />
-{:else if stuck}
+{:else if dates || stuck}
+	<!-- Anything but a 404 says only that the page did not load, because that is all it knows: the
+	     same 500 is a page whose code could not be fetched (a visitor gone offline after the page
+	     loaded) and, in `pnpm dev`, a fact whose load threw, whose German error stays in the
+	     terminal. Neither is a day without a fact. -->
 	<main class="mx-auto max-w-2xl p-6">
 		<p class="text-gray-600">Diese Seite konnte nicht geladen werden.</p>
 		<p class="mt-2">

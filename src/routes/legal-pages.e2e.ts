@@ -65,6 +65,19 @@ test.describe('legal pages', () => {
 		});
 	}
 
+	// Offline after the page loaded, a link to a page whose code was never fetched fails inside the
+	// router, which draws the error page with the layout's data still in hand. It must say what
+	// happened — neither „Für diesen Tag gibt es keinen Fakt.“ nor a hint meant for `pnpm dev`.
+	test('admits a page that could not be loaded', async ({ page }) => {
+		await page.goto('/Fakt-des-Tages/datenschutz');
+		await page.waitForLoadState('networkidle');
+		await page.context().setOffline(true);
+
+		await page.getByRole('contentinfo').getByRole('link', { name: 'Impressum' }).click();
+
+		await expect(page.getByText('Diese Seite konnte nicht geladen werden.')).toBeVisible();
+	});
+
 	// Today's date is picked by the head script on `/`, which only a real page load runs: routed
 	// client-side, a link to `/` lands on the calendar with no day chosen. So every link to `/` has
 	// to opt out of the router — checked on every kind of page that has one, so it also catches such a

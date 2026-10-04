@@ -62,8 +62,13 @@ forever; `afterNavigate`'s `type` tells the two apart without storage, which the
 promises is never used. An earlier version keyed on `performance`'s navigation type, which
 describes the document rather than the step, and would have stranded anyone who had pressed F5
 earlier. Where the layout's data _is_ there — `pnpm dev` renders a missing date through the error
-page on its server — it shows the no-fact page itself. Today's cell skips the failing attempt
-altogether: it knows it has no page, so it is a real load from the start.
+page on its server — it shows the no-fact page itself, but only for a 404. Every other status reads
+„Diese Seite konnte nicht geladen werden.“, because the layout's data does not mean `pnpm dev`: a
+visitor gone offline who follows a link to a page whose code was never fetched gets a 500 there
+too, with the data still in hand. `admits a page that could not be loaded` in
+[legal-pages.e2e.ts](legal-pages.e2e.ts) goes offline and follows the footer link to the Impressum.
+Today's cell skips the failing attempt altogether: it knows it has no page, so it is a real load
+from the start.
 
 The first step from `/` or `/404` to a fact swaps route components, so `FactPage` mounts afresh
 and the displayed month and any search text start over once. Steps between facts keep it.
@@ -247,7 +252,7 @@ fetched meanwhile, then blocks every chunk and searches; verified by mutation bo
 at once and for not loading it early at all. A static import was weighed and passed over: it would
 have put its 5.7 KB gzipped on every page's critical path, ahead of the images. Accepted
 limitation: if that one early fetch fails, a browser without the spec change stays at „Suche nicht
-verfügbar“ until the page is reloaded.
+verfügbar“ until the page is reloaded, which the status asks for.
 
 `search.json` is different: the text of the whole archive, fetched only on focusing the box or the
 first keystroke, so a visitor who never searches never downloads it — the first test in
@@ -309,10 +314,12 @@ first keystroke, so a visitor who never searches never downloads it — the firs
   it is not ready. It keeps its size either way, so the page still arrives at its final height.
 - **The download is visible, and so is its failure.** The search could not wait or fail while its
   text was part of the page; now `search.json` can do both — and MiniSearch, once — and „Keine
-  Treffer“ would be a lie either way. Until the index exists the status reads „Suche wird geladen…“; if the download fails
-  it reads „Suche nicht verfügbar“, and the failed promise is forgotten so the next keystroke tries
-  again. `says so while its text is loading` and `says so when its text cannot be loaded` cover
-  them.
+  Treffer“ would be a lie either way. Until the index exists the status reads „Suche wird
+  geladen…“; if the download fails it reads „Suche nicht verfügbar — bitte die Seite neu laden“,
+  and the failed promise is forgotten so the next keystroke tries again. The status asks for the
+  reload because only that fixes every cause: a failed `search.json` recovers on the next
+  keystroke, a failed MiniSearch import may not (see how MiniSearch is loaded, above).
+  `says so while its text is loading` and `says so when its text cannot be loaded` cover them.
 - **The panel is absolutely positioned, and that is a requirement rather than a look.** In normal
   flow it shoved the calendar 200 px down the moment a query matched. An e2e test measures the
   month heading's top before and after typing; mutate the panel back to `static` and it fails by

@@ -579,7 +579,9 @@ test.describe('search', () => {
 	test('says so when its text cannot be loaded', async ({ page }) => {
 		await page.route('**/search.json', (route) => route.abort());
 		await page.getByLabel('Fakt suchen').fill('lang');
-		await expect(page.getByRole('status')).toHaveText('Suche nicht verfügbar');
+		await expect(page.getByRole('status')).toHaveText(
+			'Suche nicht verfügbar — bitte die Seite neu laden'
+		);
 
 		// Not for good: the next keystroke tries again, even one that leaves the query as it was.
 		await page.unroute('**/search.json');
