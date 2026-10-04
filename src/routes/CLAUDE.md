@@ -173,6 +173,23 @@ page has changed. It skips `popstate`, where SvelteKit restores the position the
 link inside a fact gets the same treatment, and the footer, outside `<main>`, scrolls to the top
 like any page change.
 
+**A step shows a spinner beside the date until the next fact is in.** SvelteKit fetches the target's
+`__data.json` first and changes the address only afterwards, so the browser itself shows no load —
+and its own indicator cannot be borrowed, because the router does not use the Navigation API, and
+faking a navigation through it would risk the history state SvelteKit keeps its scroll positions
+in. `navigating.to` from `$app/state` drives it, so every client-side step gets it — arrows, day
+cells, search hits, the random fact, Back — while real page loads keep the browser's. It is
+absolutely positioned off the date's right edge, so nothing in the bar moves: `shows a spinner
+beside the date while the next fact loads` holds the data back and compares every box in the bar,
+and fails with `absolute` removed. It fades in only after 100 ms (`starting:opacity-0` with a
+delayed transition), because on a fast connection a step keeps it mounted for 2–7 ms, preloaded by
+the hover or not — measured in Chromium, Firefox and WebKit in October 2026 — which is less than a frame but
+painted for exactly one whenever it straddles a frame boundary. Nothing tests the delay:
+`toBeVisible()` ignores opacity, and a regression only brings the flicker back. A browser without
+`@starting-style` shows the spinner at once. Keep `{#if}` on the date's own line, because a line break
+before it puts a trailing space into the date line's text, and two tests match that text with an
+anchored regex.
+
 **Do not compute that offset from the bar.** `offsetTop` on a _stuck_ sticky element reports where it
 is stuck — literally the scroll position — not where it belongs: scroll to 500 and it reports 500,
 whatever it read at rest. Any `scrollY > bar.offsetTop` test is therefore never true while pinned, and the

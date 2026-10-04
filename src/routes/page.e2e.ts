@@ -316,6 +316,34 @@ test.describe('fact arrows', () => {
 		await expect(arrow).toBeFocused();
 	});
 
+	// The step fetches `__data.json` before the address changes, which the browser shows nothing for.
+	// Every box in the bar is compared while the spinner is up, because it must not move a thing.
+	test('shows a spinner beside the date while the next fact loads', async ({ page }) => {
+		const { promise: held, resolve: release } = Promise.withResolvers<void>();
+		await page.route('**/2026-08-26/__data.json*', async (route) => {
+			await held;
+			await route.continue();
+		});
+		await page.goto('/Fakt-des-Tages/2026-08-23');
+
+		const spinner = page.getByRole('img', { name: 'Fakt wird geladen' });
+		const boxes = () =>
+			page.getByRole('link', { name: 'Vorheriger Fakt' }).evaluate((el) => {
+				const bar = el.parentElement!;
+				return [bar, ...bar.children].map((box) => box.getBoundingClientRect().toJSON());
+			});
+		await expect(spinner).toBeHidden();
+		const before = await boxes();
+
+		await page.getByRole('link', { name: 'Nächster Fakt' }).click();
+		await expect(spinner).toBeVisible();
+		expect(await boxes()).toEqual(before);
+
+		release();
+		await expect(page.getByText('26. August 2026', { exact: true })).toBeVisible();
+		await expect(spinner).toBeHidden();
+	});
+
 	// Both halves matter: it must move up when the bar has pinned, and stay put when it has not.
 	// An unconditional scroll would shove the calendar off screen for someone reading from the top.
 	test('brings back the start of the fact when the bar is pinned', async ({ page }) => {

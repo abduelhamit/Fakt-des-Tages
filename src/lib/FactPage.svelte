@@ -2,6 +2,7 @@
 	import { onMount, tick } from 'svelte';
 	import { afterNavigate, goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
+	import { navigating } from '$app/state';
 	import {
 		excerpt,
 		fromIsoDate,
@@ -431,7 +432,19 @@
 		class="sticky top-0 -mx-6 mt-6 flex items-center justify-between bg-linear-to-b from-white from-60% to-transparent px-6 pt-2 pb-8"
 	>
 		{@render arrow('‹', 'Vorheriger Fakt', !neighbours.previous, neighbours.previous)}
-		<p class="text-sm text-gray-600">{selectedLongDate}</p>
+		<!-- A client-side step fetches the next fact before the address changes, and the browser shows
+		     no load for it. The spinner says so beside the date, out of flow so nothing moves, and fades
+		     in only after 100 ms, so a step that finishes quickly does not flash it for a frame. No
+		     line break before `{#if}`: it would leave a trailing space in the date line's text. -->
+		<p class="relative text-sm text-gray-600">
+			{selectedLongDate}{#if navigating.to}
+				<span
+					role="img"
+					aria-label="Fakt wird geladen"
+					class="absolute top-1/2 left-full ml-2 size-4 -translate-y-1/2 animate-spin rounded-full border-2 border-sky-800 border-t-transparent transition-opacity delay-100 duration-500 starting:opacity-0"
+				></span>
+			{/if}
+		</p>
 		{@render arrow('›', 'Nächster Fakt', !neighbours.next, neighbours.next)}
 	</div>
 
