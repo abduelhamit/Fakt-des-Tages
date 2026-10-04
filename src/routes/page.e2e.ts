@@ -508,6 +508,38 @@ test.describe('search', () => {
 		expect(await top()).toBe(before);
 	});
 
+	// MiniSearch arrives after everything else on the page, images included, and from then on is
+	// in memory: a deploy that deletes its chunk, or the network going away, no longer matters.
+	// Fetched on demand it could fail for good — see `onMount` in FactPage.svelte.
+	test('loads MiniSearch after the images, and keeps it', async ({ page }) => {
+		let release!: () => void;
+		const held = new Promise<void>((resolve) => (release = resolve));
+		await page.route('**/fakten/**', async (route) => {
+			await held;
+			await route.continue();
+		});
+		const chunks: string[] = [];
+		page.on(
+			'request',
+			(req) => req.url().includes('/_app/immutable/chunks/') && chunks.push(req.url())
+		);
+
+		await page.goto('/Fakt-des-Tages/2026-08-31', { waitUntil: 'domcontentloaded' });
+		await expect(page.getByLabel('Fakt suchen')).toBeEnabled();
+		const hydration = chunks.length;
+		// A negative needs a window to look in: nothing new while the image is still on its way.
+		await page.waitForTimeout(500);
+		expect(chunks).toHaveLength(hydration);
+
+		release();
+		await expect.poll(() => chunks.length).toBe(hydration + 1);
+		await page.waitForLoadState('networkidle');
+
+		await page.route('**/_app/immutable/chunks/**', (route) => route.abort());
+		await page.getByLabel('Fakt suchen').fill('Wasserspeier');
+		await expect(page.getByRole('status')).toHaveText('1 Treffer');
+	});
+
 	// Without this the first query would announce „Keine Treffer“ while the text is still on its way.
 	test('says so while its text is loading', async ({ page }) => {
 		let release!: () => void;

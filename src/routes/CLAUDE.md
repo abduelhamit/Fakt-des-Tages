@@ -227,10 +227,26 @@ of the box missed both the transposition `Fernsehtrum` and the two-word `nintend
 strings, not prose; MiniSearch (5.9 KB) is a real inverted index with per-term edit distance and
 prefix matching, and found everything. Do not switch to Fuse without re-running that comparison.
 
-It loads behind a **dynamic `import()`**, together with `search.json`, triggered by focusing the
-box or the first keystroke, whichever comes first. Verified in the build: its chunk is not named
-anywhere in `index.html`, not even as a `modulepreload`, so a visitor who never searches never
-fetches it. The first test in [page.e2e.ts](page.e2e.ts) asserts the same for `search.json`.
+It loads behind a **dynamic `import()`, started once the page has finished loading** — at the
+`load` event, so after every image — or on focusing the box, if that comes first. Its chunk is not
+named anywhere in the built HTML, not even as a `modulepreload`, so it never competes with the page.
+It is not left until someone searches, as it once was, because a dynamic import fetched on demand
+could fail for good. Measured in Chromium, Firefox and WebKit in October 2026: after one failed
+import, every later `import()` of the same URL fails without a request, until the page is reloaded.
+The HTML spec dropped that caching in July 2026
+([whatwg/html#10327](https://github.com/whatwg/html/pull/10327)) and all three engines committed
+the change in August and September 2026, but a deploy cannot be fixed by any browser: it deletes
+the hashed chunk an open tab would ask for. Loaded early, the module is in memory before either can bite. `loads
+MiniSearch after the images, and keeps it` holds the fixture's image back to show nothing is
+fetched meanwhile, then blocks every chunk and searches; verified by mutation both for loading it
+at once and for not loading it early at all. A static import was weighed and passed over: it would
+have put its 5.7 KB gzipped on every page's critical path, ahead of the images. Accepted
+limitation: if that one early fetch fails, a browser without the spec change stays at „Suche nicht
+verfügbar“ until the page is reloaded.
+
+`search.json` is different: the text of the whole archive, fetched only on focusing the box or the
+first keystroke, so a visitor who never searches never downloads it — the first test in
+[page.e2e.ts](page.e2e.ts) asserts that. It is a plain `fetch`, which a browser does retry.
 
 - **The text is taken from the Markdown at build time,** by `factText` in
   [$lib/server/facts.ts](../lib/server/facts.ts), and `search.json` maps each date to it. The same
@@ -287,8 +303,8 @@ fetches it. The first test in [page.e2e.ts](page.e2e.ts) asserts the same for `s
   JavaScript, and a box that swallows what you type without answering is worse than one that admits
   it is not ready. It keeps its size either way, so the page still arrives at its final height.
 - **The download is visible, and so is its failure.** The search could not wait or fail while its
-  text was part of the page; now `search.json` can do both, and „Keine Treffer“ would be a lie
-  either way. Until the index exists the status reads „Suche wird geladen…“; if the download fails
+  text was part of the page; now `search.json` can do both — and MiniSearch, once — and „Keine
+  Treffer“ would be a lie either way. Until the index exists the status reads „Suche wird geladen…“; if the download fails
   it reads „Suche nicht verfügbar“, and the failed promise is forgotten so the next keystroke tries
   again. `says so while its text is loading` and `says so when its text cannot be loaded` cover
   them.

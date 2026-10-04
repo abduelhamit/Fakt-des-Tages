@@ -48,6 +48,15 @@
 		urlDate = isIsoDate(last) ? last : null;
 		// Shown only once the corrected month and message are in the DOM; see `hideUntilHydrated`.
 		tick().then(() => (document.documentElement.hidden = false));
+
+		// MiniSearch, fetched once everything else has — images included — so it never competes
+		// with the page, yet sits in memory before anyone searches. Fetched on demand instead, it
+		// failed for good: a browser that caches a failed import never asks again, and a deploy
+		// deletes the chunk an open tab would ask for. A failure here surfaces on the next search.
+		const preload = () => void import('minisearch').catch(() => {});
+		if (document.readyState === 'complete') preload();
+		else window.addEventListener('load', preload, { once: true });
+		return () => window.removeEventListener('load', preload);
 	});
 
 	/**
@@ -186,9 +195,10 @@
 	/**
 	 * The index, built once on first contact with the input, from `search.json`.
 	 *
-	 * Both it and MiniSearch — the only third-party code this page ships — are fetched only then,
-	 * so a visitor who never searches downloads neither and both stay off the critical path. A
-	 * failed fetch forgets the promise, so the next keystroke tries again.
+	 * The text is fetched only then, so a visitor who never searches never downloads it. MiniSearch
+	 * — the only third-party code this page ships — is usually in memory already, see `onMount`,
+	 * and the `import` here only covers a search that starts before the page has finished loading.
+	 * A failed fetch forgets the promise, so the next keystroke tries again.
 	 */
 	let index: Promise<MiniSearch<Doc>> | undefined;
 
