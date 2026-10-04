@@ -177,10 +177,6 @@
 
 	type Doc = { date: string; text: string };
 
-	/** How many hits the list shows. Beyond this the list is longer than the calendar under it, and
-	 *  a query that vague is better narrowed than scrolled. */
-	const MAX_HITS = 8;
-
 	let query = $state('');
 	let hits = $state<{ date: string; excerpt: string }[]>([]);
 	// Until the index exists there is nothing to count, and „Keine Treffer“ would be announced
@@ -244,14 +240,13 @@
 		// `query` here is deliberately outside the effect's tracking — it is a guard, not a
 		// dependency: only the query still in the box may write the list.
 		if (query.trim() !== trimmed) return;
-		// Every hit, ranked by score and capped at `MAX_HITS`. Substring matching does let a short
-		// query pick up unrelated tails — `turm` reaches `Kultur`, `Herzogtum` — but a real match
-		// always scores several times a fuzzy tail, so they sort to the bottom rather than into the
-		// way. Do not turn that into a relative cut: the gap is narrow enough at the bottom of the
-		// real matches to take `Türmen` with it, which CLAUDE.md records as tried and reverted.
+		// Every hit, ranked by score. Substring matching does let a short query pick up unrelated
+		// tails — `turm` reaches `Kultur`, `Herzogtum` — but a real match always scores several times
+		// a fuzzy tail, so they sort to the bottom rather than into the way. Do not turn that into a
+		// relative cut: the gap is narrow enough at the bottom of the real matches to take `Türmen`
+		// with it, which CLAUDE.md records as tried and reverted.
 		hits = mini
 			.search(trimmed, { fuzzy: 0.2, prefix: true, tokenize: words })
-			.slice(0, MAX_HITS)
 			.map((t) => ({ date: String(t.id), excerpt: excerpt(t.text, t.terms) }));
 	}
 
@@ -327,7 +322,7 @@
 			>
 				<p aria-hidden="true" class="px-3 py-2 text-sm text-gray-600">{hitSummary}</p>
 				{#if hits.length > 0}
-					<!-- `max-h-80` caps it and scrolls: a full `MAX_HITS` of hits is taller than a phone.
+					<!-- `max-h-80` caps it and scrolls: a common word matches every fact.
 					     A hit closes the list by navigating, which empties the box in `afterNavigate`. -->
 					<ul class="max-h-80 divide-y divide-gray-200 overflow-y-auto border-t border-gray-200">
 						{#each hits as t (t.date)}

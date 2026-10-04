@@ -302,14 +302,14 @@ first keystroke, so a visitor who never searches never downloads it — the firs
   trusting those figures — they move with the archive. **A query must be tokenised with `words`, not
   `indexTerms`** — the `tokenize`
   passed to `search()` is there for exactly that, and without it typing `turm` also asks for `urm`.
-- **Every hit is kept, ranked by score, capped at eight.** Substring matching does let a short query
+- **Every hit is kept, ranked by score.** Substring matching does let a short query
   pick up unrelated tails — `turm` reaches `Kultur`, `Herzogtum` and `Absturz` through short fuzzy
   suffixes — but those score around 3 against 15–17 for the real matches, so they sort below the
   answer instead of into it. A relative score cut was tried and taken back out: it removed the tail,
   but it also dropped `Türmen` on 2026-07-07, which is a genuine hit and only reachable at all
   because of the umlaut folding. Measured on the real archive, `turm` returns all four `Turm`
-  compounds first, then the tail, with `Türmen` last — eight in total, which is the cap rather than
-  the end of the list.
+  compounds first, then the tail. The list scrolls inside `max-h-80`, and a common word such as
+  `der` lists every fact in the archive, in a few milliseconds.
 - **`foldTerm` flattens diacritics, with `normalize('NFKD')` rather than a hand-written umlaut
   map.** The same one line that lets `Munchen` reach `München` also covers `Édouard`, `Småländer`,
   `Florianópolis`, `Pokémon`, `Maracanã`, `Ålesund` and `Hyōgo`, all of which are in the archive and
@@ -318,9 +318,8 @@ first keystroke, so a visitor who never searches never downloads it — the firs
   does not reach `München` — that half is given up knowingly.
   `finds a half-typed word` types a half-finished word on purpose, because the search runs on
   every keystroke and a part-word is the state a visitor is in for all but the last one.
-- **Three characters minimum, eight hits shown.** `MIN_QUERY_LENGTH` is one constant for both the
-  query minimum and the shortest indexed suffix, because a query shorter than the shortest suffix
-  could never match. Above eight hits the list is taller than the calendar under it.
+- **Three characters minimum.** `MIN_QUERY_LENGTH` is one constant for both the query minimum and
+  the shortest indexed suffix, because a query shorter than the shortest suffix could never match.
 - **The search is driven by an `$effect`, not `oninput`.** With `bind:value` the two would race on
   listener order; the effect runs once the state has already moved.
 - **Re-read `query` after the `await`.** Loading is asynchronous, so an earlier keystroke
