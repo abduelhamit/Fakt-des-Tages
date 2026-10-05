@@ -196,8 +196,9 @@ Consequences worth knowing before changing any of this:
   `Heute ist Freitag, der 13.`
 - **A number and what it belongs to are joined by a no-break space, and which one depends on what
   follows.** `25 Mio. $` takes **U+202F**, the narrow no-break space, in both gaps; `vor 35 Jahren`
-  takes **U+00A0**, the normal-width one. The boundary is Duden's: narrow before an abbreviation,
-  unit or symbol (`25 Mio.`, `1,1–1,3 Mrd.`, `70 %`, `20 °C`, `10 km`, `§ 5`) and inside a spaced
+  takes **U+00A0**, the normal-width one. The boundary is Duden's: narrow between a number and an
+  abbreviation, unit or symbol, whichever comes first (`25 Mio.`, `1,1–1,3 Mrd.`, `70 %`,
+  `20 °C`, `10 km`, `§ 5`, `Nr. 10292`) and inside a spaced
   abbreviation (`z. B.`, `u. a.`, `d. h.`); normal width before a spelled-out word the number
   counts (`vor 35 Jahren`, `90 Minuten`). Do not collapse the two onto one character, tempting as
   it is — DIN 5008 would allow a full space throughout, but measured in the page's own font at
@@ -241,6 +242,14 @@ Consequences worth knowing before changing any of this:
   `W.` to the ampersand. A name its owner writes unspaced stays unspaced: `F.A.O. Schwarz` binds
   only before `Schwarz`, and `E.T.` is a title, not initials. An `I.` ending a sentence
   (`Apple I.`) is the sentence-end case above and stays alone.
+- **A title abbreviated before a name binds to it with U+00A0, for the same reason:** `Mr. Watson`,
+  `Mr. Spock`, `Dr. No`, and a line ending in a bare `Dr.` reads as a finished sentence. Settled
+  in October 2026, when the archive was swept to match. Only a title _before_ the name: a suffix
+  after it, like `Roosevelt Jr.` or a regnal `Murad V.`, risks nothing at a line end that a
+  sentence would not, and keeps its ordinary space.
+- **`ca.` binds to the number after it with U+00A0, numeral or word alike:** `ca. 16 Stunden`,
+  `ca. drei Monate`. It is the title's failure again, a line ending in a bare `ca.`, and the
+  normal width because `ca.` qualifies the number rather than labelling it the way `Nr.` does.
 - **Hyphenation is the browser's job, and a soft hyphen is never to be typed into a fact.** The
   fact column is `prose hyphens-auto` on the `<article>` in
   [FactPage.svelte](src/lib/FactPage.svelte), which together with the `lang="de"` already on `<html>`
