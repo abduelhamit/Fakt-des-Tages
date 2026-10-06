@@ -4,7 +4,7 @@ export default defineConfig({
 	webServer: {
 		command: 'pnpm run build && pnpm run preview',
 		port: 4173,
-		// Builds against src/lib/facts.probe.yaml instead of the real facts — see vite.config.ts.
+		// Builds against src/lib/facts.probe.yaml instead of the real facts — see `facts()` in src/lib/server/facts.ts.
 		// Without this the whole suite would break every time someone edits the site's content.
 		env: { FACTS_PROBE: '1' }
 	},

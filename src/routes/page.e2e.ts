@@ -46,7 +46,7 @@ test('shows today on the visitor’s own clock, without fetching the facts', asy
 });
 
 // Everything below runs against src/lib/facts.probe.yaml, not the site's real content — see the
-// `FACTS_PROBE` note in vite.config.ts. Dates may therefore be named outright, and the clock is
+// `FACTS_PROBE` note on `facts()` in src/lib/server/facts.ts. Dates may therefore be named outright, and the clock is
 // pinned to `TODAY`.
 test.describe('home page', () => {
 	test.use({ timezoneId: 'Europe/Berlin' });

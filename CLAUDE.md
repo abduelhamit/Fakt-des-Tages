@@ -558,9 +558,9 @@ covered by the Playwright layer instead. If you do re-add a browser project, exp
 again.
 
 **The e2e suite builds against a fixture, not the real facts.**
-[playwright.config.ts](playwright.config.ts) sets `FACTS_PROBE=1`, and the small `facts-fixture`
-plugin in [vite.config.ts](vite.config.ts) swaps `src/lib/facts.yaml` for
-[src/lib/facts.probe.yaml](src/lib/facts.probe.yaml). That file is content-shaped on purpose —
+[playwright.config.ts](playwright.config.ts) sets `FACTS_PROBE=1`, and `facts()` in
+[src/lib/server/facts.ts](src/lib/server/facts.ts) then parses
+[src/lib/facts.probe.yaml](src/lib/facts.probe.yaml) instead of `src/lib/facts.yaml`. That file is content-shaped on purpose —
 three months, gaps inside August, two deliberately long entries — and the tests name its dates
 outright. Two long ones, because the jump test steps between them: land on a fact shorter than the
 viewport and the browser clamps the scroll, so the test measures the clamping instead of the jump. The point is that **editing the site's content can break the build but never a test**:
@@ -568,14 +568,14 @@ verified by swapping the real file for two entries in 2030 with no gaps and no l
 which every test still passed. The real file's validity is covered instead by the node test below,
 and by `pnpm build` itself.
 
-Two traps if you ever touch that swap. It cannot be keyed on `vite --mode`: SvelteKit runs a second
-build pass for prerendering that reports mode `production`, and that is the pass which reads the
-YAML, which was tried and observed to silently do nothing. And it has to swap the _resolved_ path,
-which is why it calls `this.resolve` first: `#lib/` is resolved by Vite only after an
-`enforce: 'pre'` hook has seen the import as written. The plugin used to match the specifier, which
-`$lib` had already turned into an absolute path; under SvelteKit 3 that version matched nothing,
-and the e2e build quietly used the real archive. The suite does notice — most of it fails, since the
-tests name the fixture's content — but only because they assert on it, so keep them doing so.
+The switch is read at runtime, during prerendering, not by the bundler. Every bundler-level swap
+failed silently at some point: `vite --mode` because SvelteKit's prerendering pass reports mode
+`production`, `resolve.alias` because `$lib` was already an absolute path by then, and the
+`resolveId` plugin that replaced both stopped matching when `$lib` became `#lib`, so the e2e build
+quietly used the real archive. Both YAML strings
+now sit in the server bundle, which is never deployed. Should the swap break again, the suite does
+notice — most of it fails, since the tests name the fixture's content — but only because they
+assert on it, so keep them doing so.
 
 Changing `facts.probe.yaml` _does_ change the tests. Shortening its 2026-08-23 or 2026-08-26 entry
 in particular leaves the sticky-bar and jump tests passing while proving nothing, because the page

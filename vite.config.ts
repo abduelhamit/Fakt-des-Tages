@@ -6,31 +6,6 @@ import { defineConfig } from 'vitest/config';
 import adapter from '@sveltejs/adapter-static';
 import { sveltekit } from '@sveltejs/kit/vite';
 
-/**
- * Swaps the facts file for a fixture, so the Playwright suite does not depend on the site's actual
- * content — [playwright.config.ts](playwright.config.ts) is what sets the variable. Editing
- * `src/lib/facts.yaml` can then break the build, but never a test.
- *
- * It is not keyed on `--mode`, because SvelteKit runs a second build pass for prerendering that
- * comes back as mode `production`, and that is the pass which actually reads the YAML. And it
- * swaps the *resolved* path, not the specifier: `#lib/` is resolved by Vite only after this hook
- * runs, so a pattern over the import as written would depend on how it is spelled.
- */
-const factsFixture: Plugin | false = process.env.FACTS_PROBE === '1' && {
-	name: 'facts-fixture',
-	enforce: 'pre',
-	async resolveId(id, importer) {
-		if (!id.includes('facts.yaml')) return null;
-		const resolved = await this.resolve(id, importer, { skipSelf: true });
-		return (
-			resolved && {
-				...resolved,
-				id: resolved.id.replace(/facts\.yaml(?=\?|$)/, 'facts.probe.yaml')
-			}
-		);
-	}
-};
-
 const base = '/Fakt-des-Tages';
 
 /**
@@ -62,7 +37,6 @@ const pagesPreview: Plugin = {
 
 export default defineConfig({
 	plugins: [
-		factsFixture,
 		pagesPreview,
 		tailwindcss(),
 		// SvelteKit's own options go here, at the top level of this object. Because this argument is

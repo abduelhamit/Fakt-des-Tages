@@ -3,6 +3,7 @@ import { imageMeta } from 'image-meta';
 import { Marked, Renderer, type Token } from 'marked';
 import YAML from 'yaml';
 import source from '#lib/facts.yaml?raw';
+import probe from '#lib/facts.probe.yaml?raw';
 import { isIsoDate, type FactHtml } from '#lib/facts.ts';
 
 // Everything here runs at build time only. It lives under `src/lib/server/` so that SvelteKit *fails
@@ -51,9 +52,13 @@ let archive: Map<string, string> | undefined;
  * all read it, and prerendering calls each of their loads separately, so without the cache the
  * whole file would be parsed again for every page. Lazy rather than at import, so the unit tests
  * of the functions in this file do not depend on the real file being valid.
+ *
+ * `FACTS_PROBE=1`, set by [playwright.config.ts](../../../playwright.config.ts), swaps in the
+ * fixture, so the e2e suite does not depend on the site's content: editing `facts.yaml` can then
+ * break the build, but never a test. Read here, during prerendering, rather than in a Vite plugin.
  */
 export function facts(): Map<string, string> {
-	return (archive ??= parseFacts(source));
+	return (archive ??= parseFacts(process.env.FACTS_PROBE === '1' ? probe : source));
 }
 
 /**

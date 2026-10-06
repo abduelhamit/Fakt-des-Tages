@@ -1,7 +1,7 @@
 # Testdaten für die Playwright-Tests — NICHT der Inhalt der Website.
 #
 # Sie ersetzt src/lib/facts.yaml nur beim Bauen für die Tests — wie, steht bei `FACTS_PROBE` in
-# vite.config.ts. `pnpm build` rührt sie nicht an, sie kann also nie online gehen.
+# src/lib/server/facts.ts. `pnpm build` rührt sie nicht an, sie kann also nie online gehen.
 #
 # Die Tests in src/routes/page.e2e.ts hängen an dieser Form: drei Monate, Lücken innerhalb des
 # Augusts und zwei bewusst lange Einträge am 23. und 26. Wer hier etwas ändert, ändert die Tests.
