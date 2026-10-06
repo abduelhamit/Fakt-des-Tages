@@ -406,7 +406,8 @@
 		</div>
 	</section>
 
-	<!-- Sticky, so a fact longer than the screen keeps its date and its navigation on screen.
+	<!-- Sticky, so a fact longer than the screen keeps its date and its navigation on screen. A
+	     `<nav>`, so a screen reader can jump to it like to the search and the calendar.
 	     The gradient is why there is no border under it: the text fades as it passes behind the
 	     bar rather than being clipped at an invisible edge. A border would also have to appear
 	     only once pinned, which CSS alone cannot tell — a fade is honest at every offset.
@@ -416,8 +417,9 @@
 	     behind the status bar with a colour sampled from the top row of the viewport, and only
 	     samples when that row is uniform across the whole width. See CLAUDE.md, under "The bar
 	     is full-bleed because of iOS", for the five alternatives already ruled out on-device. -->
-	<div
+	<nav
 		bind:this={bar}
+		aria-label="Durch die Fakten blättern"
 		class="sticky top-0 -mx-6 mt-6 flex items-center justify-between bg-linear-to-b from-white from-60% to-transparent px-6 pt-2 pb-8"
 	>
 		{@render arrow('‹', 'Vorheriger Fakt', !neighbours.previous, neighbours.previous)}
@@ -435,7 +437,7 @@
 			{/if}
 		</p>
 		{@render arrow('›', 'Nächster Fakt', !neighbours.next, neighbours.next)}
-	</div>
+	</nav>
 
 	{#if fact}
 		<!-- The YAML is a same-origin file in this repo, rendered at build time, so whoever can

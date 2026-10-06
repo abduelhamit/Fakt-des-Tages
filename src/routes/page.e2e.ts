@@ -6,12 +6,11 @@ const TODAY = new Date('2026-08-22T10:00:00Z');
 // A Friday the fixture has no fact for, between two that it has.
 const FACTLESS_DAY = new Date('2026-08-21T10:00:00Z');
 
+const dateBar = (page: Page) => page.getByRole('navigation', { name: 'Durch die Fakten blättern' });
+
 // Where the date bar comes to rest: the height of everything above it in one number. Always read it
 // before scrolling — on a *stuck* sticky element `offsetTop` reports the scroll position instead.
-const barRestingTop = (page: Page) =>
-	page
-		.getByRole('link', { name: 'Vorheriger Fakt' })
-		.evaluate((el) => (el.parentElement as HTMLElement).offsetTop);
+const barRestingTop = (page: Page) => dateBar(page).evaluate((el) => (el as HTMLElement).offsetTop);
 
 // Holds every request matching `url` until the returned function is called.
 async function holdBack(page: Page, url: string) {
@@ -334,10 +333,9 @@ test.describe('fact arrows', () => {
 
 		const spinner = page.getByRole('img', { name: 'Fakt wird geladen' });
 		const boxes = () =>
-			page.getByRole('link', { name: 'Vorheriger Fakt' }).evaluate((el) => {
-				const bar = el.parentElement!;
-				return [bar, ...bar.children].map((box) => box.getBoundingClientRect().toJSON());
-			});
+			dateBar(page).evaluate((bar) =>
+				[bar, ...bar.children].map((box) => box.getBoundingClientRect().toJSON())
+			);
 		await expect(spinner).toBeHidden();
 		const before = await boxes();
 
@@ -388,9 +386,9 @@ test.describe('fact arrows', () => {
 	test('stretches the date bar across the full width', async ({ page }) => {
 		await page.goto('/Fakt-des-Tages/2026-08-23');
 
-		const widths = await page.getByRole('link', { name: 'Vorheriger Fakt' }).evaluate((el) => ({
-			bar: (el.parentElement as HTMLElement).getBoundingClientRect().width,
-			main: el.closest('main')!.getBoundingClientRect().width
+		const widths = await dateBar(page).evaluate((bar) => ({
+			bar: bar.getBoundingClientRect().width,
+			main: bar.closest('main')!.getBoundingClientRect().width
 		}));
 		expect(widths.bar).toBe(widths.main);
 	});

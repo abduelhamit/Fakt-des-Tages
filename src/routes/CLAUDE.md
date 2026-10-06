@@ -160,7 +160,8 @@ have none. They are links like everything else, so the calendar follows them int
 for free — there is no second navigation path to keep in sync.
 
 The date and its two arrows are one `sticky top-0` bar, so a fact longer than the screen keeps both
-in view. It ends in a downward fade (`bg-linear-to-b from-white from-60% to-transparent` over a
+in view. The bar is a `<nav aria-label="Durch die Fakten blättern">`, a landmark beside the search and
+the calendar, and the e2e tests reach it by that name rather than through an arrow's parent. It ends in a downward fade (`bg-linear-to-b from-white from-60% to-transparent` over a
 `pb-8` tail) rather than a border, because a border only looks right once the bar is pinned and CSS
 alone cannot tell whether it is. Tailwind interpolates the gradient `in oklab`, which is what stops a
 white-to-transparent fade greying in the middle.
