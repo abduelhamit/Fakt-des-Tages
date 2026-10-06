@@ -134,7 +134,7 @@ testable. Split it when a second reader disagrees, not before. These decisions i
   its own. Two details there are deliberate and easy to undo by accident. The month arrows use
   `aria-disabled` rather than the native attribute — a natively disabled button drops keyboard focus
   to `<body>` the instant it is disabled, stranding the visitor who just pressed it — which is why
-  `shiftMonth` enforces the bound itself rather than trusting the attribute. The cursor rule in
+  the `arrow` snippet drops a bounded month arrow's click handler rather than trusting the attribute. The cursor rule in
   [layout.css](layout.css) matches on that same attribute (see Misc in the root CLAUDE.md), so swapping the
   mechanism here quietly makes a bounded arrow look clickable again. The fact arrows are links, and
   the one that reaches the edge of the archive loses its `href` under the visitor who just pressed

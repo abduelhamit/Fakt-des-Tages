@@ -13,6 +13,16 @@ const barRestingTop = (page: Page) =>
 		.getByRole('link', { name: 'Vorheriger Fakt' })
 		.evaluate((el) => (el.parentElement as HTMLElement).offsetTop);
 
+// Holds every request matching `url` until the returned function is called.
+async function holdBack(page: Page, url: string) {
+	const { promise, resolve } = Promise.withResolvers<void>();
+	await page.route(url, async (route) => {
+		await promise;
+		await route.continue();
+	});
+	return resolve;
+}
+
 // Deliberately says nothing about *which* fact is shown: on a clock nobody chose, `/` may land on
 // a fact or on a day without one, and both have to work.
 test('shows today on the visitor’s own clock, without fetching the facts', async ({ page }) => {
@@ -319,11 +329,7 @@ test.describe('fact arrows', () => {
 	// The step fetches `__data.json` before the address changes, which the browser shows nothing for.
 	// Every box in the bar is compared while the spinner is up, because it must not move a thing.
 	test('shows a spinner beside the date while the next fact loads', async ({ page }) => {
-		const { promise: held, resolve: release } = Promise.withResolvers<void>();
-		await page.route('**/2026-08-26/__data.json*', async (route) => {
-			await held;
-			await route.continue();
-		});
+		const release = await holdBack(page, '**/2026-08-26/__data.json*');
 		await page.goto('/Fakt-des-Tages/2026-08-23');
 
 		const spinner = page.getByRole('img', { name: 'Fakt wird geladen' });
@@ -560,11 +566,7 @@ test.describe('search', () => {
 	// in memory: a deploy that deletes its chunk, or the network going away, no longer matters.
 	// Fetched on demand it could fail for good — see `onMount` in FactPage.svelte.
 	test('loads MiniSearch after the images, and keeps it', async ({ page }) => {
-		const { promise: held, resolve: release } = Promise.withResolvers<void>();
-		await page.route('**/fakten/**', async (route) => {
-			await held;
-			await route.continue();
-		});
+		const release = await holdBack(page, '**/fakten/**');
 		const chunks: string[] = [];
 		page.on(
 			'request',
@@ -589,11 +591,7 @@ test.describe('search', () => {
 
 	// Without this the first query would announce „Keine Treffer“ while the text is still on its way.
 	test('says so while its text is loading', async ({ page }) => {
-		const { promise: held, resolve: release } = Promise.withResolvers<void>();
-		await page.route('**/search.json', async (route) => {
-			await held;
-			await route.continue();
-		});
+		const release = await holdBack(page, '**/search.json');
 
 		await page.getByLabel('Fakt suchen').fill('einzeilg');
 		await expect(page.getByRole('status')).toHaveText('Suche wird geladen…');

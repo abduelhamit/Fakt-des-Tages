@@ -1,6 +1,5 @@
-import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { factText, parseFacts, renderFact } from './facts';
+import { factText, facts, parseFacts, renderFact } from './facts';
 
 describe('parseFacts', () => {
 	it('reads single-line and block-scalar entries', () => {
@@ -50,31 +49,17 @@ describe('parseFacts', () => {
 });
 
 describe('src/lib/facts.yaml', () => {
-	const file = new URL('../facts.yaml', import.meta.url);
-
 	// The real file, not a fixture. A bad entry would also fail `pnpm build`, but this fails first
 	// and prints the German message naming the key, which is a far clearer signal in CI.
 	it('parses and is not empty', () => {
-		expect(parseFacts(readFileSync(file, 'utf8')).size).toBeGreaterThan(0);
+		expect(facts().size).toBeGreaterThan(0);
 	});
 
 	// The images are in Git LFS, and a checkout without it substitutes a ~130-byte pointer file for
-	// each one. That builds and deploys perfectly green, and the first sign of trouble is every
-	// image on the site broken at once — so the gate has to be what notices. Covers a mistyped path
-	// too.
-	it('references images that exist and are real files, not LFS pointers', () => {
-		// Over the parsed entries, not the raw file: the header comment carries an example path.
-		const facts = [...parseFacts(readFileSync(file, 'utf8')).values()];
-		const paths = facts.flatMap((f) =>
-			[...f.matchAll(/!\[[^\]]*\]\((fakten\/[^)]+)\)/g)].map((t) => t[1])
-		);
-		expect(paths.length).toBeGreaterThan(0);
-
-		for (const path of new Set(paths)) {
-			const file = new URL(`../../../static/${path}`, import.meta.url);
-			const head = readFileSync(file).subarray(0, 42).toString('binary');
-			expect(head, `${path} is an LFS pointer file`).not.toContain('git-lfs.github.com');
-		}
+	// each one. `renderFact` measures every image and throws on a pointer or a mistyped path, naming
+	// it, so rendering every entry here is what makes the gate notice before the build does.
+	it('renders every entry, which measures every image', () => {
+		for (const [date, fact] of facts()) expect(() => renderFact(fact), date).not.toThrow();
 	});
 });
 

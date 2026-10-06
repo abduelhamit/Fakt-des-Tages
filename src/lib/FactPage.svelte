@@ -71,27 +71,18 @@
 
 	const selected = $derived(fact?.date ?? urlDate ?? undefined);
 
-	const firstOfMonth = (iso: string) => {
-		const day = fromIsoDate(iso);
-		return new Date(day.getFullYear(), day.getMonth(), 1);
-	};
 	/**
 	 * The first of the month on display: the selection's, or the latest fact's until there is one.
 	 * The month arrows assign to it, which holds until the selection moves again. Only an empty
 	 * archive falls through to the build's clock, and then there is nothing to show anyway.
 	 */
-	let month = $derived(firstOfMonth(selected ?? dates.at(-1) ?? toIsoDate(new Date())));
+	let month = $derived(
+		fromIsoDate(`${(selected ?? dates.at(-1) ?? toIsoDate(new Date())).slice(0, 7)}-01`)
+	);
 
-	/**
-	 * Move the displayed month, if the archive reaches that far. The bound is enforced here and not
-	 * only on the buttons, because they use `aria-disabled` rather than the native attribute: a
-	 * button that goes natively `disabled` under the visitor who just pressed it drops keyboard
-	 * focus to `<body>` with no announcement, which is exactly the moment they need it most.
-	 */
+	// The bound is enforced by the `arrow` snippet, which drops the handler of a disabled arrow.
 	function shiftMonth(steps: number) {
-		const target = new Date(month.getFullYear(), month.getMonth() + steps, 1);
-		const targetMonth = toIsoDate(target).slice(0, 7);
-		if (targetMonth >= bounds.from && targetMonth <= bounds.to) month = target;
+		month = new Date(month.getFullYear(), month.getMonth() + steps, 1);
 	}
 
 	// Both measured after a navigation: the bar for its height, the fact for where it sits in normal
@@ -156,9 +147,13 @@
 	const shownMonth = $derived(toIsoDate(month).slice(0, 7));
 	const grid = $derived(monthGrid(month.getFullYear(), month.getMonth()));
 
-	const monthName = $derived(month.toLocaleDateString('de-DE', { month: 'long', year: 'numeric' }));
-	const longDate = (iso: string) =>
-		fromIsoDate(iso).toLocaleDateString('de-DE', { dateStyle: 'long' });
+	// Built once: `toLocaleDateString` with options builds a new formatter on every call, which the
+	// search results and the day labels would otherwise pay for on each keystroke and each step.
+	const monthFormat = new Intl.DateTimeFormat('de-DE', { month: 'long', year: 'numeric' });
+	const longFormat = new Intl.DateTimeFormat('de-DE', { dateStyle: 'long' });
+	const fullFormat = new Intl.DateTimeFormat('de-DE', { dateStyle: 'full' });
+	const monthName = $derived(monthFormat.format(month));
+	const longDate = (iso: string) => longFormat.format(fromIsoDate(iso));
 	const selectedLongDate = $derived(selected && longDate(selected));
 	const title = $derived(
 		selectedLongDate ? `${selectedLongDate} – Fakt des Tages` : 'Fakt des Tages'
@@ -167,8 +162,10 @@
 	// What the page says where a fact would be. Before hydration only the route is known: `/404`
 	// is served for a date, `/` has not been given one yet, and without JavaScript never will be.
 	const message = $derived.by(() => {
-		if (selected && selected === today) return 'Für heute gibt es keinen Fakt.';
-		if (selected) return 'Für diesen Tag gibt es keinen Fakt.';
+		if (selected)
+			return selected === today
+				? 'Für heute gibt es keinen Fakt.'
+				: 'Für diesen Tag gibt es keinen Fakt.';
 		if (urlDate === null) return 'Diese Seite gibt es nicht.';
 		return notFound ? 'Für diesen Tag gibt es keinen Fakt.' : 'Wähle im Kalender einen Tag.';
 	});
@@ -178,7 +175,8 @@
 	type Doc = { date: string; text: string };
 
 	let query = $state('');
-	let hits = $state<{ date: string; excerpt: string }[]>([]);
+	// Raw: only ever replaced, never mutated, so a deep proxy per hit would buy nothing.
+	let hits = $state.raw<{ date: string; excerpt: string }[]>([]);
 	// Until the index exists there is nothing to count, and „Keine Treffer“ would be announced
 	// as an answer while the text is still on its way.
 	let ready = $state(false);
@@ -356,14 +354,10 @@
 	</div>
 
 	<section class="mt-6" aria-label="Kalender">
-		<!-- `aria-disabled` until hydration, like the random fact: a button does nothing without
-		     JavaScript, so it must not look as if it would. -->
 		<div class="flex items-center justify-between">
-			{@render arrow('‹', 'Vorheriger Monat', !today || shownMonth <= bounds.from, () =>
-				shiftMonth(-1)
-			)}
+			{@render arrow('‹', 'Vorheriger Monat', shownMonth <= bounds.from, () => shiftMonth(-1))}
 			<h2 class="font-semibold">{monthName}</h2>
-			{@render arrow('›', 'Nächster Monat', !today || shownMonth >= bounds.to, () => shiftMonth(1))}
+			{@render arrow('›', 'Nächster Monat', shownMonth >= bounds.to, () => shiftMonth(1))}
 		</div>
 
 		<!-- Six day rows are always in the template, not just the ones this month fills: a grid is
@@ -389,7 +383,7 @@
 					<a
 						href={resolve('/[date]', { date })}
 						data-sveltekit-reload={!hasFact.has(date) || undefined}
-						aria-label={fromIsoDate(date).toLocaleDateString('de-DE', { dateStyle: 'full' }) +
+						aria-label={fullFormat.format(fromIsoDate(date)) +
 							(date === selected ? ' (angezeigt)' : '')}
 						aria-current={date === today ? 'date' : undefined}
 						class={[
@@ -456,10 +450,13 @@
 
 <!--
 	Every arrow on the page: the two that page the calendar are buttons, the two beside the fact are
-	links to the neighbouring fact, passed as its date. Both carry `aria-disabled` rather than going inert natively, for
-	the reason spelled out on `shiftMonth`: a bounded fact arrow loses its `href` but keeps its role
-	and its `tabindex`, so the visitor who just stepped onto the last fact keeps focus on it. That is
-	also why each month arrow passes a handler that re-checks its own bound. `gray-400` is only
+	links to the neighbouring fact, passed as its date. Both carry `aria-disabled` rather than going
+	inert natively: a control that goes natively `disabled` under the visitor who just pressed it
+	drops keyboard focus to `<body>` with no announcement, which is exactly the moment they need it
+	most. So a bounded fact arrow loses its `href` but keeps its role and its `tabindex`, and a
+	bounded month arrow keeps its focus but loses its handler. A button is also disabled until
+	hydration, like the random fact: it does nothing without JavaScript, so it must not look as if it
+	would. `gray-400` is only
 	acceptable on an *inactive* control, which WCAG exempts; readable text stays at `gray-600`.
 
 	A snippet rather than a hoisted `const` for the class list: Prettier's Tailwind plugin sorts
@@ -473,9 +470,10 @@
 	target: string | undefined | (() => void)
 )}
 	{#if typeof target === 'function'}
+		{@const inert = disabled || !today}
 		<button
-			onclick={target}
-			aria-disabled={disabled}
+			onclick={inert ? undefined : target}
+			aria-disabled={inert}
 			aria-label={label}
 			class="rounded px-3 py-1 text-xl leading-none text-sky-800 hover:bg-sky-50 aria-disabled:cursor-default aria-disabled:text-gray-400 aria-disabled:hover:bg-transparent"
 			>{glyph}</button

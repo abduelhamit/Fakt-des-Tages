@@ -365,8 +365,8 @@ Consequences worth knowing before changing any of this:
   check notices. Two consequences, both load-bearing:
   - `actions/checkout` in [deploy.yml](.github/workflows/deploy.yml) needs **`lfs: true`**. Without
     it the build gets 130-byte pointer files, copies them into `build/fakten/` and deploys every
-    image on the site broken. The gate test below reads the file headers to catch that, and since
-    `renderFact` measures every image, `pnpm build` itself fails on a pointer too.
+    image on the site broken. `renderFact` measures every image, so the gate test below and
+    `pnpm build` both fail on a pointer.
   - Adding or replacing an image needs a local clone with `git lfs install`. Editing the _text_ of
     a fact in GitHub's web editor is unaffected.
 - **Every image is AVIF 4:4:4, and that was measured, not assumed.** In October 2026 the whole
@@ -598,11 +598,9 @@ apart: the unpinned test is the only one that proves the page works on a clock n
 [src/lib/server/facts.spec.ts](src/lib/server/facts.spec.ts) parses the **real** facts file, not just
 fixtures, and that test runs in the gate. It is what stops a typo pushed from GitHub's web editor
 from deploying green and taking the site down; verified to fail, naming the bad key. Do not weaken
-it to a fixture. It also walks every `fakten/…` path a fact references and reads the first bytes of
-each file, which catches both a mistyped path and an LFS pointer left behind by a checkout without
-`lfs: true` — the one failure mode that is otherwise completely silent. Both verified by mutation.
-Note it scans the _parsed_ entries rather than the raw YAML, because the file's header comment
-contains an example image path that any regex over the raw text will happily match. The same file
+it to a fixture. It also renders every entry, and since `renderFact` measures every image, that
+catches both a mistyped path and an LFS pointer left behind by a checkout without `lfs: true` — the
+one failure mode that would otherwise surface only in `pnpm build`. The same file
 tests `factText`, the search's and the description's text: no markup, no link target, alt texts
 padded apart. Verified by mutation for the padding and for a link's target.
 
