@@ -151,8 +151,12 @@ imports that file with Vite's `?raw` and parses it once per build,
 **during prerendering**, and [+layout.server.ts](src/routes/+layout.server.ts) hands every page the
 sorted list of dates. The browser receives finished HTML. At runtime it fetches only files the
 build wrote, from the same origin: the search's MiniSearch chunk once the page has loaded, a day's
-`__data.json` when it steps there, and `search.json` when the search box is first focused. The
-Datenschutz page names all three, so a new runtime fetch belongs there too.
+`__data.json` when it steps there, `search.json` when the search box is first focused, and
+`_app/version.json` whenever the tab regains focus or becomes visible, or a client-side step fails —
+a step to a day without a fact, for one. That last one is SvelteKit checking for a new deploy, and
+it cannot be switched off; only SvelteKit 3's hourly poll can, and is
+(`version: { pollInterval: 0 }`). The Datenschutz page names all four, so a new runtime fetch
+belongs there too.
 
 **Do not move this to a runtime `fetch()` to avoid rebuilds.** Every push to `main`, including an
 edit made in GitHub's web UI, already triggers a full rebuild and deploy via
@@ -164,7 +168,7 @@ Consequences worth knowing before changing any of this:
   type, the pure date helpers (`toIsoDate`, `fromIsoDate`, `isIsoDate`, `monthGrid`) and the
   search's (`words`, `indexTerms`, `foldTerm`, `excerpt`), and is imported by
   [FactPage.svelte](src/lib/FactPage.svelte), so anything added there ships to the client.
-  `isIsoDate` lives here rather than in `$lib/server/` because the page served for a day without a
+  `isIsoDate` lives here rather than in `src/lib/server/` because the page served for a day without a
   fact reads the date out of the address bar with it — that _is_ a trust boundary, unlike the
   facts file.
 - **`FactHtml` is a branded string, and the brand needs an anchor.** `renderFact` is the only place
@@ -474,11 +478,17 @@ directly to `sveltekit({ ... })` in [vite.config.ts](vite.config.ts); when that 
 SvelteKit ignores `svelte.config.js` entirely (it only logs a warning). `KitConfig` keys go at the
 **top level** of that object — `adapter`, `paths`, `prerender`, … — alongside `compilerOptions`.
 
-Two things are configured there today:
+Besides `paths` (see below), three things are configured there today:
 
 - `adapter: adapter()` — `@sveltejs/adapter-static`.
 - `compilerOptions.runes: true` for everything outside `node_modules`. **Runes are mandatory**:
   `$props`, `$state`, `$derived`, `$effect`. `export let` and legacy reactive `$:` will not compile.
+- `version.pollInterval: 0` — see the runtime fetches under the content pipeline.
+
+**`$lib` is gone since SvelteKit 3; the alias is `#lib`,** a Node subpath import declared in the
+`imports` field of [package.json](package.json). Imports name the file with its extension —
+`#lib/facts.ts`, `#lib/FactPage.svelte` — which `$app/tsconfig`, the base of
+[tsconfig.json](tsconfig.json), allows.
 
 ## Static build / GitHub Pages
 
@@ -560,9 +570,12 @@ and by `pnpm build` itself.
 
 Two traps if you ever touch that swap. It cannot be keyed on `vite --mode`: SvelteKit runs a second
 build pass for prerendering that reports mode `production`, and that is the pass which reads the
-YAML. And it cannot be a `resolve.alias`: by the time an alias could fire, `$lib` has already become
-an absolute path, so no `$lib/facts.yaml` pattern ever matches. Both were tried and observed to
-silently do nothing.
+YAML, which was tried and observed to silently do nothing. And it has to swap the _resolved_ path,
+which is why it calls `this.resolve` first: `#lib/` is resolved by Vite only after an
+`enforce: 'pre'` hook has seen the import as written. The plugin used to match the specifier, which
+`$lib` had already turned into an absolute path; under SvelteKit 3 that version matched nothing,
+and the e2e build quietly used the real archive. The suite does notice — most of it fails, since the
+tests name the fixture's content — but only because they assert on it, so keep them doing so.
 
 Changing `facts.probe.yaml` _does_ change the tests. Shortening its 2026-08-23 or 2026-08-26 entry
 in particular leaves the sticky-bar and jump tests passing while proving nothing, because the page

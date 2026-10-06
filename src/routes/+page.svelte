@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import FactPage from '$lib/FactPage.svelte';
+	import FactPage from '#lib/FactPage.svelte';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { PROVIDER } from '$lib/provider';
+	import { PROVIDER } from '#lib/provider.ts';
 	import { resolve } from '$app/paths';
 </script>
 

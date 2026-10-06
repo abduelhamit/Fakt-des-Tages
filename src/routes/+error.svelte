@@ -2,7 +2,7 @@
 	import { afterNavigate } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
-	import FactPage from '$lib/FactPage.svelte';
+	import FactPage from '#lib/FactPage.svelte';
 
 	const dates: readonly string[] | undefined = page.data.dates;
 	let stuck = $state(false);

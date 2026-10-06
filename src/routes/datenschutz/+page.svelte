@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { PROVIDER } from '$lib/provider';
+	import { PROVIDER } from '#lib/provider.ts';
 	import { resolve } from '$app/paths';
 </script>
 
@@ -33,8 +33,10 @@
 			Auch die Suche und der Kalender laufen vollständig in Ihrem Browser. Sobald eine Seite geladen
 			ist, holt Ihr Browser außerdem das Programm für die Suche, damit sie sofort bereitsteht. Wenn
 			Sie zu einem anderen Tag wechseln oder das Suchfeld verwenden, lädt er die dafür nötigen Daten
-			nach — ausschließlich von dieser Website, nie von Dritten. Was Sie in das Suchfeld tippen,
-			verlässt Ihr Gerät nicht.
+			nach. Kehren Sie aus einem anderen Tab oder Programm zu dieser Seite zurück oder lässt sich
+			ein Tag nicht laden, fragt er kurz nach, ob es inzwischen eine neue Version der Website gibt.
+			All das ruft er ausschließlich von dieser Website ab, nie von Dritten. Was Sie in das Suchfeld
+			tippen, verlässt Ihr Gerät nicht.
 		</p>
 
 		<h2>Hosting und Server-Logfiles</h2>

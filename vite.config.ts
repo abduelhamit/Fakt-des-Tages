@@ -11,16 +11,23 @@ import { sveltekit } from '@sveltejs/kit/vite';
  * content — [playwright.config.ts](playwright.config.ts) is what sets the variable. Editing
  * `src/lib/facts.yaml` can then break the build, but never a test.
  *
- * Two things this deliberately is *not*. It is not keyed on `--mode`, because SvelteKit runs a
- * second build pass for prerendering that comes back as mode `production`, and that is the pass
- * which actually reads the YAML. And it is not a `resolve.alias`, because by the time an alias
- * could fire, `$lib` is already an absolute path and no `$lib/facts.yaml` pattern matches.
+ * It is not keyed on `--mode`, because SvelteKit runs a second build pass for prerendering that
+ * comes back as mode `production`, and that is the pass which actually reads the YAML. And it
+ * swaps the *resolved* path, not the specifier: `#lib/` is resolved by Vite only after this hook
+ * runs, so a pattern over the import as written would depend on how it is spelled.
  */
-const factsFixture = process.env.FACTS_PROBE === '1' && {
+const factsFixture: Plugin | false = process.env.FACTS_PROBE === '1' && {
 	name: 'facts-fixture',
-	enforce: 'pre' as const,
-	resolveId(id: string) {
-		return id.includes('/src/lib/facts.yaml') ? id.replace('facts.yaml', 'facts.probe.yaml') : null;
+	enforce: 'pre',
+	async resolveId(id, importer) {
+		if (!id.includes('facts.yaml')) return null;
+		const resolved = await this.resolve(id, importer, { skipSelf: true });
+		return (
+			resolved && {
+				...resolved,
+				id: resolved.id.replace(/facts\.yaml(?=\?|$)/, 'facts.probe.yaml')
+			}
+		);
 	}
 };
 
@@ -71,7 +78,11 @@ export default defineConfig({
 			// Runtime fetches must be resolved through `asset()` or `resolve()` from '$app/paths'.
 			// Absolute asset paths, because 404.html is served at whatever depth was asked for, and
 			// a relative `./_app/…` from `/Fakt-des-Tages/a/b` points nowhere.
-			paths: { base, relative: false }
+			paths: { base, relative: false },
+			// No hourly `version.json` request from a tab left open: nothing here reads `updated`.
+			// The check on focus and on a tab becoming visible cannot be switched off, which is why
+			// the Datenschutz page names that request.
+			version: { pollInterval: 0 }
 		})
 	],
 	test: {

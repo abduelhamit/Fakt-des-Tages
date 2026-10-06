@@ -1,4 +1,4 @@
-import { facts } from '$lib/server/facts';
+import { facts } from '#lib/server/facts.ts';
 import type { LayoutServerLoad } from './$types';
 
 /**

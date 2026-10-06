@@ -2,10 +2,10 @@ import { readFileSync } from 'node:fs';
 import { imageMeta } from 'image-meta';
 import { Marked, Renderer, type Token } from 'marked';
 import YAML from 'yaml';
-import source from '$lib/facts.yaml?raw';
-import { isIsoDate, type FactHtml } from '$lib/facts';
+import source from '#lib/facts.yaml?raw';
+import { isIsoDate, type FactHtml } from '#lib/facts.ts';
 
-// Everything here runs at build time only. It lives under `$lib/server/` so that SvelteKit *fails
+// Everything here runs at build time only. It lives under `src/lib/server/` so that SvelteKit *fails
 // the build* if it is ever imported from client code — which is what keeps `yaml` and `marked` out
 // of the browser bundle, rather than relying on tree-shaking to notice.
 

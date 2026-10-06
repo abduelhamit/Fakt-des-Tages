@@ -14,7 +14,7 @@
 		toIsoDate,
 		words,
 		type FactHtml
-	} from '$lib/facts';
+	} from '#lib/facts.ts';
 	import type MiniSearch from 'minisearch';
 
 	/**
@@ -101,7 +101,7 @@
 	let bar = $state<HTMLElement>();
 	let factText = $state<HTMLElement>();
 
-	// Every link in `<main>` carries `data-sveltekit-noscroll`, so SvelteKit leaves the scroll
+	// Every link in `<main>` carries `data-sveltekit-reset="false"`, so SvelteKit leaves the scroll
 	// position alone and this decides instead. `enter` is the first load, and on `popstate`
 	// SvelteKit restores the position the visitor left.
 	afterNavigate(({ type }) => {
@@ -134,10 +134,10 @@
 	const otherFacts = $derived(dates.filter((date) => date !== selected));
 
 	/** A button rather than a link, because its target is only drawn when it is pressed. Through
-	 *  `afterNavigate` like every link, hence `noScroll`. */
+	 *  `afterNavigate` like every link, hence `reset: false`. */
 	function randomFact() {
 		const target = otherFacts[Math.floor(Math.random() * otherFacts.length)];
-		if (target) goto(resolve('/[date]', { date: target }), { noScroll: true, keepFocus: true });
+		if (target) goto(resolve('/[date]', { date: target }), { reset: false });
 	}
 
 	// How far the month arrows reach. Today and the selection count alongside the facts, so a
@@ -275,10 +275,10 @@
 	{/if}
 </svelte:head>
 
-<!-- `noscroll` and `keepfocus` reach every link in here: the scroll position is `afterNavigate`'s
-     to decide, and a keyboard visitor stepping through the facts stays on the arrow they pressed.
-     The footer is outside on purpose and navigates like any other page. -->
-<main class="mx-auto max-w-2xl p-6" data-sveltekit-noscroll data-sveltekit-keepfocus>
+<!-- `reset="false"` reaches every link in here, keeping both scroll position and focus: the scroll
+     position is `afterNavigate`'s to decide, and a keyboard visitor stepping through the facts stays
+     on the arrow they pressed. The footer is outside on purpose and navigates like any other page. -->
+<main class="mx-auto max-w-2xl p-6" data-sveltekit-reset="false">
 	<!-- The way back to today. Once hydrated it links today's date itself, so a click on today's
 	     page replaces the history entry instead of stacking an identical one. Before that it is `/`,
 	     which needs a real page load like every link to `/`: the head script there is what picks

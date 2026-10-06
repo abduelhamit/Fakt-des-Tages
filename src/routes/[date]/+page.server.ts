@@ -1,6 +1,6 @@
 import { error } from '@sveltejs/kit';
-import { excerpt, type FactHtml } from '$lib/facts';
-import { facts, factText, renderFact } from '$lib/server/facts';
+import { excerpt, type FactHtml } from '#lib/facts.ts';
+import { facts, factText, renderFact } from '#lib/server/facts.ts';
 import type { EntryGenerator, PageServerLoad } from './$types';
 
 /** One page per fact. Nothing links to all of them, so the prerenderer is told outright. */

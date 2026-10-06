@@ -303,7 +303,7 @@ test.describe('fact arrows', () => {
 	}
 
 	// The arrow loses its `href` under the visitor who just pressed it. Keeping the element, its role
-	// and a `tabindex`, plus `keepfocus` on the navigation, is what leaves focus where it was.
+	// and a `tabindex`, plus `reset="false"` on the navigation, is what leaves focus where it was.
 	test('keeps focus on the arrow that reached the edge', async ({ page }) => {
 		await page.goto('/Fakt-des-Tages/2026-08-31');
 

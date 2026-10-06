@@ -1,5 +1,4 @@
-import { json } from '@sveltejs/kit';
-import { facts, factText } from '$lib/server/facts';
+import { facts, factText } from '#lib/server/facts.ts';
 
 export const prerender = true;
 
@@ -8,4 +7,4 @@ export const prerender = true;
  * focused — so a visitor who never searches never downloads it, and no page carries it.
  */
 export const GET = () =>
-	json(Object.fromEntries([...facts()].map(([date, fact]) => [date, factText(fact)])));
+	Response.json(Object.fromEntries([...facts()].map(([date, fact]) => [date, factText(fact)])));

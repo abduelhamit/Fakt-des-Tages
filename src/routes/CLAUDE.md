@@ -37,7 +37,8 @@ home page only by a real page load` in [legal-pages.e2e.ts](legal-pages.e2e.ts) 
   such link on a fact page, a 404 page and both legal pages; verified by removing the attribute
   from the Impressum's link.
 - **Once hydrated, the heading links today's date directly,** not `/`. A click on today's own page
-  is then a link to the current address, which SvelteKit turns into a replace — linking `/` there
+  is then a link to the current address, which SvelteKit turns into a replace (since SvelteKit 3
+  one that fetches the day's `__data.json` again). Linking `/` there
   stacked two identical entries, and Back looked dead. `adds no history entry on today’s own page`
   waits for each click's history update before pressing Back: SvelteKit finishes that navigation
   after `click()` returns, and a Back that overtakes it gets rewritten to the page it left. No
@@ -137,8 +138,8 @@ testable. Split it when a second reader disagrees, not before. These decisions i
   [layout.css](layout.css) matches on that same attribute (see Misc in the root CLAUDE.md), so swapping the
   mechanism here quietly makes a bounded arrow look clickable again. The fact arrows are links, and
   the one that reaches the edge of the archive loses its `href` under the visitor who just pressed
-  it — so it keeps its element, takes `role="link"` and `tabindex="0"`, and `keepfocus` on the
-  navigation leaves focus on it. Dropping either the `tabindex` or `keepfocus` fails `keeps focus on
+  it — so it keeps its element, takes `role="link"` and `tabindex="0"`, and `reset="false"` on
+  the navigation leaves focus on it. Dropping either the `tabindex` or the attribute fails `keeps focus on
 the arrow that reached the edge`. And the selected day is named in its `aria-label`
   (`… (angezeigt)`) instead of carrying `aria-pressed`, which would claim toggle semantics that a
   single-select set does not have. Both have e2e tests, both verified to fail when reverted. Note Playwright honours `aria-disabled` in its actionability checks, so a test
@@ -167,7 +168,8 @@ white-to-transparent fade greying in the middle.
 Stepping to another fact from below the point where the bar pins scrolls back up to it, so the next
 fact opens at its top instead of somewhere in its middle. Upwards only: scrolling unconditionally
 would shove the calendar off screen for a visitor who was already at the top. `<main>` carries
-`data-sveltekit-noscroll`, so SvelteKit leaves the position alone for every link inside it, and an
+`data-sveltekit-reset="false"`, so SvelteKit leaves the position and the focus alone for every link
+inside it, and an
 `afterNavigate` in `FactPage` does this instead — measuring the new fact, since it runs once the
 page has changed. It skips `popstate`, where SvelteKit restores the position the visitor left. A
 link inside a fact gets the same treatment, and the footer, outside `<main>`, scrolls to the top
@@ -276,7 +278,7 @@ first keystroke, so a visitor who never searches never downloads it — the firs
 [page.e2e.ts](page.e2e.ts) asserts that. It is a plain `fetch`, which a browser does retry.
 
 - **The text is taken from the Markdown at build time,** by `factText` in
-  [$lib/server/facts.ts](../lib/server/facts.ts), and `search.json` maps each date to it. The same
+  [src/lib/server/facts.ts](../lib/server/facts.ts), and `search.json` maps each date to it. The same
   text gives each fact page its `description` and `og:description`. It used to be recovered in the
   browser from the HTML every page carried, with `DOMParser` — but a page carries one fact now, and
   a separate download of HTML would cost more than text for nothing. A walk over marked's tokens
@@ -359,7 +361,7 @@ a search and the landmark should not claim it — which also means the hit panel
 query is running, exactly as the panel covers the calendar.
 
 - **A button calling `goto`, not a link,** because its target is drawn only when it is pressed.
-  With `noScroll` and `keepFocus`, so `afterNavigate` pulls the fact back under a pinned bar exactly
+  With `reset: false`, so `afterNavigate` pulls the fact back under a pinned bar exactly
   as it does for the arrows, and there is no second navigation path to keep in step.
 - **It never returns the fact already on screen.** A repeat, however rare, makes the button look
   broken. The e2e test stubs `Math.random` so the pick is deterministic, and
@@ -405,7 +407,7 @@ ladungsfähige Anschrift even though nothing here is commercial.
   prerender crawler refuses it and `pnpm build` dies with "does not begin with `base`". The build is
   the harder gate, and a test that cannot fail reads like cover for something that is not covered.
 - **`<main>` stays in each page rather than moving into the layout.** The fact pages' carries
-  `data-sveltekit-noscroll` and `data-sveltekit-keepfocus`, which reach every link inside it; the
+  `data-sveltekit-reset="false"`, which reaches every link inside it; the
   footer sits _outside_ `<main>` so that its links navigate like any page change.
 - **The way back to the facts lives in the two legal pages, not in the footer,** and it is a real
   page load like every link to `/` — see "The home page". It used to sit there to keep a link to `/`
