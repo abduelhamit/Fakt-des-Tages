@@ -24,18 +24,19 @@ jobs:
       # `lfs: true` is load-bearing: the fact images are in Git LFS, and the default
       # checkout would hand the build 130-byte pointer files to copy into build/fakten/,
       # deploying every image on the site broken, with everything green.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           lfs: true
 
       # Fail fast if Pages cannot be enabled, before spending time on a build.
-      - uses: actions/configure-pages@v5
+      - uses: actions/configure-pages@v6
         with:
           enablement: true
 
-      # Reads the pnpm version from package.json "packageManager".
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      # Reads the pnpm version from package.json "packageManager". Pinned to the full
+      # version: pnpm 12 needs v6.1.0, and the floating v6 tag still predates it.
+      - uses: pnpm/action-setup@v6.1.0
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: pnpm
@@ -47,7 +48,7 @@ jobs:
       - run: pnpm vitest run
       - run: pnpm build
 
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: build
 
@@ -59,4 +60,4 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5

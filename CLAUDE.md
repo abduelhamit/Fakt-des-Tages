@@ -502,7 +502,8 @@ Deployed as a GitHub Pages **project** site, so everything lives under `/Fakt-de
   `__data.json`) beside it, a missing `__data.json` gets `404.html` too, and `/2026-08-23/` with
   a trailing slash 404s.
 - [static/.nojekyll](static/.nojekyll) — insurance, not load-bearing today: an artifact deployed by
-  `actions/deploy-pages` is served as-is and never sees Jekyll. It matters only if Pages is ever
+  `actions/deploy-pages` is served as-is and never sees Jekyll, and `upload-pages-artifact` v4+
+  leaves dotfiles out of the artifact anyway. It matters only if Pages is ever
   switched back to deploy-from-a-branch, where Jekyll would drop the `_app/` directory and every
   `__data.json`. Nothing in
   the toolchain writes one, so it is checked in (0 bytes).
