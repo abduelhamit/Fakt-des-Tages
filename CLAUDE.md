@@ -110,8 +110,11 @@ applied in and what is checked, so nothing depends on remembering a past session
 7. **Report:** what changed, what was left and why, the licence verdict and its caveats, and the
    image's format, size and reasoning.
 8. **Commit only when asked.** Stage explicit paths rather than everything. Subject
-   `Add <subject> as the fact for YYYY-MM-DD`; the body records the decisions. A later correction
-   to the same day is amended into that commit when the user asks, message unchanged.
+   `Add <subject> as the fact for YYYY-MM-DD`; the body says what the entry and image are and the
+   decisions behind them, in a few sentences: the image's licence basis, its format and size, a
+   clarification the entry needs. Not how they got there — text fixes, wording rounds and checks
+   belong in the report of step 7, not the commit. A later correction to the same day is amended
+   into that commit when the user asks, message unchanged.
 
 **Measuring traps**, each of which produced a wrong reading at least once:
 
