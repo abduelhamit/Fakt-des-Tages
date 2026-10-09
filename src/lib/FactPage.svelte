@@ -38,13 +38,29 @@
 	// is undefined until then. It only adds things — the ring, a clickable today without a fact,
 	// the arrows' reach — so a fact page is complete before it.
 	let today = $state<string>();
+	let midnight: ReturnType<typeof setTimeout> | undefined;
+
+	/**
+	 * Reads today off the clock and comes back at the next local midnight. No browser event
+	 * announces a new day, so the timer covers a page watched across midnight, and the tab becoming
+	 * visible or regaining focus re-reads it as well: a timer is held back in a background tab and
+	 * by sleep, and the time zone may have changed since. Each read sets the timer anew from the
+	 * time it finds, so one that comes early or late corrects itself.
+	 */
+	function readToday() {
+		const now = new Date();
+		today = toIsoDate(now);
+		clearTimeout(midnight);
+		const next = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+		midnight = setTimeout(readToday, next.getTime() - now.getTime());
+	}
 	// The date in the address bar on the pages that have no fact of their own: undefined until
 	// hydration, `null` if the path is not a date at all. Read from `location`, not `page.url`,
 	// because the head script on `/` rewrites the address before SvelteKit starts.
 	let urlDate = $state<string | null>();
 
 	onMount(() => {
-		today = toIsoDate(new Date());
+		readToday();
 		const last = location.pathname.split('/').at(-1) ?? '';
 		urlDate = isIsoDate(last) ? last : null;
 		// Shown only once the corrected month and message are in the DOM; see `hideUntilHydrated`.
@@ -57,7 +73,10 @@
 		const preload = () => void import('minisearch').catch(() => {});
 		if (document.readyState === 'complete') preload();
 		else window.addEventListener('load', preload, { once: true });
-		return () => window.removeEventListener('load', preload);
+		return () => {
+			window.removeEventListener('load', preload);
+			clearTimeout(midnight);
+		};
 	});
 
 	/**
@@ -272,6 +291,8 @@
 		{@html hideUntilHydrated}
 	{/if}
 </svelte:head>
+<svelte:window onfocus={readToday} />
+<svelte:document onvisibilitychange={readToday} />
 
 <!-- `reset="false"` reaches every link in here, keeping both scroll position and focus: the scroll
      position is `afterNavigate`'s to decide, and a keyboard visitor stepping through the facts stays

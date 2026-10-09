@@ -124,6 +124,16 @@ testable. Split it when a second reader disagrees, not before. These decisions i
   a fact are non-interactive" rule, because today is the cell you navigate back to. It has no page,
   so its link is a real load of `404.html` (see "The home page"). It has its own e2e test, since
   the ordinary "not clickable" test cannot catch it.
+- **Today moves on with the date, on a page left open.** No browser event announces a new day —
+  checked in October 2026: the one proposal near it, `timezonechange`, would cover only a change of
+  time zone, and Chrome lists it as in development, Firefox as deferred. So `readToday` sets a timeout
+  to the next local midnight for a page watched across it, and re-reads the clock when the tab becomes
+  visible or regains focus, because a background tab and a sleeping machine hold the timer back.
+  Each read sets the timer anew from the time it finds. The address stays put: a visitor on
+  yesterday's fact stays there, and only the ring, today's cell and the heading's link move. `moves
+on with the date on a page left open` drives a fake clock across midnight and then a day ahead
+  without running timers; verified to fail with the timer or the `visibilitychange` handler
+  removed. The `focus` handler is the same call and has no test of its own.
 - **Monday is column one.** `getDay()` counts from Sunday, so `monthGrid` rotates it with
   `(getDay() + 6) % 7`. Verified against a month that starts on a Sunday, which is the case a bare
   `getDay()` gets wrong.

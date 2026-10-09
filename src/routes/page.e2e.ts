@@ -710,6 +710,30 @@ test.describe('heading', () => {
 	});
 });
 
+test.describe('today', () => {
+	test.use({ timezoneId: 'Europe/Berlin' });
+
+	// No event announces a new day: a timer set to midnight moves today on a page watched across it,
+	// and the tab becoming visible again catches up after a sleep the timer slept through too.
+	test('moves on with the date on a page left open', async ({ page }) => {
+		const day = (name: string) => page.getByRole('link', { name });
+		await page.clock.install({ time: new Date('2026-08-22T21:59:30Z') });
+		await page.goto('/Fakt-des-Tages/2026-08-22');
+		await expect(day('Samstag, 22. August 2026')).toHaveAttribute('aria-current', 'date');
+
+		await page.clock.runFor('01:00');
+		await expect(day('Sonntag, 23. August 2026')).toHaveAttribute('aria-current', 'date');
+		await expect(day('Samstag, 22. August 2026')).not.toHaveAttribute('aria-current');
+
+		// A day later with no timer run, as after a sleep. 24 August has no fact, so its cell is a link
+		// only because it is today.
+		await page.clock.setSystemTime(new Date('2026-08-24T08:00:00Z'));
+		await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
+		await expect(day('Montag, 24. August 2026')).toHaveAttribute('aria-current', 'date');
+		await expect(page).toHaveURL(/\/Fakt-des-Tages\/2026-08-22$/);
+	});
+});
+
 // A credit belongs to the picture above it, which is a claim about two distances rather than about
 // any one of them. Prose gives an image 2em below it and 2em between paragraphs, so the untouched
 // markup put the credit exactly as far from its own image as from the next element. The rule in
