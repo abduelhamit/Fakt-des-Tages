@@ -1,9 +1,20 @@
 <script lang="ts">
 	import './layout.css';
 	import favicon from '#lib/assets/favicon.svg';
+	import { beforeNavigate } from '$app/navigation';
 	import { resolve } from '$app/paths';
+	import { updated } from '$app/state';
 
 	let { children } = $props();
+
+	// After a deploy, the next step is a full page load, which brings the new date list that
+	// +layout.ts otherwise keeps out. Cancelled first, so the client-side step cannot race it. Back
+	// is left alone: SvelteKit undoes a cancelled one with `history.go`, and the step after it reloads.
+	beforeNavigate(({ type, to, willUnload, cancel }) => {
+		if (!updated.current || willUnload || !to || type === 'popstate') return;
+		cancel();
+		location.href = to.url.href;
+	});
 </script>
 
 <svelte:head><link rel="icon" href={favicon} /></svelte:head>

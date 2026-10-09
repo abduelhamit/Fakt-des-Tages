@@ -203,6 +203,28 @@ number with itself and passes with the feature deleted. Wrapping the bar in a st
 does not work either: the wrapper becomes sticky's containing block and caps its travel at its own
 height.
 
+### A deploy changes the calendar only with a full page load
+
+Every `__data.json` carries the whole date list (see the root CLAUDE.md), and Pages serves them
+with `max-age=600`. For ten minutes after a deploy, then, the browser answers every step to a day
+visited before it from its cache, with the old list, and every other step with the new one — and
+SvelteKit took each step's list, so a new fact appeared and vanished from step to step. The
+problem is inconsistency, not staleness.
+
+So [+layout.ts](+layout.ts) keeps the list the page was loaded with and ignores every later one.
+A cached step can then bring back an old version of its own fact's text, never of the calendar.
+The new list arrives with the next full page load. [+layout.svelte](+layout.svelte) makes the next
+step one once `updated.current` turns true: SvelteKit sets it when the `version.json` it fetches on
+focus, on becoming visible or after a failed step names another build, and every deploy is another
+build. The step is cancelled before `location.href` is set, so the client-side step cannot race the
+load. Back is left client-side, because SvelteKit undoes a cancelled Back with `history.go`.
+Reloading at once instead was weighed and passed over: it interrupts a visitor just returning to
+the tab, for no gain in consistency. Accepted limitation: that full load can itself come from the
+browser's cache, and then shows the old calendar — consistently — until a check after that copy
+has expired.
+`keeps its date list until a new version is out, then loads afresh` fakes both a stale `__data.json`
+and a new `version.json`. Verified to fail with either half removed.
+
 ### The bar is full-bleed because of iOS, and that is load-bearing
 
 `-mx-6 px-6` on the bar cancels `main`'s `p-6`, so its background reaches both edges of the screen

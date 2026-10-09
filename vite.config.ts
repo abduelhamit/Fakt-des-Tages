@@ -53,9 +53,9 @@ export default defineConfig({
 			// Absolute asset paths, because 404.html is served at whatever depth was asked for, and
 			// a relative `./_app/…` from `/Fakt-des-Tages/a/b` points nowhere.
 			paths: { base, relative: false },
-			// No hourly `version.json` request from a tab left open: nothing here reads `updated`.
-			// The check on focus and on a tab becoming visible cannot be switched off, which is why
-			// the Datenschutz page names that request.
+			// No hourly `version.json` request from a tab left open. The layout reads `updated` only to
+			// turn the next step into a full page load, and a tab in use sees the check on focus and on
+			// becoming visible, which cannot be switched off. The Datenschutz page names that request.
 			version: { pollInterval: 0 }
 		})
 	],

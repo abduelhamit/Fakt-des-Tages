@@ -207,6 +207,38 @@ test.describe('calendar', () => {
 		await expect(page).toHaveURL(/\/Fakt-des-Tages\/2026-08-21$/);
 	});
 
+	// After a deploy the browser answers some steps from its cache, so two `__data.json` files can
+	// carry different date lists. Here 20 August's is one from before 23 August had a fact.
+	test('keeps its date list until a new version is out, then loads afresh', async ({ page }) => {
+		await page.route('**/2026-08-20/__data.json*', async (route) => {
+			const response = await route.fetch();
+			const body = (await response.text()).replace('"2026-08-23"', '"2026-08-21"');
+			await route.fulfill({ response, body });
+		});
+		await page.goto('/Fakt-des-Tages/2026-08-22');
+		const documents: string[] = [];
+		page.on('request', (req) => req.resourceType() === 'document' && documents.push(req.url()));
+
+		await page.getByRole('link', { name: 'Donnerstag, 20. August 2026' }).click();
+		await expect(page.getByRole('article')).toContainText('kurzer Fakt, einzeilig');
+		await expect(page.getByRole('link', { name: 'Sonntag, 23. August 2026' })).toBeVisible();
+		await expect(page.getByRole('link', { name: 'Freitag, 21. August 2026' })).toHaveCount(0);
+		expect(documents).toEqual([]);
+
+		// SvelteKit checks `version.json` when the tab regains focus; the next step is then a full load.
+		await page.route('**/_app/version.json', (route) =>
+			route.fulfill({ json: { version: 'neu' } })
+		);
+		const checked = page.waitForEvent('requestfinished', (req) =>
+			req.url().endsWith('version.json')
+		);
+		await page.evaluate(() => dispatchEvent(new Event('focus')));
+		await checked;
+		await page.getByRole('link', { name: 'Samstag, 22. August 2026' }).click();
+		await expect(page.getByRole('article')).toContainText('fetter');
+		expect(documents).toEqual([expect.stringMatching(/\/2026-08-22$/)]);
+	});
+
 	// Pins the six reserved rows on the calendar grid in FactPage.svelte: without them everything
 	// below the calendar shifts as the visitor pages through the months.
 	test('keeps the content below the calendar in place', async ({ page }) => {
