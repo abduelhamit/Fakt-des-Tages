@@ -53,6 +53,18 @@ test.describe('legal pages', () => {
 			await noJs.close();
 		});
 
+		// „Datenschutzerklärung“ is wider than a 320 px screen in the title's 2rem, and only the
+		// `hyphens-auto` on its <h1> keeps the page from scrolling sideways.
+		test(`${path} fits a 320 px screen`, async ({ page }) => {
+			await page.setViewportSize({ width: 320, height: 640 });
+			await page.goto(`/Fakt-des-Tages/${path}`);
+			await page.evaluate(() => document.fonts.ready);
+
+			expect(await page.evaluate(() => document.documentElement.scrollWidth), 'page width').toBe(
+				320
+			);
+		});
+
 		test(`${path} leads back to the facts`, async ({ page }) => {
 			await page.goto(`/Fakt-des-Tages/${path}`);
 

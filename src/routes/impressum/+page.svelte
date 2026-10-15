@@ -8,13 +8,13 @@
      section and a reader is entitled to find it under either heading. One snippet rather than two
      copies, for the same reason `provider.ts` exists at all. -->
 {#snippet address()}
-	<p class="hyphens-none">
+	<p>
 		{PROVIDER.name}<br />
 		{#each PROVIDER.address as line, i (i)}{line}<br />{/each}
 	</p>
 {/snippet}
 
-<main class="mx-auto max-w-2xl p-6 hyphens-auto">
+<main class="mx-auto max-w-2xl p-6">
 	<h1 class="text-[2rem]/normal font-semibold">Impressum</h1>
 
 	<div class="markdown-body mt-6">
@@ -22,7 +22,7 @@
 		{@render address()}
 
 		<h2>Kontakt</h2>
-		<p class="hyphens-none">
+		<p>
 			E-Mail: <a href="mailto:{PROVIDER.email}">{PROVIDER.email}</a>
 		</p>
 

@@ -126,8 +126,6 @@ applied in and what is checked, so nothing depends on remembering a past session
   reading anything off it.
 - `.markdown-body p` exists before the right fact does. Wait for the fact's own text before measuring or
   taking a screenshot.
-- Rebuilding lines from character rects cannot see an automatic hyphen, so it reads one character
-  short. Take a screenshot to judge a break.
 - Resizing two files to the same _width_ can leave their heights a pixel apart, and
   `magick compare` then reports a meaningless number instead of complaining. Pin both dimensions
   with a `!` geometry.
@@ -260,14 +258,15 @@ Consequences worth knowing before changing any of this:
 - **`ca.` binds to the number after it with U+00A0, numeral or word alike:** `ca. 16 Stunden`,
   `ca. drei Monate`. It is the title's failure again, a line ending in a bare `ca.`, and the
   normal width because `ca.` qualifies the number rather than labelling it the way `Nr.` does.
-- **Hyphenation is the browser's job, and a soft hyphen is never to be typed into a fact.** The
-  fact column is `markdown-body hyphens-auto` on the `<article>` in
-  [FactPage.svelte](src/lib/FactPage.svelte), which together with the `lang="de"` already on `<html>`
-  in [app.html](src/app.html) hands the whole problem to the browser's German dictionary. Measured
-  at a 375 px viewport on the 2026-10-01 entry, in the system font before Mona Sans: the median gap at the right margin falls from 28 px
-  to 12 px and the lines ending more than 30 px short go from 9 to 1, breaking correctly at
-  `ange-brachter`, `er-laubte`, `überprü-fen` and `Län-gengrad`. One utility class, every entry
-  covered including the ones not written yet, and the stored text stays plain.
+- **The facts are not hyphenated, by choice, and a soft hyphen is never to be typed into one.**
+  The fact column carried `hyphens-auto` until the move to Primer in October 2026. It was taken
+  out knowing what it costs, as GitHub's own Markdown does: measured across the whole archive at
+  375 px in Mona Sans, the median gap at the right margin is 28 px without it against 15 px with
+  it, and the lines ending more than 30 px short are 1,103 against 335. The ragged edge is wanted.
+  At Primer's line height an evenly filled column reads as a wall of text, and the uneven line
+  ends break it up. Should it come back, `hyphens-auto` on the `<article>` in
+  [FactPage.svelte](src/lib/FactPage.svelte) is the whole change, since `lang="de"` on `<html>` in
+  [app.html](src/app.html) already selects the browser's German dictionary.
 - **Do not reintroduce soft hyphens: they broke the search.** `words` splits on `[^\p{L}\p{N}]+`,
   and U+00AD is a format character — neither letter nor digit — so a soft-hyphenated `Flughafen`
   entered the index as `flug` and `hafen`, and typing `Flughafen` matched nothing. Nothing in the

@@ -527,19 +527,15 @@ ladungsfähige Anschrift even though nothing here is commercial.
   slash, so it only bites a hand-typed URL. `trailingSlash: 'always'` is no longer the way out: it
   would move every date page one directory deeper and break every `fakten/…` image path (see the
   root CLAUDE.md).
-- **Both pages hyphenate, and the identity blocks deliberately do not.** `hyphens-auto` sits on
-  `<main>` rather than on the inner `.markdown-body`, because the `<h1>` is outside that div: at 320 px
-  `Datenschutzerklärung` ran 16 px past the viewport and gave the page a horizontal scrollbar, which
-  moving the class up fixes by breaking it at `Datenschutzerklä-rung` — re-checked at 320 px with
-  Primer's 2rem title in Mona Sans, no overflow. The name,
-  address and email carry `hyphens-none` instead, because they are data a reader transcribes onto an
-  envelope rather than prose to be read, and `hyphens: auto` really did break the address at
-  `…gmail.c|om` on a 320 px screen before the exception went in. Nothing tests either class; the
-  failure is at least visible on the page rather than silent. **Hyphenation raises no § 5 DDG or
-  Art. 12 DSGVO problem, and that was checked rather than assumed:** it is purely presentational, so
-  `textContent`, `innerText` and what a selection copies are byte-identical to the source with no
-  hyphen character anywhere — copying the block still yields
-  `Abdülhamit Yilmaz Birkenstr. 79 40233 Düsseldorf`.
+- **Only the `Datenschutzerklärung` heading hyphenates.** The pages followed the facts in dropping
+  `hyphens-auto` (see the root CLAUDE.md), but that one word is 349 px wide in Primer's 2rem title,
+  and without a break it gives a phone narrower than 350 px a horizontal scrollbar; it breaks at
+  `Datenschutzerklä-rung`. The class sits on that `<h1>` alone, so the name, address and email
+  need no `hyphens-none` any more. That exception existed because `hyphens: auto` once broke the
+  address at `…gmail.c|om` on a 320 px screen. `fits a 320 px screen` in
+  [legal-pages.e2e.ts](legal-pages.e2e.ts) fails with the class removed, at 372 px. Hyphenation is purely presentational: `textContent` and
+  what a selection copies stay byte-identical to the source, so it raises no § 5 DDG or Art. 12
+  DSGVO question either way.
 - Both pages are asserted readable with **JavaScript switched off**. Prerendering gives that for
   free today, which is exactly why it is worth pinning: a legal page that needs JS is a legal page
   some visitors cannot read, and nothing else would announce the change.

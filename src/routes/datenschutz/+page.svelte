@@ -8,13 +8,15 @@
      storage API appears anywhere in the source, nothing is fetched from anywhere but this site, and
      every img/script/link in the built HTML is same-origin. If that ever stops being true — an embedded video, an
      external web font, a counter — this page becomes wrong before anything else on the site does. -->
-<main class="mx-auto max-w-2xl p-6 hyphens-auto">
-	<h1 class="text-[2rem]/normal font-semibold">Datenschutzerklärung</h1>
+<main class="mx-auto max-w-2xl p-6">
+	<!-- The one hyphenated word on the site: at 2rem it is 349 px wide, and a phone narrower than
+	     350 px would otherwise scroll sideways. See src/routes/CLAUDE.md. -->
+	<h1 class="text-[2rem]/normal font-semibold hyphens-auto">Datenschutzerklärung</h1>
 
 	<div class="markdown-body mt-6">
 		<h2>Verantwortlicher</h2>
 		<p>Verantwortlich für die Datenverarbeitung auf dieser Website im Sinne der DSGVO ist:</p>
-		<p class="hyphens-none">
+		<p>
 			{PROVIDER.name}<br />
 			{#each PROVIDER.address as line, i (i)}{line}<br />{/each}
 			E-Mail: <a href="mailto:{PROVIDER.email}">{PROVIDER.email}</a>

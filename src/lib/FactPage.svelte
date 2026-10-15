@@ -292,7 +292,7 @@
 		     author a fact can already author this app's JavaScript — it is not a trust boundary
 		     and needs no sanitiser. Add one the moment facts come from anywhere but the repo. -->
 		<!-- eslint-disable-next-line svelte/no-at-html-tags -->
-		<article bind:this={factText} class="markdown-body hyphens-auto">{@html fact.html}</article>
+		<article bind:this={factText} class="markdown-body">{@html fact.html}</article>
 	{:else}
 		<p bind:this={factText} class="text-(--fgColor-muted)">{message}</p>
 	{/if}
