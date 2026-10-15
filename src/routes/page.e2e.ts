@@ -575,26 +575,30 @@ test.describe('search', () => {
 		await expect(page.getByRole('status')).toHaveText('');
 	});
 
-	// The whole reason the hit list is laid over the page instead of pushed into it.
+	// The whole reason the hit list is laid over the page instead of pushed into it. Both are
+	// measured: the header's fixed height would keep a panel in normal flow from moving the calendar,
+	// but not from pushing the box itself up out of line with the header's other contents.
 	test('does not push the calendar away', async ({ page }) => {
 		const calendar = page.getByRole('heading', { level: 2 });
+		const box = page.getByLabel('Fakt suchen');
 		// `evaluate` and not `boundingBox()`, which scrolls the element into view before measuring.
-		const top = () => calendar.evaluate((el) => el.getBoundingClientRect().top);
-		const before = await top();
+		const tops = () =>
+			Promise.all([calendar, box].map((el) => el.evaluate((e) => e.getBoundingClientRect().top)));
+		const before = await tops();
 
-		await page.getByLabel('Fakt suchen').fill('lang');
+		await box.fill('lang');
 		await expect(page.getByRole('status')).toHaveText('2 Treffer');
-		expect(await top()).toBe(before);
+		expect(await tops()).toEqual(before);
 
 		// Escape puts the calendar back, since the panel is now sitting on top of it.
-		await page.getByLabel('Fakt suchen').press('Escape');
+		await box.press('Escape');
 		await expect(page.getByRole('status')).toHaveText('');
-		expect(await top()).toBe(before);
+		expect(await tops()).toEqual(before);
 	});
 
 	// MiniSearch arrives after everything else on the page, images included, and from then on is
 	// in memory: a deploy that deletes its chunk, or the network going away, no longer matters.
-	// Fetched on demand it could fail for good — see `onMount` in FactPage.svelte.
+	// Fetched on demand it could fail for good — see `onMount` in Header.svelte.
 	test('loads MiniSearch after the images, and keeps it', async ({ page }) => {
 		const release = await holdBack(page, '**/fakten/**');
 		const chunks: string[] = [];
@@ -644,6 +648,108 @@ test.describe('search', () => {
 	});
 });
 
+// Below Primer's small breakpoint the search folds into a button in the header, which unfolds the
+// box over the header and hands it the focus.
+test.describe('search on a narrow screen', () => {
+	test.use({ timezoneId: 'Europe/Berlin', viewport: { width: 390, height: 800 } });
+
+	test.beforeEach(async ({ page }) => {
+		await page.clock.setFixedTime(TODAY);
+		await page.goto('/Fakt-des-Tages/2026-08-22');
+	});
+
+	// The first Escape empties the box, as on a wide screen; the second folds it away and hands the
+	// focus back to the button, rather than dropping it on a box that has just gone.
+	test('folds away on Escape, giving the focus back', async ({ page }) => {
+		const box = page.getByLabel('Fakt suchen');
+		await expect(box).toBeHidden();
+
+		await page.getByRole('button', { name: 'Suche öffnen' }).click();
+		await expect(box).toBeFocused();
+		await page.keyboard.type('einzeilg');
+		await expect(page.getByRole('status')).toHaveText('1 Treffer');
+
+		await page.keyboard.press('Escape');
+		await expect(box).toHaveValue('');
+		await expect(box).toBeVisible();
+		await page.keyboard.press('Escape');
+		await expect(box).toBeHidden();
+		await expect(page.getByRole('button', { name: 'Suche öffnen' })).toBeFocused();
+	});
+
+	// Safari on an iPhone zooms into an input set below 16 px when it gets the focus, and stays zoomed
+	// once the box has folded away. Chromium does not, so the size is asserted instead.
+	test('keeps the box large enough that an iPhone does not zoom into it', async ({ page }) => {
+		await page.getByRole('button', { name: 'Suche öffnen' }).click();
+		const size = await page
+			.getByLabel('Fakt suchen')
+			.evaluate((el) => getComputedStyle(el).fontSize);
+		expect(parseFloat(size)).toBeGreaterThanOrEqual(16);
+	});
+
+	test('folds away once a hit is picked', async ({ page }) => {
+		await page.getByRole('button', { name: 'Suche öffnen' }).click();
+		await page.getByLabel('Fakt suchen').fill('einzeilg');
+		await page
+			.getByRole('search')
+			.getByRole('link', { name: /20\. August 2026/ })
+			.click();
+
+		await expect(page.getByRole('article')).toContainText('kurzer Fakt, einzeilig');
+		await expect(page.getByLabel('Fakt suchen')).toBeHidden();
+		await expect(page.getByRole('button', { name: 'Suche öffnen' })).toBeVisible();
+	});
+});
+
+// Every icon button names itself in a tooltip: a `hint` popover, raised by hover and by keyboard
+// focus, anchored below its button and taken down by Escape. Chromium closes a `hint` popover on
+// Escape by itself, so the tooltip's own handler — there for Safari, which treats `hint` as
+// `manual` — is exercised by turning the popover into a `manual` one first.
+test.describe('tooltip', () => {
+	test.use({ timezoneId: 'Europe/Berlin' });
+
+	test('names an icon button on hover and on keyboard focus', async ({ page }) => {
+		await page.clock.setFixedTime(TODAY);
+		await page.goto('/Fakt-des-Tages/2026-08-22');
+		const dice = page.getByRole('button', { name: 'Zufälliger Fakt' });
+		const tip = page.locator('[popover]', { hasText: 'Zufälliger Fakt' });
+
+		await dice.hover();
+		await expect(tip).toBeVisible();
+		// Below the button, not in the middle of the screen where an unanchored popover lands.
+		const [button, label] = [(await dice.boundingBox())!, (await tip.boundingBox())!];
+		expect(label.y).toBeGreaterThanOrEqual(button.y + button.height);
+		await page.keyboard.press('Escape');
+		await expect(tip).toBeHidden();
+
+		await tip.evaluate((el) => el.setAttribute('popover', 'manual'));
+		await page.mouse.move(0, 0);
+		await dice.hover();
+		await expect(tip).toBeVisible();
+		await page.keyboard.press('Escape');
+		await expect(tip).toBeHidden();
+
+		await page.mouse.move(0, 0);
+		await page.getByLabel('Fakt suchen').focus();
+		await page.keyboard.press('Tab');
+		await expect(dice).toBeFocused();
+		await expect(tip).toBeVisible();
+	});
+});
+
+// Primer's two themes follow the visitor's setting; nothing on the page offers a switch.
+for (const [scheme, canvas] of [
+	['light', 'rgb(255, 255, 255)'],
+	['dark', 'rgb(13, 17, 23)']
+] as const) {
+	test(`follows a ${scheme} colour scheme`, async ({ page }) => {
+		await page.emulateMedia({ colorScheme: scheme });
+		await page.goto('/Fakt-des-Tages/2026-08-22');
+
+		expect(await page.evaluate(() => getComputedStyle(document.body).backgroundColor)).toBe(canvas);
+	});
+}
+
 // The die is stubbed so the pick is deterministic. On 2026-08-22, the fixture's other six facts are
 // the candidates and 0.3 lands on the second of them. Without the "never the fact already on screen"
 // filter the same 0.3 would land on 2026-08-22 itself, so this pins the filter as much as the step.
@@ -665,7 +771,7 @@ test.describe('random fact', () => {
 	});
 });
 
-test.describe('heading', () => {
+test.describe('header name', () => {
 	test.use({ timezoneId: 'Europe/Berlin' });
 
 	test.beforeEach(async ({ page }) => {
@@ -692,7 +798,7 @@ test.describe('heading', () => {
 		await page.goto('/Fakt-des-Tages/2026-07-30');
 		await page.getByRole('link', { name: 'Fakt des Tages' }).click();
 		await expect(page.getByText('22. August 2026', { exact: true })).toBeVisible();
-		// Hydrated, so the heading points at today's date rather than at `/`.
+		// Hydrated, so the header's name points at today's date rather than at `/`.
 		await expect(page.getByLabel('Fakt suchen')).toBeEnabled();
 
 		// Each click is a client-side navigation that finishes after `click()` returns. Waiting for
@@ -735,12 +841,9 @@ test.describe('today', () => {
 });
 
 // A credit belongs to the picture above it, which is a claim about two distances rather than about
-// any one of them. Prose gives an image 2em below it and 2em between paragraphs, so the untouched
-// markup put the credit exactly as far from its own image as from the next element. The rule in
-// layout.css breaks that tie, and it is easy to lose silently: written into `@layer components` it
-// ships, matches, and is overruled by the typography plugin's own layer — which is what happened on
-// the first attempt. Comparing distances rather than asserting pixel counts, so the test survives a
-// change of font metrics.
+// any one of them: the rule in layout.css pulls it up to its own image, away from the paragraph
+// after it. Comparing distances rather than asserting pixel counts, so the test survives a change
+// of font metrics.
 test.describe('image credit', () => {
 	test.beforeEach(async ({ page }) => {
 		await page.goto('/Fakt-des-Tages/2026-08-31');
@@ -761,8 +864,8 @@ test.describe('image credit', () => {
 	});
 
 	// The rule keys on `:has(+ em)` rather than a class, so it has to leave every uncredited image
-	// alone — the archive is full of them, including pairs sitting side by side in one paragraph.
-	// The fixture carries the same file twice for exactly this comparison.
+	// alone — the archive is full of them, including pairs sitting one above the other in one
+	// paragraph, 0.5rem apart. The fixture carries the same file twice for exactly this comparison.
 	test('leaves an image without a credit untouched', async ({ page }) => {
 		const gap = (n: number) =>
 			page

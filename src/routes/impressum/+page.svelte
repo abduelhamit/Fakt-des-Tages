@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { PROVIDER } from '#lib/provider.ts';
-	import { resolve } from '$app/paths';
 </script>
 
 <svelte:head><title>Impressum — Fakt des Tages</title></svelte:head>
@@ -16,9 +15,9 @@
 {/snippet}
 
 <main class="mx-auto max-w-2xl p-6 hyphens-auto">
-	<h1 class="text-3xl font-bold">Impressum</h1>
+	<h1 class="text-[2rem]/normal font-semibold">Impressum</h1>
 
-	<div class="prose mt-6">
+	<div class="markdown-body mt-6">
 		<h2>Angaben gemäß § 5 DDG</h2>
 		{@render address()}
 
@@ -32,10 +31,5 @@
 		     naming the responsible person costs a line and settles the question either way. -->
 		<h2>Verantwortlich für den Inhalt nach § 18 Abs. 2 MStV</h2>
 		{@render address()}
-
-		<!-- `data-sveltekit-reload`, like every link to `/`: today's date is picked by an inline script
-		     in that page's head, and only a real page load runs it. Routed client-side, the link would
-		     land on the calendar with no day chosen. See CLAUDE.md, under "The home page". -->
-		<p><a href={resolve('/')} data-sveltekit-reload>Zum Fakt des Tages</a></p>
 	</div>
 </main>

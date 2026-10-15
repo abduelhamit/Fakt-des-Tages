@@ -1,7 +1,7 @@
 # CLAUDE.md — src/routes
 
-How the pages themselves behave and why: the home page and the 404 page, the calendar, the sticky
-bar, the search, the random fact, and the legal pages. Read with the root [CLAUDE.md](../../CLAUDE.md),
+How the pages themselves behave and why: the home page and the 404 page, the header along the top,
+the calendar, the sticky date bar, the search, the random fact, and the legal pages. Read with the root [CLAUDE.md](../../CLAUDE.md),
 which covers the content pipeline, adding a fact, the build and the tests.
 
 Which text is German and which English is settled there, under "German and English". Two
@@ -30,13 +30,14 @@ that runs before the page paints:
 The script duplicates `toIsoDate`, because no module has loaded yet, and carries its own copy of
 the date list. Two consequences:
 
-- **Every link to `/` is a real page load** (`data-sveltekit-reload`): the heading before hydration,
-  the way back on both legal pages, and the error page's fallback. Routed client-side, the head
-  script would not run and the visitor would land on a calendar with no day chosen. `reaches the
-home page only by a real page load` in [legal-pages.e2e.ts](legal-pages.e2e.ts) checks every
-  such link on a fact page, a 404 page and both legal pages; verified by removing the attribute
-  from the Impressum's link.
-- **Once hydrated, the heading links today's date directly,** not `/`. A click on today's own page
+- **Every link to `/` is a real page load** (`data-sveltekit-reload`), and there is one: the site's
+  name in the header, before hydration, on every page. The legal pages and the error page had a
+  „Zum Fakt des Tages“ link of their own until the header moved into the layout in October 2026.
+  Routed client-side, the head script would not run and the visitor would land on a calendar with
+  no day chosen. `reaches the home page only by a real page load` in
+  [legal-pages.e2e.ts](legal-pages.e2e.ts) checks every such link on a fact page, a 404 page and
+  both legal pages; verified by removing the attribute from the header's link.
+- **Once hydrated, the header's name links today's date directly,** not `/`. A click on today's own page
   is then a link to the current address, which SvelteKit turns into a replace (since SvelteKit 3
   one that fetches the day's `__data.json` again). Linking `/` there
   stacked two identical entries, and Back looked dead. `adds no history entry on today’s own page`
@@ -71,8 +72,12 @@ too, with the data still in hand. `admits a page that could not be loaded` in
 Today's cell skips the failing attempt altogether: it knows it has no page, so it is a real load
 from the start.
 
+The header is on the error page too, since the layout draws it, so its name is the way back from
+there. Where the layout's data is missing, its random fact stays bounded: it has no dates to draw
+from.
+
 The first step from `/` or `/404` to a fact swaps route components, so `FactPage` mounts afresh
-and the displayed month and any search text start over once. Steps between facts keep it.
+and the displayed month starts over once. Steps between facts keep it.
 
 ### What waits for hydration
 
@@ -95,17 +100,19 @@ the bare root as „Diese Seite gibt es nicht.“, a flash a review predicted fr
 
 On a fact page only what depends on today or needs JavaScript waits: the today ring and today's
 cell, the month arrows' reach (which includes today), the search box, which is `disabled` until
-then, and the buttons — the random fact and both month arrows, `aria-disabled` until then because
-a button does nothing without JavaScript. Nothing changes size. `a fact is readable and the
+then, and the buttons — the random fact, the narrow screen's search button and both month arrows,
+`aria-disabled` until then because a button does nothing without JavaScript. Nothing changes size. `a fact is readable and the
 archive navigable` compares the date bar's resting offset with JavaScript off against the hydrated
 page, and walks to the next fact without JavaScript.
 
 ## The calendar
 
-[FactPage.svelte](../lib/FactPage.svelte) holds the whole page, and four route files render it: `/`,
-`/404`, `/[date]` and the error page. The search lives there too and shares almost nothing with the
-calendar, so a component would be a clean cut — but with no vitest browser project it buys nothing
-testable. Split it when a second reader disagrees, not before. These decisions in it are not obvious from the code:
+[FactPage.svelte](../lib/FactPage.svelte) holds the calendar, the date bar and the fact, and four
+route files render it: `/`, `/404`, `/[date]` and the error page. The header above it is
+[Header.svelte](../lib/Header.svelte), drawn by the layout on every page. The search lived in
+FactPage until the header went into the layout, which made it the second reader an earlier version
+of this note said to wait for before splitting it out. These decisions in it are not obvious from
+the code:
 
 - **The address is the selection.** Every day with a fact is a page, and every day cell, fact arrow
   and search hit is a link to one, so Back, Forward and shared links are the router's and need no
@@ -126,11 +133,15 @@ testable. Split it when a second reader disagrees, not before. These decisions i
   the ordinary "not clickable" test cannot catch it.
 - **Today moves on with the date, on a page left open.** No browser event announces a new day —
   checked in October 2026: the one proposal near it, `timezonechange`, would cover only a change of
-  time zone, and Chrome lists it as in development, Firefox as deferred. So `readToday` sets a timeout
+  time zone, and Chrome lists it as in development, Firefox as deferred. So `readToday` in
+  [today.svelte.ts](../lib/today.svelte.ts) sets a timeout
   to the next local midnight for a page watched across it, and re-reads the clock when the tab becomes
   visible or regains focus, because a background tab and a sleeping machine hold the timer back.
   Each read sets the timer anew from the time it finds. The address stays put: a visitor on
-  yesterday's fact stays there, and only the ring, today's cell and the heading's link move. `moves
+  yesterday's fact stays there, and only the ring, today's cell and the header's link move. Today
+  lives in a module of its own because the header needs it as much as the calendar: `startClock`
+  starts it once per page load, called from both components' `onMount` so that neither depends on
+  the order in which they mount. `moves
 on with the date on a page left open` drives a fake clock across midnight and then a day ahead
   without running timers; verified to fail with the timer or the `visibilitychange` handler
   removed. The `focus` handler is the same call and has no test of its own.
@@ -144,7 +155,7 @@ on with the date on a page left open` drives a fake clock across midnight and th
   its own. Two details there are deliberate and easy to undo by accident. The month arrows use
   `aria-disabled` rather than the native attribute — a natively disabled button drops keyboard focus
   to `<body>` the instant it is disabled, stranding the visitor who just pressed it — which is why
-  the `arrow` snippet drops a bounded month arrow's click handler rather than trusting the attribute. The cursor rule in
+  IconButton drops a bounded button's click handler rather than trusting the attribute. The cursor rule in
   [layout.css](layout.css) matches on that same attribute (see Misc in the root CLAUDE.md), so swapping the
   mechanism here quietly makes a bounded arrow look clickable again. The fact arrows are links, and
   the one that reaches the edge of the archive loses its `href` under the visitor who just pressed
@@ -155,9 +166,11 @@ the arrow that reached the edge`. And the selected day is named in its `aria-lab
   single-select set does not have. Both have e2e tests, both verified to fail when reverted. Note Playwright honours `aria-disabled` in its actionability checks, so a test
   that clicks a bounded arrow on purpose needs `{ force: true }`.
 
-Watch the muted greys: Tailwind's `gray-300` is 1.47:1 against white and `gray-400` is 2.6:1, both
-far below the 4.5:1 that WCAG AA wants for text. The day numbers use `gray-600` (7.6:1). Only the
-inactive arrows are allowed to stay faint, because inactive controls are exempt.
+Watch the muted colours: WCAG AA wants 4.5:1 for text. Primer's `--fgColor-muted` clears it in both
+themes — 6.11:1 on white and 5.74:1 on the header's `bgColor-inset`, 6.50:1 and 7.05:1 in dark —
+and the days with a fact, `--fgColor-accent` on `--bgColor-accent-muted`, only just: 4.56:1 in
+light, 5.47:1 in dark. Only the inactive arrows are allowed to go fainter, in `--fgColor-disabled`
+(3.45:1 and 3.57:1), because inactive controls are exempt.
 
 The facts run weekdays only, with gaps for holidays, so the calendar is mostly non-interactive days
 by design — and the arrows, which skip to the next _entry_, are the primary way through the archive
@@ -171,10 +184,10 @@ for free — there is no second navigation path to keep in sync.
 
 The date and its two arrows are one `sticky top-0` bar, so a fact longer than the screen keeps both
 in view. The bar is a `<nav aria-label="Durch die Fakten blättern">`, a landmark beside the search and
-the calendar, and the e2e tests reach it by that name rather than through an arrow's parent. It ends in a downward fade (`bg-linear-to-b from-white from-60% to-transparent` over a
+the calendar, and the e2e tests reach it by that name rather than through an arrow's parent. It ends in a downward fade (`bg-linear-to-b from-(--bgColor-default) from-60% to-transparent` over a
 `pb-8` tail) rather than a border, because a border only looks right once the bar is pinned and CSS
-alone cannot tell whether it is. Tailwind interpolates the gradient `in oklab`, which is what stops a
-white-to-transparent fade greying in the middle.
+alone cannot tell whether it is. Tailwind interpolates the gradient `in oklab`, which is what stops the
+fade greying in the middle, in either theme.
 
 Stepping to another fact from below the point where the bar pins scrolls back up to it, so the next
 fact opens at its top instead of somewhere in its middle. Upwards only: scrolling unconditionally
@@ -239,7 +252,7 @@ and a new `version.json`. Verified to fail with either half removed.
 
 `-mx-6 px-6` on the bar cancels `main`'s `p-6`, so its background reaches both edges of the screen
 while the date and arrows stay exactly where the padding put them. It looks like a no-op on a desktop
-— white on white — and it is the only reason the bar works on an iPhone. There is an e2e test on it,
+— the page's colour on itself — and it is the only reason the bar works on an iPhone. There is an e2e test on it,
 because the behaviour it buys cannot be tested here.
 
 Without it, scrolling on iOS puts one or two lines of the fact _above_ the pinned bar, dimmed, behind
@@ -251,15 +264,36 @@ status bar, and Safari 26 paints page content into the strip above it.
 What fixes it is that Safari will instead fill that strip with a **flat colour sampled from the top
 row of the viewport** — but only when that row is uniform across the _whole width_. Inside `main`'s
 padding the row is 24 px of canvas, then bar, then 24 px of canvas, so no sample is taken and the
-live pixels show through. Full-bleed, the sample succeeds and the strip goes solid white. The
+live pixels show through. Full-bleed, the sample succeeds and the strip goes solid in the page's
+colour — white, or `#0d1117` in the dark theme, both seen on an iPhone in October 2026. The
 gradient is fine as it is; a solid `background-color` on the bar is _not_ required — both were tried.
+
+Two things the same iPhone showed in October 2026, both accepted:
+
+- **At the very top of a page the strip does not take the header's colour.** It stays the page's —
+  white over the header's `#f6f8fa`, `#0d1117` over its `#010409` — a thin band above the header.
+  Until Safari has taken its first sample from the top row it paints the strip, the
+  pull-to-refresh area and the strip behind its bottom toolbar in the `body`'s background colour —
+  not `html`'s, which changed nothing — and once it has sampled, the sample sticks for the life of
+  the page, back at the top included. A `body` in the header's colour, with the page on a layer of
+  its own, showed both on the device in October 2026: the top matched the header until the date bar
+  first pinned and stayed white from then on, while the strip behind the URL bar went grey under
+  white content without any overscroll. A band at the top beats one at the bottom, so the body
+  keeps the page's colour.
+- **On the legal pages scrolled text shows behind the status bar,** exactly as the facts did before
+  the bar went full-bleed: they have no pinned row at all, so the top row is a line of text. It
+  predates the Primer header. The fix would be the date bar's — a full-width row in one colour,
+  pinned at the top while the page scrolls, such as the title in a sticky full-bleed bar — and was
+  passed over for two pages read rarely and straight through.
 
 Tried, and observed on-device to do nothing. Do not spend an evening on these again:
 
 - `env(safe-area-inset-*)` is `0px` in every toolbar state, with _and_ without `viewport-fit=cover`.
   Nothing keyed on `env()` can see this strip.
 - `<meta name="theme-color">`, which Safari 26 ignores for Liquid Glass tinting.
-- An explicit `background-color` on `html` and `body` — the sample comes from the top row, not the root.
+- An explicit `background-color` on `html` and `body` — the sample comes from the top row, not the
+  root. Tried twice more in October 2026 for the band above the header: `html` in the header's
+  colour changed nothing, and `body` in it traded the band for one behind the URL bar (see above).
 - A `fixed` mask at a negative `top`. Safari clips fixed subtrees to the inner viewport even at a
   negative offset; sticky subtrees are _not_ clipped, which is why the bar itself can be seen up
   there. Same bug as [react-spectrum#8888](https://github.com/adobe/react-spectrum/pull/8888).
@@ -270,16 +304,42 @@ Accepted limitation: on a viewport wider than `max-w-2xl` plus its padding — a
 `main` no longer reaches the edges, the row stops being uniform, and the strip shows content again.
 Only phones are covered, which is where the bar is pinned often enough to matter.
 
-All four arrows on the page come from one `{#snippet arrow(...)}`: a button for the month arrows,
-a link for the fact arrows. The snippet is what keeps the shared class list inside a `class="..."`
-attribute, where Prettier's Tailwind plugin still sorts it — a hoisted `const` is silently skipped
-by the sorter. Verified both ways. The two branches repeat the list, so keep them in step.
+All four arrows on the page, and the header's two buttons, are
+[IconButton.svelte](../lib/IconButton.svelte): a button when given a function, a link when given a
+path. Its class list sits in a `class="..."` attribute, where Prettier's Tailwind plugin still sorts
+it — a hoisted `const` is silently skipped by the sorter, verified both ways while the arrows were
+still a snippet here. The two branches repeat the list, so keep them in step.
 
 ## The search
 
-Between the heading and the calendar, matching on every keystroke, with the hits in a panel laid
-over the calendar. A hit is a link to its day like everything else, so it is not a second way to
-navigate; the navigation empties the box in `afterNavigate`, which is what closes the list.
+In the header on every page, matching on every keystroke, with the hits in a panel — Primer's Overlay
+holding an ActionList — laid over the page below. A hit is a link to its day like everything else,
+so it is not a second way to navigate; the navigation empties the box in `afterNavigate`, which is
+what closes the list. The header carries `data-sveltekit-reset="false"` like the fact pages'
+`<main>`, so a hit leaves the scroll position to FactPage's `afterNavigate`, as an arrow does.
+
+**The label is for screen readers, the placeholder for the eye.** The header has no room for a visible
+label, so „Fakt suchen“ is an `sr-only` `<label>` and the placeholder repeats it beside Primer's
+search icon, which is github.com's own arrangement. The old placeholder, „z. B. Fernsehturm“, went
+with the visible label.
+
+**The box is 16 px below Primer's medium breakpoint, 768 px, and 14 px above it.** Safari on an
+iPhone zooms into any input set smaller once it gets the focus, and stays zoomed after the box has
+folded away: seen on the device in October 2026, with the calendar cut off and the dice and the `x`
+pushed off screen. Primer's own form control does the same, for that reason, if only on iOS — its
+feature test cannot be exercised here, a breakpoint can. Before Primer, `@tailwindcss/forms` set
+inputs to 16 px everywhere. `keeps the box large enough that an iPhone does not zoom into it`
+asserts the size at 390 px; verified to fail at 14 px.
+
+**Below Primer's small breakpoint, 544 px, the search folds into a button.** A phone's header cannot
+hold the name, a usable box and the dice in one row, so there it shows a search icon that unfolds the
+box over the header, hiding the name and the dice, and hands it the focus. The same button, now an
+`x`, folds it away again; so does picking a hit; and so does a second Escape once the first has
+emptied the box, which hands the focus back to the button rather than dropping it with the box. The
+open state changes nothing on a wide screen, where the button does not exist. Open, the input's own
+clear button and the `x` sit side by side: two ways out that do different things. `folds away on
+Escape, giving the focus back` and `folds away once a hit is picked` run at 390 px; verified to fail
+without the focus hand-back and without the fold in `afterNavigate`.
 
 **MiniSearch, and it is the only third-party code the browser gets.** Everything else here —
 `marked`, `yaml` — is build-time. The alternatives were measured against the real archive rather
@@ -289,7 +349,8 @@ of the box missed both the transposition `Fernsehtrum` and the two-word `nintend
 strings, not prose; MiniSearch (5.9 KB) is a real inverted index with per-term edit distance and
 prefix matching, and found everything. Do not switch to Fuse without re-running that comparison.
 
-It loads behind a **dynamic `import()`, started once the page has finished loading** — at the
+It loads behind a **dynamic `import()`, started once the page has finished loading** — on every page,
+since the header is on every page — at the
 `load` event, so after every image — or on focusing the box, if that comes first. Its chunk is not
 named anywhere in the built HTML, not even as a `modulepreload`, so it never competes with the page.
 It is not left until someone searches, as it once was, because a dynamic import fetched on demand
@@ -372,9 +433,10 @@ first keystroke, so a visitor who never searches never downloads it — the firs
   keystroke, a failed MiniSearch import may not (see how MiniSearch is loaded, above).
   `says so while its text is loading` and `says so when its text cannot be loaded` cover them.
 - **The panel is absolutely positioned, and that is a requirement rather than a look.** In normal
-  flow it shoved the calendar 200 px down the moment a query matched. An e2e test measures the
-  month heading's top before and after typing; mutate the panel back to `static` and it fails by
-  exactly that 200 px. `top-full` resolves to the bottom of the `search` element, which is the
+  flow it shoved the calendar 200 px down the moment a query matched. Since the search moved into
+  the header's fixed-height row, a static panel would push the box itself up out of line instead,
+  so the e2e test measures the month heading's top and the box's before and after typing; mutate
+  the panel back to `static` and it fails. `top-full` resolves to the bottom of the `search` element, which is the
   input, because every other child of it is out of flow. Since the panel now covers the calendar,
   Escape empties the box — that and the input's own `type="search"` clear button are the ways back.
   Closing it on `blur` would be the obvious third, and is a trap: `blur` fires before `click`, so
@@ -388,10 +450,10 @@ first keystroke, so a visitor who never searches never downloads it — the firs
 
 ## The random fact
 
-A button under the search box, right-aligned: searching is "I want something specific", the shuffle
-is "surprise me", so the two belong together. It sits _outside_ the `search` element, because it is not
-a search and the landmark should not claim it — which also means the hit panel covers it while a
-query is running, exactly as the panel covers the calendar.
+A dice IconButton at the end of the header, right of the search: searching is "I want something
+specific", the dice is "surprise me", so the two belong together. It sits _outside_ the `search`
+element, because it is not a search and the landmark should not claim it. On a narrow screen it
+steps aside while the search is unfolded.
 
 - **A button calling `goto`, not a link,** because its target is drawn only when it is pressed.
   With `reset: false`, so `afterNavigate` pulls the fact back under a pinned bar exactly
@@ -399,16 +461,19 @@ query is running, exactly as the panel covers the calendar.
 - **It never returns the fact already on screen.** A repeat, however rare, makes the button look
   broken. The e2e test stubs `Math.random` so the pick is deterministic, and
   is built so the stub would land on the current fact if the filter were gone — remove the filter
-  and it fails rather than passing on a coincidence.
+  and it fails rather than passing on a coincidence. The header is outside the page, so the fact on
+  screen is the router's `page.params.date`; on `/` and `404.html` that is a day without a fact or
+  nothing, and nothing is left out.
 - **`aria-disabled`, not the native attribute,** like every other button here, and bounded until
-  hydration. `otherFacts` comes from the date list, which is there at prerender time, so without
-  `!today` the button would ship claiming `aria-disabled="false"` while no listener exists —
-  enabled-looking and inert, and permanently so for a visitor without JavaScript. `a fact is
-readable and the archive navigable` asserts it from a page with JavaScript off.
-- **`🔀` and not the die `⚄`.** U+2684 is a real glyph rather than tofu — checked by advance width
-  against U+FFFF — but at 14 px its five pips each fall under a pixel and it reads as an empty box.
-  The shuffle emoji is legible at that size and was chosen for it, at the price of being the only
-  glyph on the page that renders in colour rather than in the current text colour.
+  hydration, which IconButton does for every button (`!clock.today`). `otherFacts` comes from the
+  date list, which is there at prerender time, so without that the button would ship claiming
+  `aria-disabled="false"` while no listener exists — enabled-looking and inert, and permanently so
+  for a visitor without JavaScript. `a fact is readable and the archive navigable` asserts it from a
+  page with JavaScript off.
+- **The `dice` Octicon, because Primer has no shuffle icon.** Before Primer the button carried `🔀`,
+  chosen over U+2684 `⚄` because at 14 px the Unicode die's five pips each fell under a pixel and it
+  read as an empty box. The Octicon is drawn for 16 px and reads; it also renders in the current
+  colour, so the emoji's exception to that is gone.
 
 ## Impressum and Datenschutz
 
@@ -427,9 +492,9 @@ ladungsfähige Anschrift even though nothing here is commercial.
   as the facts-file parse test, and for the same reason: a fake Impressum is a worse problem than a
   missing one, and neither `pnpm build` nor `pnpm lint` would say a word about it.
 - **Every claim on the Datenschutz page was read off the build, not off a generator.** No storage
-  API appears anywhere in the source, nothing is fetched from anywhere but this site, the font
-  stack is system fonts, and every `img`/`script`/`link` in the built HTML is same-origin. The page says so in those terms,
-  which means **the code can turn the page into a false statement** — one web font, one embedded
+  API appears anywhere in the source, nothing is fetched from anywhere but this site, the font is
+  self-hosted Mona Sans, and every `img`/`script`/`link` in the built HTML is same-origin. The page says so in those terms,
+  which means **the code can turn the page into a false statement** — one external web font, one embedded
   video, one counter. `loads nothing from third-party servers` in
   [legal-pages.e2e.ts](legal-pages.e2e.ts) is the guard: it watches every request
   origin across the home page, a search (so MiniSearch's chunk and `search.json` are inside the
@@ -440,12 +505,22 @@ ladungsfähige Anschrift even though nothing here is commercial.
   prerender crawler refuses it and `pnpm build` dies with "does not begin with `base`". The build is
   the harder gate, and a test that cannot fail reads like cover for something that is not covered.
 - **`<main>` stays in each page rather than moving into the layout.** The fact pages' carries
-  `data-sveltekit-reset="false"`, which reaches every link inside it; the
-  footer sits _outside_ `<main>` so that its links navigate like any page change.
-- **The way back to the facts lives in the two legal pages, not in the footer,** and it is a real
-  page load like every link to `/` — see "The home page". It used to sit there to keep a link to `/`
-  off the home page structurally, which the hash design needed; that reason is gone, since the fact
-  pages have the heading, and the link stayed where it was.
+  `data-sveltekit-reset="false"`, which reaches every link inside it; the footer sits _outside_
+  `<main>` so that its links navigate like any page change. The header is outside too, and carries
+  the attribute itself for its hits.
+- **The way back to the facts is the header's name,** the same real page load as on every page —
+  see "The home page". The legal pages carried a „Zum Fakt des Tages“ link of their own until the
+  header moved into the layout in October 2026.
+- **The header's name is a link, not a heading, and every page carries its own `<h1>`:** FactPage
+  a visually hidden „Fakt des Tages“, the legal pages their title, the error page its message. A
+  header that turned its name into the `<h1>` everywhere but the legal pages was tried and failed
+  at `/impressum/` with a trailing slash: Pages serves 404.html there, calendar and all, but
+  404.html hands SvelteKit only its components and data, so the route id and `page.url` both come
+  from matching the address — the Impressum's, slash dropped — and the page ended up with no
+  heading at all. Nothing in the header can see which page was really rendered, so the heading
+  moved into the pages. `is reachable from the footer` and the first test in
+  [page.e2e.ts](page.e2e.ts) each find exactly one `<h1>`, which Playwright's strict mode would
+  refuse were there two.
 - **Trailing slashes are not served.** Checked on a real Pages deployment for the date pages:
   `/2026-08-23/` gets `404.html`, which then says „Diese Seite gibt es nicht.“ The legal pages were
   not part of that check but are written the same way. Every link the site generates omits the
@@ -453,9 +528,10 @@ ladungsfähige Anschrift even though nothing here is commercial.
   would move every date page one directory deeper and break every `fakten/…` image path (see the
   root CLAUDE.md).
 - **Both pages hyphenate, and the identity blocks deliberately do not.** `hyphens-auto` sits on
-  `<main>` rather than on the inner `.prose`, because the `<h1>` is outside that div: at 320 px
+  `<main>` rather than on the inner `.markdown-body`, because the `<h1>` is outside that div: at 320 px
   `Datenschutzerklärung` ran 16 px past the viewport and gave the page a horizontal scrollbar, which
-  moving the class up fixes by breaking it at `Datenschutzerklä-rung`. The name,
+  moving the class up fixes by breaking it at `Datenschutzerklä-rung` — re-checked at 320 px with
+  Primer's 2rem title in Mona Sans, no overflow. The name,
   address and email carry `hyphens-none` instead, because they are data a reader transcribes onto an
   envelope rather than prose to be read, and `hyphens: auto` really did break the address at
   `…gmail.c|om` on a 320 px screen before the exception went in. Nothing tests either class; the

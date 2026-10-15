@@ -18,8 +18,8 @@ Product rules that are easy to get wrong:
   visitor's local `Date`, read in the browser: nothing runs at request time, so the build can never
   know what day it is for a visitor.
 
-How the pages themselves behave (the home page and the 404 page, calendar, sticky bar, search,
-random fact and legal pages) is in [src/routes/CLAUDE.md](src/routes/CLAUDE.md). It loads once a file there is
+How the pages themselves behave (the home page and the 404 page, the header, calendar, sticky date
+bar, search, random fact and legal pages) is in [src/routes/CLAUDE.md](src/routes/CLAUDE.md). It loads once a file there is
 read; if it is not in context yet, read it before answering about or changing anything there.
 
 ## German and English
@@ -124,7 +124,7 @@ applied in and what is checked, so nothing depends on remembering a past session
   goes on answering with an old build. Run measurement servers with `--port N --strictPort`, stop
   them by port (`lsof -ti tcp:N`), and assert that the served page carries the new markup before
   reading anything off it.
-- `.prose p` exists before the right fact does. Wait for the fact's own text before measuring or
+- `.markdown-body p` exists before the right fact does. Wait for the fact's own text before measuring or
   taking a screenshot.
 - Rebuilding lines from character rects cannot see an automatic hyphen, so it reads one character
   short. Take a screenshot to judge a break.
@@ -170,7 +170,8 @@ Consequences worth knowing before changing any of this:
 - **[src/lib/facts.ts](src/lib/facts.ts) must stay dependency-free.** It holds the `FactHtml`
   type, the pure date helpers (`toIsoDate`, `fromIsoDate`, `isIsoDate`, `monthGrid`) and the
   search's (`words`, `indexTerms`, `foldTerm`, `excerpt`), and is imported by
-  [FactPage.svelte](src/lib/FactPage.svelte), so anything added there ships to the client.
+  [FactPage.svelte](src/lib/FactPage.svelte), [Header.svelte](src/lib/Header.svelte) and
+  [today.svelte.ts](src/lib/today.svelte.ts), so anything added there ships to the client.
   `isIsoDate` lives here rather than in `src/lib/server/` because the page served for a day without a
   fact reads the date out of the address bar with it — that _is_ a trust boundary, unlike the
   facts file.
@@ -208,8 +209,8 @@ Consequences worth knowing before changing any of this:
   `20 °C`, `10 km`, `§ 5`, `Nr. 10292`) and inside a spaced
   abbreviation (`z. B.`, `u. a.`, `d. h.`); normal width before a spelled-out word the number
   counts (`vor 35 Jahren`, `90 Minuten`). Do not collapse the two onto one character, tempting as
-  it is — DIN 5008 would allow a full space throughout, but measured in the page's own font at
-  16 px U+202F is 1.94 px against U+00A0's 4.19 px, which is right for `25 Mio. $` and visibly
+  it is — DIN 5008 would allow a full space throughout, but measured in the page at 16 px U+202F
+  is 1.84 px against U+00A0's 3.67 px, which is right for `25 Mio. $` and visibly
   wrong for `vor 35 Jahren`, where it jams the words together. A plain space in either position is
   a defect, not a matter of taste. Only numerals count: `zehn Jahre` and `in den 1990er Jahren`
   keep an ordinary space, because an orphaned `Jahre` reads perfectly well where an orphaned
@@ -220,8 +221,10 @@ Consequences worth knowing before changing any of this:
   both characters rather than assumed: the YAML parser preserves them, `marked` emits them literally with no `&nbsp;` or
   `&#8239;` reaching the built HTML, Prettier round-trips them inside a block scalar, and the
   search index is unaffected because `words` splits on `[^\p{L}\p{N}]+` — neither is a letter or a
-  digit, so both separate tokens exactly like an ordinary space. U+202F is a real glyph in the
-  site's font stack, not a fallback: 1.94 px against 15.69 px for a tofu box. The archive was
+  digit, so both separate tokens exactly like an ordinary space. U+202F is a real glyph, not a
+  tofu box: 1.84 px against 15.69 px for one. It is not Mona Sans's, though, which has none — the
+  browser takes it from the next font in the stack, and the no-break behaviour belongs to the
+  character, so it holds whichever font draws it. The archive was
   swept once to match, so a plain space beside a numeral is now a defect to fix rather than a
   backlog item.
 - **An ordinal binds to the word it labels, and that is the same rule seen from the other side.**
@@ -258,10 +261,10 @@ Consequences worth knowing before changing any of this:
   `ca. drei Monate`. It is the title's failure again, a line ending in a bare `ca.`, and the
   normal width because `ca.` qualifies the number rather than labelling it the way `Nr.` does.
 - **Hyphenation is the browser's job, and a soft hyphen is never to be typed into a fact.** The
-  fact column is `prose hyphens-auto` on the `<article>` in
+  fact column is `markdown-body hyphens-auto` on the `<article>` in
   [FactPage.svelte](src/lib/FactPage.svelte), which together with the `lang="de"` already on `<html>`
   in [app.html](src/app.html) hands the whole problem to the browser's German dictionary. Measured
-  at a 375 px viewport on the 2026-10-01 entry: the median gap at the right margin falls from 28 px
+  at a 375 px viewport on the 2026-10-01 entry, in the system font before Mona Sans: the median gap at the right margin falls from 28 px
   to 12 px and the lines ending more than 30 px short go from 9 to 1, breaking correctly at
   `ange-brachter`, `er-laubte`, `überprü-fen` and `Län-gengrad`. One utility class, every entry
   covered including the ones not written yet, and the stored text stays plain.
@@ -311,13 +314,15 @@ Consequences worth knowing before changing any of this:
   the image, and **no hard break** between them: Preflight makes `img` a block, so the credit starts
   on its own line regardless, and a `<br>` there buys nothing but an extra empty line — measured, it
   left the credit 37 px from both pictures, belonging to neither.
-  [layout.css](src/routes/layout.css) closes the first gap to 8 px, and the selector is the load-
-  bearing part: `.prose p > a:has(+ em) > img` matches only an image with a credit after it — the
-  sibling is the image's zoom link, not the image (see the point above) — so the
-  single images and the back-to-back pairs elsewhere in the archive keep their 32 px. Verified by
-  measuring all four cases in a browser rather than reasoning about the cascade. It has to live in
-  `@layer utilities`, because that is where the typography plugin puts `.prose :where(img)` and a
-  later layer beats any specificity — in `components` the rule ships, matches, and does nothing.
+  [layout.css](src/routes/layout.css) gives every image in `.markdown-body` 0.5rem below it, so a
+  pair stacked in one paragraph sits 8 px apart — about the gap GitHub's inline images get from the
+  line between them — and pulls a credited image's down to 0.25rem, so the credit lands 4–5 px under
+  its picture and the next paragraph a full 1rem further on. The selector is the load-bearing part:
+  `.markdown-body p > a:has(+ em) > img` matches only an image with a credit after it — the sibling
+  is the image's zoom link, not the image (see the point above). Measured in a browser on a pair and
+  on a credited image. Both rules sit in `@layer components` beside `.markdown-body`; the
+  `@layer utilities` they once needed, to beat the typography plugin's own layer, went with the
+  plugin.
   Public-domain and CC0 images get no line, since none is owed. Note the credit is rendered text, so
   the photographer's name joins the search index like any other word in the fact.
 - **That same line also carries a rights-holder's _required declaration_, which is a third case
@@ -404,7 +409,9 @@ Consequences worth knowing before changing any of this:
 - **Transparency is never a reason to choose a format.** AVIF carries alpha as cheaply as it
   carries anything, so the background is a question about the picture alone, and the default is to
   keep the alpha channel rather than flatten it onto white. The Cheers wordmark on 2026-09-30 is the
-  one that keeps it: it looks identical on today's white page. Two questions decide it, and the
+  one that keeps it: it looks identical on the light theme's white page, and on the dark theme's
+  `#0d1117` its gold letters carry it while the black keyline merges into the ground — checked in
+  October 2026, the first time anything stood behind it. Two questions decide it, and the
   two other flat graphics each answer no to one, which is why both are flattened:
   - **Is the white part of the picture, or just where the picture stops?** The Malaysian flag on
     2026-09-16 is a rectangle whose white stripes _are_ the artwork — there is no
@@ -417,8 +424,10 @@ Consequences worth knowing before changing any of this:
 
   Check the interior holes before shipping one. The counters inside the Cheers letters are genuine
   gaps in the SVG, so a coloured ground shows through them — correct for a wordmark, wrong for a
-  logo meant to sit on its own white tile. Nothing tests any of this: alpha is invisible against a
-  white page, so a wrong call here looks right until the day something is put behind it.
+  logo meant to sit on its own white tile. Nothing tests any of this, and the dark theme is the
+  ground that shows a wrong call: the flattened flag and tughra sit there as white tiles, which is
+  right for them, while a transparent mark without a colour of its own would vanish. Look at a new
+  one in both themes.
 
 ### YAML gotchas that bite silently
 
@@ -436,8 +445,8 @@ Consequences worth knowing before changing any of this:
 - `parseFacts` rejects a document that parses to a plain string rather than a map — a file
   containing prose instead of entries, for instance.
 
-Rendering goes through `{@html}` on the already-rendered HTML, wrapped in Tailwind's `prose` class
-(the `@tailwindcss/typography` plugin is loaded). No sanitiser is warranted: the YAML is a file in
+Rendering goes through `{@html}` on the already-rendered HTML, wrapped in `.markdown-body`, GitHub's
+Markdown look (see "The look is GitHub's Primer"). No sanitiser is warranted: the YAML is a file in
 this repo compiled into the build, so anyone who can write a fact can already write the app's
 JavaScript — it is not a trust boundary. That reasoning stops holding the moment facts come from
 anywhere but the repo; add sanitising then.
@@ -607,18 +616,80 @@ one failure mode that would otherwise surface only in `pnpm build`. The same fil
 tests `factText`, the search's and the description's text: no markup, no link target, alt texts
 padded apart. Verified by mutation for the padding and for a link's target.
 
+## The look is GitHub's Primer
+
+Since October 2026 the site follows Primer, the design system of GitHub's product. Primer Brand, the
+marketing one, is staff-only and unlicensed, so it was never an option. None of Primer's own packages
+is installed, and that was decided, not overlooked: `@primer/css` is in maintenance mode, and its
+README sends everyone to Primer React or the Rails components, neither of which a Svelte site can
+use.
+
+- **The colours are Primer's variables under Primer's names, copied into
+  [layout.css](src/routes/layout.css)** from `@primer/primitives` 11.10.0, light and dark, and used
+  as `text-(--fgColor-muted)`. Importing the package's theme files instead would have shipped about
+  28 KB of gzipped CSS to every first visit for the few dozen values the site uses, because a theme
+  file holds about 960 and cannot be trimmed. Accepted limitation: they change only when someone
+  copies them again; the comment above them names the two source files. Tailwind's palette is
+  switched off (`--color-*: initial`), so a leftover `sky-600` generates nothing rather than a colour
+  from another design system.
+- **Dark mode follows the visitor's setting** through `prefers-color-scheme`, with
+  `color-scheme: light dark` on `:root` so form controls and scrollbars follow too. Nothing offers a
+  switch: remembering the choice would need storage, which the Datenschutz page rules out. `follows
+a … colour scheme` checks the canvas in both.
+- **Fact and legal text get GitHub's Markdown look**, `.markdown-body` in layout.css, after
+  `github-markdown-css` 5.9.0 but only for what the entries and the legal pages use — paragraphs,
+  links, emphasis, images, blockquotes and `h2` — plus lists and inline code, which nothing uses
+  yet but which Preflight would otherwise strip to bare text. Accepted limitation: anything else
+  CommonMark can produce renders unstyled, and the upgrade path is that package. It replaced
+  `@tailwindcss/typography`, and `@tailwindcss/forms` went with it, since the one input is styled by
+  hand. Links in it are always underlined, as Primer asks of a link in running text: the accent is
+  too close to the text colour to tell the two apart by colour alone.
+- **The font is Mona Sans, self-hosted** from [src/lib/assets/fonts/](src/lib/assets/fonts/) with
+  its OFL licence beside it: Google Fonts' latin and latin-ext variable subsets, split by
+  `unicode-range` exactly as Google serves them, so a German page downloads only the 40 KB latin
+  file, which the layout preloads. Same-origin, so the Datenschutz page's „keine externen
+  Schriftarten“ still holds. It has no U+202F and no U+2009, so those come from the next font in the
+  stack (see the no-break spaces above), as do the few Cyrillic, Hebrew and Japanese words in the
+  archive — the same fallback github.com relies on.
+- **Every icon is an Octicon, inline** in [IconButton.svelte](src/lib/IconButton.svelte): five 16 px
+  paths copied from `@primer/octicons` 19.40.0, which is MIT. Primer has no shuffle icon, so the
+  random fact is the `dice`.
+- **Every icon-only control is an IconButton** — the four arrows, the search button and the dice —
+  and names itself in a tooltip: a `popover="hint"` in the top layer, anchored to its control by
+  `togglePopover({ source })` and `position-area`. Checked in October 2026: `hint` is complete from
+  Chrome 151 and Firefox 153 and exists only in Safari's Technology Preview, so Safari treats it as
+  `manual` and the tooltip's own Escape handler covers what `hint` would do; the anchoring needs
+  Chrome 133, Firefox 147 or Safari 26, and without it `@supports` hides the tooltip rather than
+  leave it stranded mid-screen — the `aria-label` names the control either way. The listeners sit on
+  a wrapper round control and tooltip, so a pointer moving onto the tooltip keeps it up, as WCAG
+  1.4.13 asks, and a click on it presses nothing. Mouse only, and focus only through
+  `:focus-visible`: a tap would leave it standing, and a click is not a question. The test,
+  `names an icon button on hover and on keyboard focus`, fails with the wrapper's handlers removed,
+  with the anchor removed — through its position check — and with the Escape handler removed,
+  which it exercises by turning the popover `manual` first, since Chromium closes a `hint` one by
+  itself.
+- **Two departures from Primer's defaults, both for accessibility.** The search box's border is
+  `--borderColor-emphasis` rather than Primer's `#d1d9e0`, which is 1.43:1 against white where WCAG
+  wants 3:1 for the edge of a control; the emphasis colour is 3.45:1 on white and 3.24:1 on the header,
+  3.57:1 and 3.87:1 in dark. And github.com's `/` shortcut to the search is left out: a single-key
+  shortcut fails WCAG 2.1.4 unless it can be switched off, and the switch would need storage.
+- **`<svelte:element>` costs 2.8 KB of runtime, gzipped.** Measured in October 2026, on a header
+  that briefly switched its name between `<h1>` and `<p>` with one; an `{#if}` round a snippet does
+  the same for nothing. Measure before reaching for it.
+
 ## Misc
 
-- Tailwind v4 — configured via CSS (`@import`/`@plugin` in [src/routes/layout.css](src/routes/layout.css)),
-  no `tailwind.config.js`. `typography` and `forms` plugins are loaded. Prettier sorts classes and
+- Tailwind v4 — configured via CSS (`@import` and `@theme` in [src/routes/layout.css](src/routes/layout.css)),
+  no `tailwind.config.js` and no plugins. Its palette is switched off and `sm` is Primer's 544 px;
+  see "The look is GitHub's Primer". Prettier sorts classes and
   is pointed at that stylesheet, so run `pnpm format` after touching class lists. One base rule lives
   in that file as well: v4's Preflight dropped v3's `cursor: pointer` on buttons, leaving nothing on
   the page looking clickable, so `button:not([aria-disabled='true'])` puts the hand back. The
   exclusion is the point: a bounded month arrow is only `aria-disabled` and stays focusable, and
   without it the inert control offers the hand. No button on the site is natively `disabled`; add
-  one and it needs `:not(:disabled)` here too, which the rule carried while the heading was such a
+  one and it needs `:not(:disabled)` here too, which the rule carried while the site's title was such a
   button. The bounded fact arrows are links without an `href`, whose cursor is `auto` — a text
-  cursor over the glyph — so the arrow snippet sets `aria-disabled:cursor-default` itself. `shows
+  cursor over the icon — so IconButton sets `aria-disabled:cursor-default` itself. `shows
 the hand only over what actually does something` covers both arrow kinds.
 - The facts file is **deliberately not** prettier-ignored (only `/static/` is). Prettier has to parse
   YAML to format it, so `pnpm lint` rejects a facts file that is syntactically broken — one step

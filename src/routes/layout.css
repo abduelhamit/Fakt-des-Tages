@@ -1,27 +1,234 @@
 @import 'tailwindcss';
-@plugin '@tailwindcss/forms';
-@plugin '@tailwindcss/typography';
 
-/* Tailwind v4's Preflight dropped v3's `cursor: pointer` on buttons; this puts it back. Why the
-   `aria-disabled` exception is there, and what it costs to lose it, is in CLAUDE.md. */
+/* Mona Sans, the first font of Primer's stack, self-hosted under the SIL Open Font License (see
+   src/lib/assets/fonts/OFL.txt). Google Fonts' variable subsets, split the way it serves them, so a
+   German page downloads only the latin file. Accepted limitation: the font has no U+202F, so the
+   narrow no-break space comes from the next font in the stack — see CLAUDE.md. */
+@font-face {
+	font-family: 'Mona Sans VF';
+	font-style: normal;
+	font-weight: 200 900;
+	font-display: swap;
+	src: url('../lib/assets/fonts/mona-sans-latin-ext.woff2') format('woff2');
+	unicode-range:
+		U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329,
+		U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F,
+		U+A720-A7FF;
+}
+@font-face {
+	font-family: 'Mona Sans VF';
+	font-style: normal;
+	font-weight: 200 900;
+	font-display: swap;
+	src: url('../lib/assets/fonts/mona-sans-latin.woff2') format('woff2');
+	unicode-range:
+		U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+		U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@theme {
+	--font-sans:
+		'Mona Sans VF', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial,
+		sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji';
+	--font-mono:
+		ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
+	/* Primer's colours only, through the variables below: with Tailwind's palette gone, a leftover
+	   `sky-*` or `gray-*` class generates nothing rather than a colour from another design system. */
+	--color-*: initial;
+	/* Primer's small breakpoint, 544 px: below it the search folds into a button in the header. */
+	--breakpoint-sm: 34rem;
+}
+
+/* Primer's colour tokens under Primer's own names, light and dark, used as
+   `text-(--fgColor-muted)`. Copied from @primer/primitives 11.10.0
+   (dist/css/functional/themes/light.css and dark.css), only
+   the ones this site uses: each theme file holds about 960 and cannot be trimmed. Known limitation:
+   hand-copied, so they change only when someone copies them again; the upgrade path is importing
+   those two files and setting their `data-color-mode` attributes on <html>. */
 @layer base {
+	:root {
+		color-scheme: light dark;
+		--fgColor-default: #1f2328;
+		--fgColor-muted: #59636e;
+		--fgColor-accent: #0969da;
+		--fgColor-onEmphasis: #ffffff;
+		--fgColor-disabled: #818b98;
+		--bgColor-default: #ffffff;
+		--bgColor-inset: #f6f8fa;
+		--bgColor-disabled: #eff2f5;
+		--bgColor-neutral-muted: #818b981f;
+		--bgColor-accent-muted: #ddf4ff;
+		--bgColor-accent-emphasis: #0969da;
+		--borderColor-default: #d1d9e0;
+		--borderColor-muted: #d1d9e0b3;
+		--borderColor-emphasis: #818b98;
+		--borderColor-accent-muted: #54aeff66;
+		--borderColor-accent-emphasis: #0969da;
+		--control-transparent-bgColor-hover: #818b981a;
+		--control-transparent-bgColor-active: #818b9826;
+		--overlay-bgColor: #ffffff;
+		--shadow-floating-small: 0 0 0 1px #d1d9e040, 0 6px 12px -3px #25292e0a, 0 6px 18px 0 #25292e1f;
+		--bgColor-emphasis: #25292e;
+	}
+
+	@media (prefers-color-scheme: dark) {
+		:root {
+			--fgColor-default: #f0f6fc;
+			--fgColor-muted: #9198a1;
+			--fgColor-accent: #4493f8;
+			--fgColor-onEmphasis: #ffffff;
+			--fgColor-disabled: #656c76;
+			--bgColor-default: #0d1117;
+			--bgColor-inset: #010409;
+			--bgColor-disabled: #212830;
+			--bgColor-neutral-muted: #656c7633;
+			--bgColor-accent-muted: #388bfd1a;
+			--bgColor-accent-emphasis: #1f6feb;
+			--borderColor-default: #3d444d;
+			--borderColor-muted: #3d444db3;
+			--borderColor-emphasis: #656c76;
+			--borderColor-accent-muted: #388bfd66;
+			--borderColor-accent-emphasis: #1f6feb;
+			--control-transparent-bgColor-hover: #656c7633;
+			--control-transparent-bgColor-active: #656c7640;
+			--overlay-bgColor: #010409;
+			--shadow-floating-small: 0 0 0 1px #3d444d, 0 6px 12px -3px #01040966, 0 6px 18px 0 #01040966;
+			--bgColor-emphasis: #3d444d;
+		}
+	}
+
+	/* The page's colour, and keep it: Safari on an iPhone paints the strips behind its status bar
+	   and its toolbar in the body's colour. The header's was tried — see the iOS section of
+	   src/routes/CLAUDE.md. */
+	body {
+		background-color: var(--bgColor-default);
+		color: var(--fgColor-default);
+	}
+
+	/* Primer's focus ring, once for every control — `--focus-outlineColor` there, an alias of this
+	   colour. Inset, so it never collides with a neighbour; a link in running text gets it outside
+	   instead, where it does not cover the words. */
+	:focus-visible {
+		outline: 2px solid var(--borderColor-accent-emphasis);
+		outline-offset: -2px;
+	}
+	a:not([class]):focus-visible {
+		outline-offset: 0;
+	}
+
+	/* Tailwind v4's Preflight dropped v3's `cursor: pointer` on buttons; this puts it back. Why the
+	   `aria-disabled` exception is there, and what it costs to lose it, is in CLAUDE.md. */
 	button:not([aria-disabled='true']) {
 		cursor: pointer;
 	}
 
 	/* Every fact image links to its own file, which the browser opens at up to 100 %. */
-	.prose a:has(> img) {
+	.markdown-body a:has(> img) {
 		cursor: zoom-in;
 	}
 }
 
-/* Pull a photo credit up against the image it belongs to. Prose gives an image 2em below it and
-   2em between paragraphs, so an untouched credit sits exactly as far from its own picture as from
-   the next one. `:has(+ em)` is what distinguishes a credited image from a bare one — see
-   CLAUDE.md, under the credit convention, for why the sibling test and not a class, and why this has to sit in `utilities`.
-   The sibling is the image's link, not the image: `renderFact` wraps every one in `<a>`. */
-@layer utilities {
-	.prose p > a:has(+ em) > img {
-		margin-bottom: 0.5em;
+@layer components {
+	/* GitHub's Markdown look, after github-markdown-css 5.9.0, covering what the facts and the legal
+	   pages use. Known limitation: CommonMark beyond this — tables, code blocks, h1 and h3 to h6 —
+	   renders unstyled; the upgrade path is that package. Links are always underlined, as Primer
+	   asks of a link in running text: the accent alone is too close to the text colour to tell them
+	   apart. */
+	.markdown-body {
+		overflow-wrap: break-word;
+
+		& > :first-child {
+			margin-top: 0;
+		}
+		& > :last-child {
+			margin-bottom: 0;
+		}
+		& :where(p, blockquote, ul, ol) {
+			margin-bottom: 1rem;
+		}
+		& a {
+			color: var(--fgColor-accent);
+			text-decoration: underline;
+			text-underline-offset: 0.2rem;
+		}
+		& :where(b, strong) {
+			font-weight: 600;
+		}
+		& h2 {
+			margin-top: 1.5rem;
+			margin-bottom: 1rem;
+			padding-bottom: 0.3em;
+			border-bottom: 1px solid var(--borderColor-muted);
+			font-size: 1.5em;
+			font-weight: 600;
+			line-height: 1.25;
+		}
+		& blockquote {
+			padding: 0 1em;
+			color: var(--fgColor-muted);
+			border-left: 0.25em solid var(--borderColor-default);
+		}
+		& :where(ul, ol) {
+			padding-left: 2em;
+		}
+		& ul {
+			list-style: disc;
+		}
+		& ol {
+			list-style: decimal;
+		}
+		& li + li {
+			margin-top: 0.25em;
+		}
+		& code {
+			padding: 0.2em 0.4em;
+			border-radius: 6px;
+			background-color: var(--bgColor-neutral-muted);
+			font-size: 85%;
+		}
+	}
+
+	/* Preflight makes every image a block, so two in one paragraph would touch: 0.5rem apart, about
+	   the gap GitHub's inline images get from the line between them. A credit sits closer still, so
+	   it reads as belonging to the picture above. `:has(+ em)` is what tells a credited image from a
+	   bare one — see CLAUDE.md, under the credit convention, for why the sibling test and not a
+	   class. The sibling is the image's link, not the image: `renderFact` wraps every one in
+	   `<a>`. */
+	.markdown-body img {
+		margin-bottom: 0.5rem;
+	}
+	.markdown-body p > a:has(+ em) > img {
+		margin-bottom: 0.25rem;
+	}
+
+	/* Primer's tooltip, on a `hint` popover — see `tooltip` in IconButton.svelte. In the top layer,
+	   so the header cannot clip it; anchored below its button, or above where there is no room. The
+	   `::before` bridges the gap to the button, so a pointer can move onto the tooltip without losing
+	   it. */
+	.tooltip {
+		inset: auto;
+		position-area: block-end;
+		position-try-fallbacks: flip-block;
+		margin: 0.25rem 0;
+		overflow: visible;
+		padding: 0.25rem 0.5rem;
+		border-radius: 6px;
+		background-color: var(--bgColor-emphasis);
+		color: var(--fgColor-onEmphasis);
+		font-size: 0.75rem;
+		white-space: nowrap;
+
+		&::before {
+			content: '';
+			position: absolute;
+			inset: -0.25rem 0;
+		}
+	}
+	/* Without anchor positioning a popover lands in the middle of the screen. Better none there: the
+	   button's `aria-label` names it either way. */
+	@supports not (position-area: block-end) {
+		.tooltip {
+			display: none;
+		}
 	}
 }

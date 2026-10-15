@@ -1,21 +1,11 @@
 <script lang="ts">
 	import { onMount, tick } from 'svelte';
-	import { afterNavigate, goto } from '$app/navigation';
+	import { afterNavigate } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { navigating } from '$app/state';
-	import {
-		excerpt,
-		fromIsoDate,
-		isIsoDate,
-		MIN_QUERY_LENGTH,
-		monthGrid,
-		foldTerm,
-		indexTerms,
-		toIsoDate,
-		words,
-		type FactHtml
-	} from '#lib/facts.ts';
-	import type MiniSearch from 'minisearch';
+	import { fromIsoDate, isIsoDate, monthGrid, toIsoDate, type FactHtml } from '#lib/facts.ts';
+	import IconButton from '#lib/IconButton.svelte';
+	import { clock, startClock } from '#lib/today.svelte.ts';
 
 	/**
 	 * The whole page, shared by `/[date]` (a fact), `/` (the calendar while the head script picks
@@ -36,47 +26,20 @@
 
 	// The visitor's clock is unknowable at build time, so today is read only after hydration and
 	// is undefined until then. It only adds things — the ring, a clickable today without a fact,
-	// the arrows' reach — so a fact page is complete before it.
-	let today = $state<string>();
-	let midnight: ReturnType<typeof setTimeout> | undefined;
-
-	/**
-	 * Reads today off the clock and comes back at the next local midnight. No browser event
-	 * announces a new day, so the timer covers a page watched across midnight, and the tab becoming
-	 * visible or regaining focus re-reads it as well: a timer is held back in a background tab and
-	 * by sleep, and the time zone may have changed since. Each read sets the timer anew from the
-	 * time it finds, so one that comes early or late corrects itself.
-	 */
-	function readToday() {
-		const now = new Date();
-		today = toIsoDate(now);
-		clearTimeout(midnight);
-		const next = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
-		midnight = setTimeout(readToday, next.getTime() - now.getTime());
-	}
+	// the arrows' reach — so a fact page is complete before it. Shared with the header, which links
+	// it.
+	const today = $derived(clock.today);
 	// The date in the address bar on the pages that have no fact of their own: undefined until
 	// hydration, `null` if the path is not a date at all. Read from `location`, not `page.url`,
 	// because the head script on `/` rewrites the address before SvelteKit starts.
 	let urlDate = $state<string | null>();
 
 	onMount(() => {
-		readToday();
+		startClock();
 		const last = location.pathname.split('/').at(-1) ?? '';
 		urlDate = isIsoDate(last) ? last : null;
 		// Shown only once the corrected month and message are in the DOM; see `hideUntilHydrated`.
 		tick().then(() => (document.documentElement.hidden = false));
-
-		// MiniSearch, fetched once everything else has — images included — so it never competes
-		// with the page, yet sits in memory before anyone searches. Fetched on demand instead, it
-		// failed for good: a browser that caches a failed import never asks again, and a deploy
-		// deletes the chunk an open tab would ask for. A failure here surfaces on the next search.
-		const preload = () => void import('minisearch').catch(() => {});
-		if (document.readyState === 'complete') preload();
-		else window.addEventListener('load', preload, { once: true });
-		return () => {
-			window.removeEventListener('load', preload);
-			clearTimeout(midnight);
-		};
 	});
 
 	/**
@@ -99,7 +62,7 @@
 		fromIsoDate(`${(selected ?? dates.at(-1) ?? toIsoDate(new Date())).slice(0, 7)}-01`)
 	);
 
-	// The bound is enforced by the `arrow` snippet, which drops the handler of a disabled arrow.
+	// The bound is enforced by IconButton, which drops the handler of a disabled button.
 	function shiftMonth(steps: number) {
 		month = new Date(month.getFullYear(), month.getMonth() + steps, 1);
 	}
@@ -111,11 +74,11 @@
 	let bar = $state<HTMLElement>();
 	let factText = $state<HTMLElement>();
 
-	// Every link in `<main>` carries `data-sveltekit-reset="false"`, so SvelteKit leaves the scroll
-	// position alone and this decides instead. `enter` is the first load, and on `popstate`
-	// SvelteKit restores the position the visitor left.
+	// Every link in `<main>` and in the header carries `data-sveltekit-reset="false"`, and the
+	// random fact asks for the same, so SvelteKit leaves the scroll position alone and this decides
+	// instead. `enter` is the first load, and on `popstate` SvelteKit restores the position the
+	// visitor left.
 	afterNavigate(({ type }) => {
-		query = '';
 		if (type === 'enter' || type === 'popstate' || !bar || !factText) return;
 		// Where the bar comes to rest. Asking the bar itself is useless: `offsetTop` on a *stuck*
 		// sticky element reports where it is stuck — literally the scroll position — not where it
@@ -139,17 +102,6 @@
 		};
 	});
 
-	// Never the fact already on screen: across an archive this size a repeat is common enough that
-	// the button would look broken. See CLAUDE.md, under "The random fact".
-	const otherFacts = $derived(dates.filter((date) => date !== selected));
-
-	/** A button rather than a link, because its target is only drawn when it is pressed. Through
-	 *  `afterNavigate` like every link, hence `reset: false`. */
-	function randomFact() {
-		const target = otherFacts[Math.floor(Math.random() * otherFacts.length)];
-		if (target) goto(resolve('/[date]', { date: target }), { reset: false });
-	}
-
 	// How far the month arrows reach. Today and the selection count alongside the facts, so a
 	// visitor who lands on a month outside the archive — which is every month, once the entries are
 	// all in the past — still has a way back rather than two dead arrows.
@@ -167,13 +119,12 @@
 	const grid = $derived(monthGrid(month.getFullYear(), month.getMonth()));
 
 	// Built once: `toLocaleDateString` with options builds a new formatter on every call, which the
-	// search results and the day labels would otherwise pay for on each keystroke and each step.
+	// day labels would otherwise pay for on each step.
 	const monthFormat = new Intl.DateTimeFormat('de-DE', { month: 'long', year: 'numeric' });
 	const longFormat = new Intl.DateTimeFormat('de-DE', { dateStyle: 'long' });
 	const fullFormat = new Intl.DateTimeFormat('de-DE', { dateStyle: 'full' });
 	const monthName = $derived(monthFormat.format(month));
-	const longDate = (iso: string) => longFormat.format(fromIsoDate(iso));
-	const selectedLongDate = $derived(selected && longDate(selected));
+	const selectedLongDate = $derived(selected && longFormat.format(fromIsoDate(selected)));
 	const title = $derived(
 		selectedLongDate ? `${selectedLongDate} – Fakt des Tages` : 'Fakt des Tages'
 	);
@@ -187,95 +138,6 @@
 				: 'Für diesen Tag gibt es keinen Fakt.';
 		if (urlDate === null) return 'Diese Seite gibt es nicht.';
 		return notFound ? 'Für diesen Tag gibt es keinen Fakt.' : 'Wähle im Kalender einen Tag.';
-	});
-
-	// --- Search ---------------------------------------------------------------------------------
-
-	type Doc = { date: string; text: string };
-
-	let query = $state('');
-	// Raw: only ever replaced, never mutated, so a deep proxy per hit would buy nothing.
-	let hits = $state.raw<{ date: string; excerpt: string }[]>([]);
-	// Until the index exists there is nothing to count, and „Keine Treffer“ would be announced
-	// as an answer while the text is still on its way.
-	let ready = $state(false);
-	let unavailable = $state(false);
-
-	/**
-	 * The index, built once on first contact with the input, from `search.json`.
-	 *
-	 * The text is fetched only then, so a visitor who never searches never downloads it. MiniSearch
-	 * — the only third-party code this page ships — is usually in memory already, see `onMount`,
-	 * and the `import` here only covers a search that starts before the page has finished loading.
-	 * A failed fetch forgets the promise, so the next keystroke tries again.
-	 */
-	let index: Promise<MiniSearch<Doc>> | undefined;
-
-	function buildIndex() {
-		return (index ??= (async () => {
-			const [{ default: Mini }, texts] = await Promise.all([
-				import('minisearch'),
-				fetch(resolve('/search.json')).then((response) => {
-					if (!response.ok) throw new Error(`search.json: ${response.status}`);
-					return response.json() as Promise<Record<string, string>>;
-				})
-			]);
-			const mini = new Mini<Doc>({
-				fields: ['text'],
-				storeFields: ['text'],
-				idField: 'date',
-				// Applied to the stored terms and the query alike, so both sides fold the same way.
-				processTerm: foldTerm,
-				// Indexing only — a query is tokenised with `words`. See `indexTerms`.
-				tokenize: indexTerms
-			});
-			mini.addAll(Object.entries(texts).map(([date, text]) => ({ date, text })));
-			ready = true;
-			return mini;
-		})().catch((cause: unknown) => {
-			index = undefined;
-			throw cause;
-		}));
-	}
-
-	async function runSearch(input: string) {
-		const trimmed = input.trim();
-		if (trimmed.length < MIN_QUERY_LENGTH) {
-			hits = [];
-			return;
-		}
-		let mini;
-		// A retry after a failure is loading again, not unavailable yet.
-		unavailable = false;
-		try {
-			mini = await buildIndex();
-		} catch {
-			if (query.trim() === trimmed) unavailable = true;
-			return;
-		}
-		// Loading is asynchronous, so an earlier keystroke can land after a later one. Reading
-		// `query` here is deliberately outside the effect's tracking — it is a guard, not a
-		// dependency: only the query still in the box may write the list.
-		if (query.trim() !== trimmed) return;
-		// Every hit, ranked by score. Substring matching does let a short query pick up unrelated
-		// tails — `turm` reaches `Kultur`, `Herzogtum` — but a real match always scores several times
-		// a fuzzy tail, so they sort to the bottom rather than into the way. Do not turn that into a
-		// relative cut: the gap is narrow enough at the bottom of the real matches to take `Türmen`
-		// with it, which CLAUDE.md records as tried and reverted.
-		hits = mini
-			.search(trimmed, { fuzzy: 0.2, prefix: true, tokenize: words })
-			.map((t) => ({ date: String(t.id), excerpt: excerpt(t.text, t.terms) }));
-	}
-
-	// Driven by an effect rather than `oninput`, so it cannot race `bind:value`: the effect runs
-	// once the state has already moved.
-	$effect(() => void runSearch(query));
-
-	const hitSummary = $derived.by(() => {
-		if (query.trim().length < MIN_QUERY_LENGTH) return '';
-		if (unavailable) return 'Suche nicht verfügbar — bitte die Seite neu laden';
-		if (!ready) return 'Suche wird geladen…';
-		return hits.length === 0 ? 'Keine Treffer' : `${hits.length} Treffer`;
 	});
 </script>
 
@@ -291,94 +153,30 @@
 		{@html hideUntilHydrated}
 	{/if}
 </svelte:head>
-<svelte:window onfocus={readToday} />
-<svelte:document onvisibilitychange={readToday} />
 
 <!-- `reset="false"` reaches every link in here, keeping both scroll position and focus: the scroll
      position is `afterNavigate`'s to decide, and a keyboard visitor stepping through the facts stays
      on the arrow they pressed. The footer is outside on purpose and navigates like any other page. -->
 <main class="mx-auto max-w-2xl p-6" data-sveltekit-reset="false">
-	<!-- The way back to today. Once hydrated it links today's date itself, so a click on today's
-	     page replaces the history entry instead of stacking an identical one. Before that it is `/`,
-	     which needs a real page load like every link to `/`: the head script there is what picks
-	     the day. Today without a fact has no page of its own, so that is a real load too. See
-	     CLAUDE.md, under "The home page". -->
-	<h1 class="text-3xl font-bold">
-		<a
-			href={today ? resolve('/[date]', { date: today }) : resolve('/')}
-			data-sveltekit-reload={!today || !hasFact.has(today) || undefined}>Fakt des Tages</a
-		>
-	</h1>
-
-	<!-- `disabled` until hydration: the search needs JavaScript, and a box that swallows what you
-	     type without answering is worse than one that admits it is not ready. -->
-	<search class="relative mt-6 block">
-		<label class="block text-sm font-medium text-gray-700" for="query">Fakt suchen</label>
-		<input
-			id="query"
-			type="search"
-			bind:value={query}
-			onfocus={() => buildIndex().catch(() => {})}
-			onkeydown={(e) => {
-				// The list covers the calendar, so it needs a way out that is not the mouse.
-				if (e.key === 'Escape') query = '';
-			}}
-			disabled={!today}
-			placeholder="z. B. Fernsehturm"
-			class="mt-1 block w-full rounded border-gray-500 disabled:bg-gray-50"
-		/>
-
-		<!-- Out of sight but always in the DOM, or the count is not reliably announced; the visible
-		     copy in the panel is `aria-hidden` so it is not read twice. See CLAUDE.md. -->
-		<p role="status" class="sr-only">{hitSummary}</p>
-
-		{#if hitSummary}
-			<!-- Absolutely positioned, so nothing here moves the calendar: the panel is laid over the
-			     page rather than wedged into it. `top-full` is the bottom edge of this `search`, which
-			     is the input, because the only other children are out of flow. -->
-			<div
-				class="absolute inset-x-0 top-full z-10 mt-2 overflow-hidden rounded border border-gray-200 bg-white shadow-lg"
-			>
-				<p aria-hidden="true" class="px-3 py-2 text-sm text-gray-600">{hitSummary}</p>
-				{#if hits.length > 0}
-					<!-- `max-h-80` caps it and scrolls: a common word matches every fact.
-					     A hit closes the list by navigating, which empties the box in `afterNavigate`. -->
-					<ul class="max-h-80 divide-y divide-gray-200 overflow-y-auto border-t border-gray-200">
-						{#each hits as t (t.date)}
-							<li>
-								<a
-									href={resolve('/[date]', { date: t.date })}
-									class="block px-3 py-2 hover:bg-sky-50"
-								>
-									<span class="block text-sm font-medium text-sky-900">{longDate(t.date)}</span>
-									<span class="block text-sm text-gray-600">{t.excerpt}</span>
-								</a>
-							</li>
-						{/each}
-					</ul>
-				{/if}
-			</div>
-		{/if}
-	</search>
-
-	<!-- Outside the `search` element: this is not a search, and the landmark should not claim it.
-	     `aria-disabled` until hydration, because it needs JavaScript to do anything. For the glyph,
-	     see CLAUDE.md, under "The random fact". -->
-	<div class="mt-2 flex justify-end">
-		<button
-			onclick={randomFact}
-			aria-disabled={!today || otherFacts.length === 0}
-			class="rounded px-2 py-1 text-sm text-sky-800 hover:bg-sky-50 aria-disabled:text-gray-400 aria-disabled:hover:bg-transparent"
-		>
-			<span aria-hidden="true">🔀</span> Zufälliger Fakt
-		</button>
-	</div>
-
-	<section class="mt-6" aria-label="Kalender">
+	<!-- The page's heading, for screen readers: the header's name is a link, not a heading, because
+	     the legal pages carry their own `<h1>` and no switch in the header can tell them apart from
+	     the 404.html that Pages serves at `/impressum/`. See CLAUDE.md, under the legal pages. -->
+	<h1 class="sr-only">Fakt des Tages</h1>
+	<section aria-label="Kalender">
 		<div class="flex items-center justify-between">
-			{@render arrow('‹', 'Vorheriger Monat', shownMonth <= bounds.from, () => shiftMonth(-1))}
+			<IconButton
+				icon="chevron-left"
+				label="Vorheriger Monat"
+				action={() => shiftMonth(-1)}
+				disabled={shownMonth <= bounds.from}
+			/>
 			<h2 class="font-semibold">{monthName}</h2>
-			{@render arrow('›', 'Nächster Monat', shownMonth >= bounds.to, () => shiftMonth(1))}
+			<IconButton
+				icon="chevron-right"
+				label="Nächster Monat"
+				action={() => shiftMonth(1)}
+				disabled={shownMonth >= bounds.to}
+			/>
 		</div>
 
 		<!-- Six day rows are always in the template, not just the ones this month fills: a grid is
@@ -389,7 +187,7 @@
 			{#each WEEKDAYS as day (day)}
 				<!-- Decorative: every day carries its full date in `aria-label`, so a screen reader
 				     never has to pair a bare number with a column heading. -->
-				<div aria-hidden="true" class="pb-1 text-xs font-medium text-gray-500">{day}</div>
+				<div aria-hidden="true" class="pb-1 text-xs font-medium text-(--fgColor-muted)">{day}</div>
 			{/each}
 			<!-- Leading blanks push the 1st into its weekday column. Cheaper to read than a
 			     `grid-column-start` on the first day, and there are at most six of them. -->
@@ -400,7 +198,10 @@
 				{#if hasFact.has(date) || date === today}
 					<!-- Today stays clickable even with no fact of its own: it is the ring the visitor
 					     navigates back to, so it has to be pressable. It has no page, so it is a real
-					     load of 404.html rather than a client-side step that would fail first. -->
+					     load of 404.html rather than a client-side step that would fail first. Today's
+					     ring and the selected day's fill are both in the focus colour, so the focus ring
+					     sits outside the cell, in the grid's gap, where it shows against the page. On the
+					     selected day a second, inner ring in the page's colour keeps today's visible. -->
 					<a
 						href={resolve('/[date]', { date })}
 						data-sveltekit-reload={!hasFact.has(date) || undefined}
@@ -408,20 +209,21 @@
 							(date === selected ? ' (angezeigt)' : '')}
 						aria-current={date === today ? 'date' : undefined}
 						class={[
-							'rounded py-1.5',
+							'rounded-md leading-8 focus-visible:outline-offset-2',
 							date === selected
-								? 'bg-sky-700 font-semibold text-white'
+								? 'bg-(--bgColor-accent-emphasis) font-semibold text-(--fgColor-onEmphasis)'
 								: hasFact.has(date)
-									? 'bg-sky-50 font-medium text-sky-900 hover:bg-sky-100'
-									: 'text-gray-600 hover:bg-gray-100',
-							date === today && 'ring-2 ring-sky-900 ring-inset'
+									? 'bg-(--bgColor-accent-muted) font-medium text-(--fgColor-accent) hover:shadow-[inset_0_0_0_1px_var(--borderColor-accent-muted)]'
+									: 'text-(--fgColor-muted) hover:bg-(--control-transparent-bgColor-hover)',
+							date === today && 'inset-ring-2 inset-ring-(--borderColor-accent-emphasis)',
+							date === today && date === selected && 'ring-4 ring-(--bgColor-default) ring-inset'
 						]}>{i + 1}</a
 					>
 				{:else}
 					<!-- Hidden from assistive tech rather than just muted: a bare number carries no date
 					     context of its own, and nothing here is actionable. What is left to hear is the
 					     handful of days a visitor can open, each with its full date. -->
-					<span aria-hidden="true" class="py-1.5 text-gray-600">{i + 1}</span>
+					<span aria-hidden="true" class="leading-8 text-(--fgColor-muted)">{i + 1}</span>
 				{/if}
 			{/each}
 		</div>
@@ -441,23 +243,48 @@
 	<nav
 		bind:this={bar}
 		aria-label="Durch die Fakten blättern"
-		class="sticky top-0 -mx-6 mt-6 flex items-center justify-between bg-linear-to-b from-white from-60% to-transparent px-6 pt-2 pb-8"
+		class="sticky top-0 -mx-6 mt-6 flex items-center justify-between bg-linear-to-b from-(--bgColor-default) from-60% to-transparent px-6 pt-2 pb-8"
 	>
-		{@render arrow('‹', 'Vorheriger Fakt', !neighbours.previous, neighbours.previous)}
+		<IconButton
+			icon="chevron-left"
+			label="Vorheriger Fakt"
+			action={neighbours.previous && resolve('/[date]', { date: neighbours.previous })}
+		/>
 		<!-- A client-side step fetches the next fact before the address changes, and the browser shows
-		     no load for it. The spinner says so beside the date, out of flow so nothing moves, and fades
-		     in only after 100 ms, so a step that finishes quickly does not flash it for a frame. No
-		     line break before `{#if}`: it would leave a trailing space in the date line's text. -->
-		<p class="relative text-sm text-gray-600">
+		     no load for it. Primer's Spinner says so beside the date, out of flow so nothing moves, and
+		     fades in only after 100 ms, so a step that finishes quickly does not flash it for a frame.
+		     No line break before `{#if}`: it would leave a trailing space in the date line's text. -->
+		<p class="relative text-sm text-(--fgColor-muted)">
 			{selectedLongDate}{#if navigating.to}
-				<span
+				<svg
 					role="img"
 					aria-label="Fakt wird geladen"
-					class="absolute top-1/2 left-full ml-2 size-4 -translate-y-1/2 animate-spin rounded-full border-2 border-sky-800 border-t-transparent transition-opacity delay-100 duration-500 starting:opacity-0"
-				></span>
+					viewBox="0 0 16 16"
+					fill="none"
+					class="absolute top-1/2 left-full ml-2 size-4 -translate-y-1/2 animate-spin transition-opacity delay-100 duration-500 starting:opacity-0"
+				>
+					<circle
+						cx="8"
+						cy="8"
+						r="7"
+						stroke="currentColor"
+						stroke-opacity="0.25"
+						stroke-width="2"
+					/>
+					<path
+						d="M15 8a7 7 0 0 0-7-7"
+						stroke="currentColor"
+						stroke-width="2"
+						stroke-linecap="round"
+					/>
+				</svg>
 			{/if}
 		</p>
-		{@render arrow('›', 'Nächster Fakt', !neighbours.next, neighbours.next)}
+		<IconButton
+			icon="chevron-right"
+			label="Nächster Fakt"
+			action={neighbours.next && resolve('/[date]', { date: neighbours.next })}
+		/>
 	</nav>
 
 	{#if fact}
@@ -465,51 +292,8 @@
 		     author a fact can already author this app's JavaScript — it is not a trust boundary
 		     and needs no sanitiser. Add one the moment facts come from anywhere but the repo. -->
 		<!-- eslint-disable-next-line svelte/no-at-html-tags -->
-		<article bind:this={factText} class="prose hyphens-auto">{@html fact.html}</article>
+		<article bind:this={factText} class="markdown-body hyphens-auto">{@html fact.html}</article>
 	{:else}
-		<p bind:this={factText} class="text-gray-600">{message}</p>
+		<p bind:this={factText} class="text-(--fgColor-muted)">{message}</p>
 	{/if}
 </main>
-
-<!--
-	Every arrow on the page: the two that page the calendar are buttons, the two beside the fact are
-	links to the neighbouring fact, passed as its date. Both carry `aria-disabled` rather than going
-	inert natively: a control that goes natively `disabled` under the visitor who just pressed it
-	drops keyboard focus to `<body>` with no announcement, which is exactly the moment they need it
-	most. So a bounded fact arrow loses its `href` but keeps its role and its `tabindex`, and a
-	bounded month arrow keeps its focus but loses its handler. A button is also disabled until
-	hydration, like the random fact: it does nothing without JavaScript, so it must not look as if it
-	would. `gray-400` is only
-	acceptable on an *inactive* control, which WCAG exempts; readable text stays at `gray-600`.
-
-	A snippet rather than a hoisted `const` for the class list: Prettier's Tailwind plugin sorts
-	classes inside a `class="..."` attribute and silently skips a `const`. Verified both ways. The two
-	branches repeat the list; keep them in step.
--->
-{#snippet arrow(
-	glyph: string,
-	label: string,
-	disabled: boolean,
-	target: string | undefined | (() => void)
-)}
-	{#if typeof target === 'function'}
-		{@const inert = disabled || !today}
-		<button
-			onclick={inert ? undefined : target}
-			aria-disabled={inert}
-			aria-label={label}
-			class="rounded px-3 py-1 text-xl leading-none text-sky-800 hover:bg-sky-50 aria-disabled:cursor-default aria-disabled:text-gray-400 aria-disabled:hover:bg-transparent"
-			>{glyph}</button
-		>
-	{:else}
-		<a
-			href={target ? resolve('/[date]', { date: target }) : undefined}
-			role={disabled ? 'link' : undefined}
-			tabindex={disabled ? 0 : undefined}
-			aria-disabled={disabled}
-			aria-label={label}
-			class="rounded px-3 py-1 text-xl leading-none text-sky-800 hover:bg-sky-50 aria-disabled:cursor-default aria-disabled:text-gray-400 aria-disabled:hover:bg-transparent"
-			>{glyph}</a
-		>
-	{/if}
-{/snippet}

@@ -1,7 +1,7 @@
-// Imported by `FactPage.svelte`, so everything in here ships to the browser: keep it dependency-free
-// and keep the functions pure. Build-time-only code belongs in `src/lib/server/facts.ts`, which the
-// framework will fail the build over if it is ever pulled into client code — nothing enforces this
-// side, so it has to be remembered.
+// Imported by `FactPage.svelte`, `Header.svelte` and `today.svelte.ts`, so everything in here ships
+// to the browser: keep it dependency-free and keep the functions pure. Build-time-only code belongs
+// in `src/lib/server/facts.ts`, which the framework will fail the build over if it is ever pulled
+// into client code — nothing enforces this side, so it has to be remembered.
 
 /**
  * A fact rendered to HTML. Branded so it is not interchangeable with the CommonMark it came from:

@@ -28,7 +28,8 @@ Regeln:
 
 - **Der Schlüssel ist immer ein exaktes Datum** im Format `JJJJ-MM-TT`. Ein Eintrag für
   `2026-03-15` gilt nur für diesen einen Tag, nicht für jeden 15. März.
-- Der Wert ist **CommonMark**. Überschriften, Listen, Links und Hervorhebungen werden gestaltet.
+- Der Wert ist **CommonMark**. Links, Hervorhebungen, Zitate, Listen und Zwischenüberschriften mit
+  `##` werden gestaltet, andere Überschriften und Tabellen nicht.
 - Mehrzeilige Fakten brauchen einen `|`-Block, dessen Zeilen alle **gleich weit eingerückt** sind.
   Das ist die häufigste Fehlerquelle beim Bearbeiten im Browser.
 - Tage ohne Eintrag sind im Kalender sichtbar, aber nicht anklickbar. Lücken sind also in Ordnung.

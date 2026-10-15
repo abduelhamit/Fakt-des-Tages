@@ -37,9 +37,10 @@ test.describe('legal pages', () => {
 
 			await expect(noJsPage.getByRole('heading', { level: 1 })).toHaveText(heading);
 			// The footer is in the layout, so each legal page also reaches the other one — and the
-			// way back to the facts sits in the page itself. None of the three needs JavaScript.
-			// Named rather than counted: the footer also carries the Wikipedia and licence links of
-			// the attribution notice, so a count would fail on an unrelated edit to that sentence.
+			// header, also in the layout, is the way back to the facts. None of the three needs
+			// JavaScript. Named rather than counted: the footer also carries the Wikipedia and licence
+			// links of the attribution notice, so a count would fail on an unrelated edit to that
+			// sentence.
 			await expect(
 				noJsPage.getByRole('contentinfo').getByRole('link', { name: 'Impressum' })
 			).toBeVisible();
@@ -47,7 +48,7 @@ test.describe('legal pages', () => {
 				noJsPage.getByRole('contentinfo').getByRole('link', { name: 'Datenschutz' })
 			).toBeVisible();
 			await expect(
-				noJsPage.getByRole('main').getByRole('link', { name: 'Zum Fakt des Tages' })
+				noJsPage.getByRole('banner').getByRole('link', { name: 'Fakt des Tages' })
 			).toBeVisible();
 			await noJs.close();
 		});
@@ -55,7 +56,7 @@ test.describe('legal pages', () => {
 		test(`${path} leads back to the facts`, async ({ page }) => {
 			await page.goto(`/Fakt-des-Tages/${path}`);
 
-			await page.getByRole('main').getByRole('link', { name: 'Zum Fakt des Tages' }).click();
+			await page.getByRole('banner').getByRole('link', { name: 'Fakt des Tages' }).click();
 
 			// Today, whichever way the home page's head script sent it: this suite runs on the real
 			// clock, and whether the fixture has an entry for today depends on when it runs. Either
@@ -81,7 +82,7 @@ test.describe('legal pages', () => {
 	// Today's date is picked by the head script on `/`, which only a real page load runs: routed
 	// client-side, a link to `/` lands on the calendar with no day chosen. So every link to `/` has
 	// to opt out of the router — checked on every kind of page that has one, so it also catches such a
-	// link added to the layout. Before hydration, which is when the fact pages' heading points at `/`.
+	// link added to the layout. Before hydration, which is when the header's name points at `/`.
 	test('reaches the home page only by a real page load', async ({ browser, baseURL }) => {
 		const noJs = await browser.newContext({ javaScriptEnabled: false, baseURL });
 		const page = await noJs.newPage();
@@ -128,8 +129,8 @@ test("names the facts' source and licence in the footer", async ({ page }) => {
 
 // The Datenschutz page states that the site loads no external fonts, maps, videos or scripts. That
 // is a claim about the build, not about the page, and the build is what can quietly stop honouring
-// it — one web font or one embedded video and the page becomes a false statement with every check
-// still green. So assert the property itself rather than the sentence describing it.
+// it — one external web font or one embedded video and the page becomes a false statement with
+// every check still green. So assert the property itself rather than the sentence describing it.
 test('loads nothing from third-party servers', async ({ page, baseURL }) => {
 	const foreign = new Set<string>();
 	const own = new URL(baseURL!).origin;

@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { afterNavigate } from '$app/navigation';
-	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
 	import FactPage from '#lib/FactPage.svelte';
 
@@ -27,12 +26,9 @@
 	     same 500 is a page whose code could not be fetched (a visitor gone offline after the page
 	     loaded) and, in `pnpm dev`, a fact whose load threw, whose German error stays in the
 	     terminal. Neither is a day without a fact. -->
+	<!-- The way back is the header's, which the layout draws on this page too. The message is the
+	     page's heading; Preflight leaves an `<h1>` the size and weight of the text around it. -->
 	<main class="mx-auto max-w-2xl p-6">
-		<p class="text-gray-600">Diese Seite konnte nicht geladen werden.</p>
-		<p class="mt-2">
-			<a class="text-sky-800 hover:underline" href={resolve('/')} data-sveltekit-reload
-				>Zum Fakt des Tages</a
-			>
-		</p>
+		<h1 class="text-(--fgColor-muted)">Diese Seite konnte nicht geladen werden.</h1>
 	</main>
 {/if}

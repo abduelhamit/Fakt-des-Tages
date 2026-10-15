@@ -1,18 +1,17 @@
 <script lang="ts">
 	import { PROVIDER } from '#lib/provider.ts';
-	import { resolve } from '$app/paths';
 </script>
 
 <svelte:head><title>Datenschutz — Fakt des Tages</title></svelte:head>
 
 <!-- Every claim below was checked against the build rather than copied from a generator: no
      storage API appears anywhere in the source, nothing is fetched from anywhere but this site, and
-     every img/script/link in the built HTML is same-origin. If that ever stops being true — an embedded video, a
-     web font, a counter — this page becomes wrong before anything else on the site does. -->
+     every img/script/link in the built HTML is same-origin. If that ever stops being true — an embedded video, an
+     external web font, a counter — this page becomes wrong before anything else on the site does. -->
 <main class="mx-auto max-w-2xl p-6 hyphens-auto">
-	<h1 class="text-3xl font-bold">Datenschutzerklärung</h1>
+	<h1 class="text-[2rem]/normal font-semibold">Datenschutzerklärung</h1>
 
-	<div class="prose mt-6">
+	<div class="markdown-body mt-6">
 		<h2>Verantwortlicher</h2>
 		<p>Verantwortlich für die Datenverarbeitung auf dieser Website im Sinne der DSGVO ist:</p>
 		<p class="hyphens-none">
@@ -87,10 +86,5 @@
 			weitergegeben. Eine automatisierte Entscheidungsfindung einschließlich Profiling nach Art. 22
 			DSGVO findet nicht statt.
 		</p>
-
-		<!-- `data-sveltekit-reload`, like every link to `/`: today's date is picked by an inline script
-		     in that page's head, and only a real page load runs it. Routed client-side, the link would
-		     land on the calendar with no day chosen. See CLAUDE.md, under "The home page". -->
-		<p><a href={resolve('/')} data-sveltekit-reload>Zum Fakt des Tages</a></p>
 	</div>
 </main>
