@@ -528,8 +528,8 @@ test.describe('search', () => {
 	});
 
 	// Deliberately a *part* of the word: the search runs on every keystroke, so a half-typed word is
-	// the state the visitor is actually in for all but the last one. This is the only test on plain
-	// prefix matching — the others cover fuzziness, the suffix index and the alt texts.
+	// the state the visitor is actually in for all but the last one. This is the only test on the
+	// start of a word — the others cover fuzziness, parts inside a compound and the alt texts.
 	test('finds a half-typed word', async ({ page }) => {
 		await page.getByLabel('Fakt suchen').fill('Hinterg');
 
@@ -548,16 +548,16 @@ test.describe('search', () => {
 		});
 	}
 
-	// The suffix index in `indexTerms`, end to end. „Bildschirmhöhe“ is in the 23rd and the bare word
-	// is nowhere in the fixture: without the suffix index this query finds nothing at all.
+	// The substring index in `indexTerms`, end to end. „Bildschirmhöhe“ is in the 23rd and the bare
+	// word is nowhere in the fixture: without that index this query finds nothing at all.
 	test('finds a word inside a compound', async ({ page }) => {
 		await page.getByLabel('Fakt suchen').fill('schirm');
 
 		await expect(page.getByRole('status')).toHaveText('1 Treffer');
 		const hit = page.getByRole('search').getByRole('link', { name: /23\. August 2026/ });
 		await expect(hit).toBeVisible();
-		// The stored term that matched is folded and a suffix, but what is marked is the word it
-		// came from, umlaut and all.
+		// The stored term that matched is folded and a part of a word, but what is marked is the word
+		// it came from, umlaut and all.
 		await expect(hit.locator('mark')).toHaveText(['Bildschirmhöhe']);
 	});
 
@@ -598,15 +598,16 @@ test.describe('search', () => {
 		expect(await tops()).toEqual(before);
 	});
 
-	// MiniSearch arrives after everything else on the page, images included, and from then on is
-	// in memory: a deploy that deletes its chunk, or the network going away, no longer matters.
-	// Fetched on demand it could fail for good — see `onMount` in Header.svelte.
-	test('loads MiniSearch after the images, and keeps it', async ({ page }) => {
+	// The search's worker, MiniSearch inside, arrives after everything else on the page, images
+	// included, and from then on is in memory: a deploy that deletes its file, or the network going
+	// away, no longer matters. Fetched on demand it could fail for good — see `onMount` in
+	// Header.svelte.
+	test('loads the search after the images, and keeps it', async ({ page }) => {
 		const release = await holdBack(page, '**/fakten/**');
 		const chunks: string[] = [];
 		page.on(
 			'request',
-			(req) => req.url().includes('/_app/immutable/chunks/') && chunks.push(req.url())
+			(req) => /\/_app\/immutable\/(chunks|workers)\//.test(req.url()) && chunks.push(req.url())
 		);
 
 		await page.goto('/Fakt-des-Tages/2026-08-31', { waitUntil: 'domcontentloaded' });
@@ -620,7 +621,7 @@ test.describe('search', () => {
 		await expect.poll(() => chunks.length).toBe(hydration + 1);
 		await page.waitForLoadState('networkidle');
 
-		await page.route('**/_app/immutable/chunks/**', (route) => route.abort());
+		await page.route(/\/_app\/immutable\/(chunks|workers)\//, (route) => route.abort());
 		await page.getByLabel('Fakt suchen').fill('Wasserspeier');
 		await expect(page.getByRole('status')).toHaveText('1 Treffer');
 	});

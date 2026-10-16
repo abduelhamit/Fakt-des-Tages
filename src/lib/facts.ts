@@ -41,8 +41,8 @@ export function isIsoDate(value: string): boolean {
 	return toIsoDate(fromIsoDate(value)) === value;
 }
 
-/** Shortest query the search accepts, and so the shortest suffix worth indexing — one constant for
- *  both, since a query shorter than the shortest stored suffix could never match. */
+/** Shortest query the search accepts, and so the shortest part of a word worth indexing — one
+ *  constant for both, since a query shorter than the shortest stored part could never match. */
 export const MIN_QUERY_LENGTH = 3;
 
 /** Words, split on any run of characters that is neither letter nor digit. The `filter` drops the
@@ -52,17 +52,24 @@ export function words(text: string): string[] {
 }
 
 /**
- * What goes *into* the index: every word, plus every suffix of it down to {@link MIN_QUERY_LENGTH}.
- * That is what lets `turm` reach `Fernsehturm` — MiniSearch matches whole terms, never substrings,
- * and German welds the noun onto the end of the compound.
+ * What goes into the index's `part` field: every substring of every word, down to
+ * {@link MIN_QUERY_LENGTH}. That lets `turm` reach `Fernsehturm`, `Eiffelturms` and `Turmspitze`
+ * alike, since German welds its nouns into compounds. Each of those is an *exact* match on the
+ * stored term `turm`, so where the query sits in the word does not change the score: `zahn` ranks
+ * `Blauzahn` and `Zahnarzt` alike. Prefix matching on suffixes, which this replaced, ranked the
+ * dentist below every fuzzy `…bahn`.
  *
- * Indexing only. A query must be tokenised with {@link words}, or typing `turm` also asks for `urm`.
- * The measured cost is in CLAUDE.md, under "The search".
+ * Accepted limitation: the count is quadratic in a word's length, about three times the terms a
+ * suffix index needs. The cost is measured in src/routes/CLAUDE.md, under "The search", and is
+ * why the index is built in a worker.
  */
 export function indexTerms(text: string): string[] {
-	return words(text).flatMap((word) =>
-		Array.from({ length: Math.max(0, word.length - MIN_QUERY_LENGTH + 1) }, (_, i) => word.slice(i))
-	);
+	const terms: string[] = [];
+	for (const word of words(text))
+		for (let start = 0; start + MIN_QUERY_LENGTH <= word.length; start++)
+			for (let end = start + MIN_QUERY_LENGTH; end <= word.length; end++)
+				terms.push(word.slice(start, end));
+	return terms;
 }
 
 /**
@@ -85,13 +92,12 @@ export function foldTerm(term: string): string {
 /**
  * The words in `text` that the search's matched terms come from, as sorted `[start, end)` ranges.
  *
- * A term is what the index stored: folded, and a suffix of a word (see {@link indexTerms}). So it
- * is looked for in the folded text, and only where it ends a word — `turm` comes from
- * `Fernsehturm`, not from `Turmspitze`, which matched as a term of its own if at all. The whole
- * word is marked rather than the term, because fuzzy matching makes the term unreliable at its
- * start: `turm` also matches the stored suffix `hturm` one edit away, which would mark
- * `Fernse|hturm|`. Folding can change a character's length (`ß` becomes `ss`), hence `origin`,
- * which maps each folded character back to the one it came from.
+ * A term is what the index stored: folded, and either a substring of a word (see
+ * {@link indexTerms}) or, for a typo, a whole word. So it is looked for anywhere in the folded
+ * text, and the whole word around it is marked: `turm` marks `Fernsehturm`. Accepted limitation: a
+ * typo's whole word also marks a longer word containing it, so `zahn` matching the word `Bahn`
+ * marks `Straßenbahn` in that fact too. Folding can change a character's length (`ß` becomes
+ * `ss`), hence `origin`, which maps each folded character back to the one it came from.
  */
 export function matchRanges(text: string, terms: string[]): [number, number][] {
 	let folded = '';
@@ -108,10 +114,9 @@ export function matchRanges(text: string, terms: string[]): [number, number][] {
 	const ranges: [number, number][] = [];
 	for (const term of terms) {
 		for (let at = folded.indexOf(term); term && at >= 0; at = folded.indexOf(term, at + 1)) {
-			const end = at + term.length;
-			if (isWordChar(end)) continue;
-			let start = at;
+			let [start, end] = [at, at + term.length];
 			while (isWordChar(start - 1)) start--;
+			while (isWordChar(end)) end++;
 			ranges.push([origin[start], origin[end]]);
 		}
 	}

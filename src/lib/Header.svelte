@@ -3,18 +3,10 @@
 	import { afterNavigate, goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
-	import {
-		excerpt,
-		foldTerm,
-		fromIsoDate,
-		highlight,
-		indexTerms,
-		MIN_QUERY_LENGTH,
-		words
-	} from '#lib/facts.ts';
+	import { excerpt, fromIsoDate, highlight, MIN_QUERY_LENGTH } from '#lib/facts.ts';
 	import IconButton, { octicon } from '#lib/IconButton.svelte';
+	import type { Answer, Question } from '#lib/search.worker.ts';
 	import { clock, startClock } from '#lib/today.svelte.ts';
-	import type MiniSearch from 'minisearch';
 
 	/**
 	 * The header along the top of every page, like github.com's: the way back to today, the search
@@ -27,11 +19,11 @@
 
 	onMount(() => {
 		startClock();
-		// MiniSearch, fetched once everything else has — images included — so it never competes
-		// with the page, yet sits in memory before anyone searches. Fetched on demand instead, it
-		// failed for good: a browser that caches a failed import never asks again, and a deploy
-		// deletes the chunk an open tab would ask for. A failure here surfaces on the next search.
-		const preload = () => void import('minisearch').catch(() => {});
+		// The search's worker, started once everything else has loaded — images included — so it
+		// never competes with the page, yet sits in memory before anyone searches. Fetched on
+		// demand instead, its code failed for good: a deploy deletes the file an open tab would ask
+		// for. It builds nothing until asked, see `ask`.
+		const preload = () => void searcher();
 		if (document.readyState === 'complete') preload();
 		else window.addEventListener('load', preload, { once: true });
 		return () => window.removeEventListener('load', preload);
@@ -49,8 +41,6 @@
 	}
 
 	// --- Search ---------------------------------------------------------------------------------
-
-	type Doc = { date: string; text: string };
 
 	let query = $state('');
 	// Raw: only ever replaced, never mutated, so a deep proxy per hit would buy nothing.
@@ -79,74 +69,54 @@
 	}
 
 	/**
-	 * The index, built once on first contact with the input, from `search.json`.
-	 *
-	 * The text is fetched only then, so a visitor who never searches never downloads it. MiniSearch
-	 * — the only third-party code this page ships — is usually in memory already, see `onMount`,
-	 * and the `import` here only covers a search that starts before the page has finished loading.
-	 * A failed fetch forgets the promise, so the next keystroke tries again.
+	 * The worker holding the index, see search.worker.ts. It is asked on first contact with the
+	 * input, and only then fetches `search.json`, so a visitor who never searches never downloads
+	 * it. A worker whose code failed to load is forgotten, so the next keystroke starts another.
 	 */
-	let index: Promise<MiniSearch<Doc>> | undefined;
+	let worker: Worker | undefined;
 
-	function buildIndex() {
-		return (index ??= (async () => {
-			const [{ default: Mini }, texts] = await Promise.all([
-				import('minisearch'),
-				fetch(resolve('/search.json')).then((response) => {
-					if (!response.ok) throw new Error(`search.json: ${response.status}`);
-					return response.json() as Promise<Record<string, string>>;
-				})
-			]);
-			const mini = new Mini<Doc>({
-				fields: ['text'],
-				storeFields: ['text'],
-				idField: 'date',
-				// Applied to the stored terms and the query alike, so both sides fold the same way.
-				processTerm: foldTerm,
-				// Indexing only — a query is tokenised with `words`. See `indexTerms`.
-				tokenize: indexTerms
-			});
-			mini.addAll(Object.entries(texts).map(([date, text]) => ({ date, text })));
-			ready = true;
-			return mini;
-		})().catch((cause: unknown) => {
-			index = undefined;
-			throw cause;
-		}));
+	function searcher() {
+		if (worker) return worker;
+		worker = new Worker(new URL('./search.worker.ts', import.meta.url), { type: 'module' });
+		worker.onmessage = ({ data }: MessageEvent<Answer>) => {
+			if (!('failed' in data)) ready = true;
+			// Answers come in the order asked, so an earlier keystroke's can still arrive after a
+			// later one: only the query still in the box may write the list.
+			if (data.query !== query.trim()) return;
+			if ('failed' in data) unavailable = true;
+			else
+				hits = data.hits.map((t) => ({
+					date: String(t.id),
+					excerpt: highlight(excerpt(t.text, t.terms), t.terms)
+				}));
+		};
+		worker.onerror = () => {
+			worker?.terminate();
+			worker = undefined;
+			if (query.trim().length >= MIN_QUERY_LENGTH) unavailable = true;
+		};
+		return worker;
 	}
 
-	async function runSearch(input: string) {
+	/** An empty `text` only builds the index. */
+	function ask(text: string) {
+		searcher().postMessage({ url: resolve('/search.json'), query: text } satisfies Question);
+	}
+
+	function runSearch(input: string) {
 		const trimmed = input.trim();
 		if (trimmed.length < MIN_QUERY_LENGTH) {
 			hits = [];
 			return;
 		}
-		let mini;
 		// A retry after a failure is loading again, not unavailable yet.
 		unavailable = false;
-		try {
-			mini = await buildIndex();
-		} catch {
-			if (query.trim() === trimmed) unavailable = true;
-			return;
-		}
-		// Loading is asynchronous, so an earlier keystroke can land after a later one. Reading
-		// `query` here is deliberately outside the effect's tracking — it is a guard, not a
-		// dependency: only the query still in the box may write the list.
-		if (query.trim() !== trimmed) return;
-		// Every hit, ranked by score. Substring matching does let a short query pick up unrelated
-		// tails — `turm` reaches `Kultur`, `Herzogtum` — but a real match always scores several times
-		// a fuzzy tail, so they sort to the bottom rather than into the way. Do not turn that into a
-		// relative cut: the gap is narrow enough at the bottom of the real matches to take `Türmen`
-		// with it, which CLAUDE.md records as tried and reverted.
-		hits = mini
-			.search(trimmed, { fuzzy: 0.2, prefix: true, tokenize: words })
-			.map((t) => ({ date: String(t.id), excerpt: highlight(excerpt(t.text, t.terms), t.terms) }));
+		ask(trimmed);
 	}
 
 	// Driven by an effect rather than `oninput`, so it cannot race `bind:value`: the effect runs
 	// once the state has already moved.
-	$effect(() => void runSearch(query));
+	$effect(() => runSearch(query));
 
 	const hitSummary = $derived.by(() => {
 		if (query.trim().length < MIN_QUERY_LENGTH) return '';
@@ -213,7 +183,7 @@
 				id="query"
 				type="search"
 				bind:value={query}
-				onfocus={() => buildIndex().catch(() => {})}
+				onfocus={() => ask('')}
 				onkeydown={async (e) => {
 					if (e.key !== 'Escape') return;
 					// The list covers the page, so it needs a way out that is not the mouse. Once it is

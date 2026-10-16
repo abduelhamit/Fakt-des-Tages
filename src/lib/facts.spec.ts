@@ -89,10 +89,11 @@ describe('words', () => {
 });
 
 describe('indexTerms', () => {
-	// The whole point: `turm` has to reach `Fernsehturm`, which prefix matching alone cannot do.
-	it('emits every suffix down to the shortest query', () => {
-		expect(indexTerms('Turm')).toEqual(['Turm', 'urm']);
-		expect(indexTerms('Eiffelturm')).toContain('turm');
+	// The whole point: `turm` has to be a term of its own wherever it sits in the word.
+	it('emits every substring down to the shortest query', () => {
+		expect(indexTerms('Turm')).toEqual(['Tur', 'Turm', 'urm']);
+		expect(indexTerms('Eiffelturms')).toContain('turm');
+		expect(indexTerms('Turmspitze')).toContain('Turm');
 	});
 
 	it('leaves a word shorter than the shortest query alone', () => {
@@ -133,9 +134,9 @@ describe('highlight', () => {
 			.map((piece) => (piece.mark ? `[${piece.text}]` : piece.text))
 			.join('');
 
-	it('marks the word a stored suffix ends, not one it starts', () => {
+	it('marks every word a stored substring comes from', () => {
 		expect(marked('Der Fernsehturm hat eine Turmspitze.', ['turm'])).toBe(
-			'Der [Fernsehturm] hat eine Turmspitze.'
+			'Der [Fernsehturm] hat eine [Turmspitze].'
 		);
 	});
 
@@ -146,10 +147,9 @@ describe('highlight', () => {
 		);
 	});
 
-	// `hturm` is what MiniSearch reports beside `turm` for the query `turm`: a stored suffix one edit
-	// away. Marking terms instead of words would show `Fernse[hturm]`.
-	it('marks a word once however many of its suffixes matched', () => {
-		expect(marked('Ein Fernsehturm.', ['turm', 'hturm'])).toBe('Ein [Fernsehturm].');
+	// Two query words can both sit in one word: `fernseh turm` matches `Fernsehturm` twice.
+	it('marks a word once however many of its substrings matched', () => {
+		expect(marked('Ein Fernsehturm.', ['turm', 'fernseh'])).toBe('Ein [Fernsehturm].');
 		expect(highlight('Nichts', ['turm'])).toEqual([{ text: 'Nichts', mark: false }]);
 	});
 });

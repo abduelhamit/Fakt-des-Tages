@@ -151,7 +151,7 @@ imports that file with Vite's `?raw` and parses it once per build,
 [src/routes/[date]/+page.server.ts](src/routes/[date]/+page.server.ts) renders one entry per page
 **during prerendering**, and [+layout.server.ts](src/routes/+layout.server.ts) hands every page the
 sorted list of dates. The browser receives finished HTML. At runtime it fetches only files the
-build wrote, from the same origin: the search's MiniSearch chunk once the page has loaded, a day's
+build wrote, from the same origin: the search's worker, MiniSearch inside, once the page has loaded, a day's
 `__data.json` when it steps there, `search.json` when the search box is first focused, and
 `_app/version.json` whenever the tab regains focus or becomes visible, or a client-side step fails —
 a step to a day without a fact, for one. That last one is SvelteKit checking for a new deploy, and

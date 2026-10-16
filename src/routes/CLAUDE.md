@@ -349,23 +349,24 @@ of the box missed both the transposition `Fernsehtrum` and the two-word `nintend
 strings, not prose; MiniSearch (5.9 KB) is a real inverted index with per-term edit distance and
 prefix matching, and found everything. Do not switch to Fuse without re-running that comparison.
 
-It loads behind a **dynamic `import()`, started once the page has finished loading** — on every page,
-since the header is on every page — at the
-`load` event, so after every image — or on focusing the box, if that comes first. Its chunk is not
-named anywhere in the built HTML, not even as a `modulepreload`, so it never competes with the page.
-It is not left until someone searches, as it once was, because a dynamic import fetched on demand
-could fail for good. Measured in Chromium, Firefox and WebKit in October 2026: after one failed
-import, every later `import()` of the same URL fails without a request, until the page is reloaded.
-The HTML spec dropped that caching in July 2026
+It runs in a **worker, [search.worker.ts](../lib/search.worker.ts), started once the page has
+finished loading** — on every page, since the header is on every page — at the `load` event, so
+after every image — or on focusing the box, if that comes first. The worker's file is not named
+anywhere in the built HTML, so it never competes with the page. A worker because the index it
+builds holds every substring of the archive (see below): 58.7 MB and about 330 ms on a desktop when
+measured in October 2026, which on the main thread would freeze the box at the first keystroke.
+It is started early rather than when someone searches, as MiniSearch once was, because code
+fetched on demand could fail for good. Measured in Chromium, Firefox and WebKit in October 2026:
+after one failed `import()`, every later one of the same URL fails without a request, until the
+page is reloaded. The HTML spec dropped that caching in July 2026
 ([whatwg/html#10327](https://github.com/whatwg/html/pull/10327)) and all three engines committed
 the change in August and September 2026, but a deploy cannot be fixed by any browser: it deletes
-the hashed chunk an open tab would ask for. Loaded early, the module is in memory before either can bite. `loads
-MiniSearch after the images, and keeps it` holds the fixture's image back to show nothing is
-fetched meanwhile, then blocks every chunk and searches; verified by mutation both for loading it
-at once and for not loading it early at all. A static import was weighed and passed over: it would
-have put its 5.7 KB gzipped on every page's critical path, ahead of the images. Accepted
-limitation: if that one early fetch fails, a browser without the spec change stays at „Suche nicht
-verfügbar“ until the page is reloaded, which the status asks for.
+the hashed file an open tab would ask for. Started early, the worker is in memory before either can
+bite. `loads the search after the images, and keeps it` holds the fixture's image back to show
+nothing is fetched meanwhile, then blocks every chunk and worker file and searches; verified by
+mutation both for starting it at once and for not starting it early at all. Accepted limitation:
+if that one early fetch fails, the next keystroke starts another worker, which fails again for as
+long as the deploy that deleted its file is live, and the status asks for a reload.
 
 `search.json` is different: the text of the whole archive, fetched only on focusing the box or the
 first keystroke, so a visitor who never searches never downloads it — the first test in
@@ -387,25 +388,43 @@ first keystroke, so a visitor who never searches never downloads it — the firs
   the last word of one description welds onto the first of the next. Both verified by mutation in
   the unit test. The probe fixture carries one image for this, whose alt text is the only place the
   word `Wasserspeier` appears.
-- **Every suffix of every word is indexed, which is what makes `turm` find `Fernsehturm`.**
-  MiniSearch matches whole terms — by prefix or by edit distance — never substrings, and German
-  welds the noun onto the end of the compound. `turm` therefore used to return exactly one entry,
-  the only one using the bare word, while missing `Fernsehturm`, `Eiffelturm`, `Hauptturm` and
-  `Bühnenturm`. `indexTerms` in [facts.ts](../lib/facts.ts) emits each word plus every suffix down
-  to `MIN_QUERY_LENGTH`, turning prefix matching into substring matching. Measured on the real
-  archive: the term count goes up about fourfold (roughly 3,700 to 14,900), the build costs tens of
-  milliseconds once in the browser, and queries stay under a millisecond. Re-measure rather than
-  trusting those figures — they move with the archive. **A query must be tokenised with `words`, not
-  `indexTerms`** — the `tokenize`
-  passed to `search()` is there for exactly that, and without it typing `turm` also asks for `urm`.
-- **Every hit is kept, ranked by score.** Substring matching does let a short query
-  pick up unrelated tails — `turm` reaches `Kultur`, `Herzogtum` and `Absturz` through short fuzzy
-  suffixes — but those score around 3 against 15–17 for the real matches, so they sort below the
-  answer instead of into it. A relative score cut was tried and taken back out: it removed the tail,
-  but it also dropped `Türmen` on 2026-07-07, which is a genuine hit and only reachable at all
-  because of the umlaut folding. Measured on the real archive, `turm` returns all four `Turm`
-  compounds first, then the tail. The list scrolls inside `max-h-80`, and a common word such as
-  `der` lists every fact in the archive, in a few milliseconds.
+- **Every substring of every word is indexed, and matched exactly.** MiniSearch matches whole
+  terms — exactly, by prefix or by edit distance — never substrings, and German welds its nouns
+  into compounds. `indexTerms` in [facts.ts](../lib/facts.ts) emits every substring down to
+  `MIN_QUERY_LENGTH` into a field of its own, `part`, so `turm` is a stored term of
+  `Fernsehturm`, `Eiffelturms` and `Turmspitze` alike, and where it sits in the word does not
+  change the score. Typos go to a second field, `word`, holding whole words only, and count only
+  for a query word that is nowhere in the fact as a part. `scores a part the same wherever it sits
+in the word` and `never adds a typo to a part found in the same fact` in
+  [search.worker.spec.ts](../lib/search.worker.spec.ts) pin the ranking; the second was verified
+  to fail with the fallback turned into a plain OR. Nothing pins typos staying off `part`, on
+  purpose: a typo match there would still rank below the real hits, and what it costs is noise
+  across the archive, not order, so a test asserting it away would only pin the limitation that a
+  typo inside a compound — `turn` for `Fernsehturm` — is not forgiven. A query is tokenised
+  without a field, so by `words`: typing `turm` never also asks for `urm`.
+
+  This replaced a suffix index queried with `prefix: true`, which ranked `Zahnarzt` below every
+  `Straßenbahn` for `zahn`: MiniSearch weighs a prefix match below a typo (0.375 against 0.45,
+  before a length penalty), and `zahn` was one edit from both stored suffixes `ahn` and `bahn`, so
+  each `…bahn` scored twice. What was weighed on the real archive in October 2026, before
+  settling here: a prefix weight of 1 still adds each distinct prefixed word on its own, so
+  `Bahnbrechenden` outscored a bare `Bahn`. Prefixes and suffixes only (30.5 MB) lose
+  `Eiffelturms` and `Raumschiffe`, where a case ending follows the part, and every part in the
+  middle of a word, `Hauptbahnhof`. Suffixes that may also drop up to two letters (45.1 MB) still
+  lose `Hauptbahnhof` and `Videospielkonsole`. Typos on those parts instead brought the `ahn`
+  noise back and found `Raumschiffe` only as strongly as `schief`. A cap on the substring length
+  would halve the memory at most, at the price of splitting long queries. Accepted limitation:
+  the count grows with the square of a word's length — 95,941 terms against the suffix index's
+  27,314 — and with the archive. Re-measure rather than trusting those figures.
+
+- **Every hit is kept, ranked by score.** A typo match scores about half a real one, so for
+  `zahn` the four `Zahn…` facts come first and `Kahn`, `Zaun` and `Bahn` sort below them instead
+  of into them. A word in nearly every fact turns that around. Accepted limitation: `der` scores
+  close to nothing in BM25, so the few facts without it, credited with the typos `den` and `wer`,
+  rank first; the order of such a list means nothing anyway. A relative score cut was
+  tried, under the suffix index, and taken back out: it removed the typo tail, but also dropped
+  `Türmen` on 2026-07-07, a genuine hit. The list scrolls inside `max-h-80`, and a common word
+  such as `der` lists every fact in the archive.
 - **`foldTerm` flattens diacritics, with `normalize('NFKD')` rather than a hand-written umlaut
   map.** The same one line that lets `Munchen` reach `München` also covers `Édouard`, `Småländer`,
   `Florianópolis`, `Pokémon`, `Maracanã`, `Ålesund` and `Hyōgo`, all of which are in the archive and
@@ -416,32 +435,29 @@ first keystroke, so a visitor who never searches never downloads it — the firs
   every keystroke and a part-word is the state a visitor is in for all but the last one.
 - **A hit marks the whole words that matched, not the matched part.** `matchRanges` in
   [facts.ts](../lib/facts.ts) finds MiniSearch's matched terms in the folded text — so `Munchen`
-  marks `München` and the excerpt window centres on it — where they end a word, and widens each
-  to its word. Marking only the term was built first and showed `Fernse|hturm|`, `Fun|kturm|` on
-  the real archive: the suffix index stores `hturm` too, one edit from `turm`, and MiniSearch
-  reports both. No rule on the terms alone picks the right one — for `turm` the shorter term is
-  right, for `fernseh` the longer `fernsehturm` beats the fuzzy `ernsehturm` — so it would take an
-  edit distance against the query, which was weighed and passed over for the word. The marks are
-  `<mark>` in Primer's `--highlight-neutral-bgColor`, github.com's own search highlight, with the
-  text in `--fgColor-default`: the excerpt's muted grey is about 3.4:1 on the dark theme's
+  marks `München` and the excerpt window centres on it — and widens each to its word, so `turm`
+  marks `Fernsehturm` and `Turmspitze`. Accepted limitation: a typo's term is a whole word but is
+  found like a part, so `zahn` matching the word `Bahn` also marks `Straßenbahn` in that fact. The
+  marks are `<mark>` in Primer's `--highlight-neutral-bgColor`, github.com's own search highlight,
+  with the text in `--fgColor-default`: the excerpt's muted grey is about 3.4:1 on the dark theme's
   highlight, short of WCAG's 4.5:1. `finds a word inside a compound` asserts the marked word.
 - **Three characters minimum.** `MIN_QUERY_LENGTH` is one constant for both the query minimum and
-  the shortest indexed suffix, because a query shorter than the shortest suffix could never match.
+  the shortest indexed part, because a query shorter than the shortest part could never match.
 - **The search is driven by an `$effect`, not `oninput`.** With `bind:value` the two would race on
   listener order; the effect runs once the state has already moved.
-- **Re-read `query` after the `await`.** Loading is asynchronous, so an earlier keystroke
-  can resolve after a later one and write a stale list. That read is deliberately outside the
-  effect's tracking — it is a guard, not a dependency.
+- **Only the query still in the box writes the list.** The worker answers in the order it is
+  asked, so an earlier keystroke's answer can still arrive after a later one has been typed; each
+  answer carries its query, and one that no longer matches the box is dropped.
 - **The input is `disabled` until hydration.** The search needs no clock, but it does need
   JavaScript, and a box that swallows what you type without answering is worse than one that admits
   it is not ready. It keeps its size either way, so the page still arrives at its final height.
 - **The download is visible, and so is its failure.** The search could not wait or fail while its
-  text was part of the page; now `search.json` can do both — and MiniSearch, once — and „Keine
+  text was part of the page; now `search.json` can do both — and the worker's code, once — and „Keine
   Treffer“ would be a lie either way. Until the index exists the status reads „Suche wird
   geladen…“; if the download fails it reads „Suche nicht verfügbar — bitte die Seite neu laden“,
   and the failed promise is forgotten so the next keystroke tries again. The status asks for the
   reload because only that fixes every cause: a failed `search.json` recovers on the next
-  keystroke, a failed MiniSearch import may not (see how MiniSearch is loaded, above).
+  keystroke, a worker whose file a deploy deleted does not (see how the worker is started, above).
   `says so while its text is loading` and `says so when its text cannot be loaded` cover them.
 - **The panel is absolutely positioned, and that is a requirement rather than a look.** In normal
   flow it shoved the calendar 200 px down the moment a query matched. Since the search moved into
