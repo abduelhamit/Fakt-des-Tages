@@ -83,15 +83,63 @@ export function foldTerm(term: string): string {
 }
 
 /**
- * A window around the first term that matched, so a hit is recognisable without opening it.
- * Falls back to the start of the fact when no term can be located — a fuzzy hit, or a folded
- * umlaut, means the text does not always contain the query verbatim. With no terms at all it is
- * simply the opening of the fact, which is what the page description uses it for.
+ * The words in `text` that the search's matched terms come from, as sorted `[start, end)` ranges.
+ *
+ * A term is what the index stored: folded, and a suffix of a word (see {@link indexTerms}). So it
+ * is looked for in the folded text, and only where it ends a word — `turm` comes from
+ * `Fernsehturm`, not from `Turmspitze`, which matched as a term of its own if at all. The whole
+ * word is marked rather than the term, because fuzzy matching makes the term unreliable at its
+ * start: `turm` also matches the stored suffix `hturm` one edit away, which would mark
+ * `Fernse|hturm|`. Folding can change a character's length (`ß` becomes `ss`), hence `origin`,
+ * which maps each folded character back to the one it came from.
+ */
+export function matchRanges(text: string, terms: string[]): [number, number][] {
+	let folded = '';
+	const origin: number[] = [];
+	let i = 0;
+	for (const char of text) {
+		const f = foldTerm(char);
+		folded += f;
+		for (let k = 0; k < f.length; k++) origin.push(i);
+		i += char.length;
+	}
+	origin.push(text.length);
+	const isWordChar = (at: number) => /[\p{L}\p{N}]/u.test(folded[at] ?? '');
+	const ranges: [number, number][] = [];
+	for (const term of terms) {
+		for (let at = folded.indexOf(term); term && at >= 0; at = folded.indexOf(term, at + 1)) {
+			const end = at + term.length;
+			if (isWordChar(end)) continue;
+			let start = at;
+			while (isWordChar(start - 1)) start--;
+			ranges.push([origin[start], origin[end]]);
+		}
+	}
+	// Whole words either coincide or do not touch, so dropping repeats is all the merging needed.
+	return ranges.sort((a, b) => a[0] - b[0]).filter((range, k) => range[0] !== ranges[k - 1]?.[0]);
+}
+
+/** `text` cut into pieces at the words the search matched, so the hit list can wrap them in `<mark>`. */
+export function highlight(text: string, terms: string[]): { text: string; mark: boolean }[] {
+	const pieces: { text: string; mark: boolean }[] = [];
+	let from = 0;
+	for (const [start, end] of matchRanges(text, terms)) {
+		if (start > from) pieces.push({ text: text.slice(from, start), mark: false });
+		pieces.push({ text: text.slice(start, end), mark: true });
+		from = end;
+	}
+	if (from < text.length) pieces.push({ text: text.slice(from), mark: false });
+	return pieces;
+}
+
+/**
+ * A window around the first term that matched, so a hit is recognisable without opening it. Found
+ * by {@link matchRanges}, so `Munchen` centres on `München` and the window holds what
+ * {@link highlight} marks. With no terms at all it is simply the opening of the fact, which is
+ * what the page description uses it for.
  */
 export function excerpt(text: string, terms: string[]): string {
-	const lower = text.toLowerCase();
-	const positions = terms.map((t) => lower.indexOf(t)).filter((i) => i >= 0);
-	const from = Math.max(0, (positions.length ? Math.min(...positions) : 0) - 30);
+	const from = Math.max(0, (matchRanges(text, terms)[0]?.[0] ?? 0) - 30);
 	const to = Math.min(text.length, from + 140);
 	let piece = text.slice(from, to);
 	// Both ends land mid-word otherwise, and the snippet reads as noise: „… berschrift, ebenfalls“.

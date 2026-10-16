@@ -554,9 +554,11 @@ test.describe('search', () => {
 		await page.getByLabel('Fakt suchen').fill('schirm');
 
 		await expect(page.getByRole('status')).toHaveText('1 Treffer');
-		await expect(
-			page.getByRole('search').getByRole('link', { name: /23\. August 2026/ })
-		).toBeVisible();
+		const hit = page.getByRole('search').getByRole('link', { name: /23\. August 2026/ });
+		await expect(hit).toBeVisible();
+		// The stored term that matched is folded and a suffix, but what is marked is the word it
+		// came from, umlaut and all.
+		await expect(hit.locator('mark')).toHaveText(['Bildschirmhöhe']);
 	});
 
 	// An image is only an alt text to the search — see `factText`. The fixture's only image carries

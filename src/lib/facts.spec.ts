@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { excerpt, foldTerm, indexTerms, isIsoDate, monthGrid, toIsoDate, words } from './facts';
+import {
+	excerpt,
+	foldTerm,
+	highlight,
+	indexTerms,
+	isIsoDate,
+	monthGrid,
+	toIsoDate,
+	words
+} from './facts';
 
 describe('toIsoDate', () => {
 	it('uses the local calendar day, not UTC', () => {
@@ -108,5 +117,39 @@ describe('excerpt', () => {
 		expect(excerpt(fact, ['vorbild'])).toBe(
 			'… seiner Art und wurde zum Vorbild für die Fernsehtürme in aller Welt, von Johannesburg bis Tokio.'
 		);
+	});
+
+	// The index stores folded terms, so the window has to find them in the folded text.
+	it('finds a folded term in the text it came from', () => {
+		expect(excerpt(fact, ['fernsehturme'])).toBe(
+			'… wurde zum Vorbild für die Fernsehtürme in aller Welt, von Johannesburg bis Tokio.'
+		);
+	});
+});
+
+describe('highlight', () => {
+	const marked = (text: string, terms: string[]) =>
+		highlight(text, terms)
+			.map((piece) => (piece.mark ? `[${piece.text}]` : piece.text))
+			.join('');
+
+	it('marks the word a stored suffix ends, not one it starts', () => {
+		expect(marked('Der Fernsehturm hat eine Turmspitze.', ['turm'])).toBe(
+			'Der [Fernsehturm] hat eine Turmspitze.'
+		);
+	});
+
+	// `ß` folds to two characters, which would shift every mark after it without the map back.
+	it('maps folded terms back onto the original characters', () => {
+		expect(marked('Die Straße nach München', ['strasse', 'munchen'])).toBe(
+			'Die [Straße] nach [München]'
+		);
+	});
+
+	// `hturm` is what MiniSearch reports beside `turm` for the query `turm`: a stored suffix one edit
+	// away. Marking terms instead of words would show `Fernse[hturm]`.
+	it('marks a word once however many of its suffixes matched', () => {
+		expect(marked('Ein Fernsehturm.', ['turm', 'hturm'])).toBe('Ein [Fernsehturm].');
+		expect(highlight('Nichts', ['turm'])).toEqual([{ text: 'Nichts', mark: false }]);
 	});
 });

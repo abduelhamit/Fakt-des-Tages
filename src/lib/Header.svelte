@@ -7,6 +7,7 @@
 		excerpt,
 		foldTerm,
 		fromIsoDate,
+		highlight,
 		indexTerms,
 		MIN_QUERY_LENGTH,
 		words
@@ -53,7 +54,7 @@
 
 	let query = $state('');
 	// Raw: only ever replaced, never mutated, so a deep proxy per hit would buy nothing.
-	let hits = $state.raw<{ date: string; excerpt: string }[]>([]);
+	let hits = $state.raw<{ date: string; excerpt: ReturnType<typeof highlight> }[]>([]);
 	// Until the index exists there is nothing to count, and „Keine Treffer“ would be announced
 	// as an answer while the text is still on its way.
 	let ready = $state(false);
@@ -140,7 +141,7 @@
 		// with it, which CLAUDE.md records as tried and reverted.
 		hits = mini
 			.search(trimmed, { fuzzy: 0.2, prefix: true, tokenize: words })
-			.map((t) => ({ date: String(t.id), excerpt: excerpt(t.text, t.terms) }));
+			.map((t) => ({ date: String(t.id), excerpt: highlight(excerpt(t.text, t.terms), t.terms) }));
 	}
 
 	// Driven by an effect rather than `oninput`, so it cannot race `bind:value`: the effect runs
@@ -253,7 +254,14 @@
 										class="block rounded-md px-2 py-1.5 hover:bg-(--control-transparent-bgColor-hover)"
 									>
 										<span class="block text-sm">{longFormat.format(fromIsoDate(t.date))}</span>
-										<span class="block text-xs text-(--fgColor-muted)">{t.excerpt}</span>
+										<!-- The default text colour on the highlight: the muted one is 3.4:1 on it in
+										     dark mode, short of WCAG's 4.5:1. -->
+										<span class="block text-xs text-(--fgColor-muted)"
+											>{#each t.excerpt as piece, i (i)}{#if piece.mark}<mark
+														class="bg-(--highlight-neutral-bgColor) text-(--fgColor-default)"
+														>{piece.text}</mark
+													>{:else}{piece.text}{/if}{/each}</span
+										>
 									</a>
 								</li>
 							{/each}

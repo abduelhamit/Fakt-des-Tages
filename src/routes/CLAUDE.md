@@ -414,6 +414,17 @@ first keystroke, so a visitor who never searches never downloads it — the firs
   does not reach `München` — that half is given up knowingly.
   `finds a half-typed word` types a half-finished word on purpose, because the search runs on
   every keystroke and a part-word is the state a visitor is in for all but the last one.
+- **A hit marks the whole words that matched, not the matched part.** `matchRanges` in
+  [facts.ts](../lib/facts.ts) finds MiniSearch's matched terms in the folded text — so `Munchen`
+  marks `München` and the excerpt window centres on it — where they end a word, and widens each
+  to its word. Marking only the term was built first and showed `Fernse|hturm|`, `Fun|kturm|` on
+  the real archive: the suffix index stores `hturm` too, one edit from `turm`, and MiniSearch
+  reports both. No rule on the terms alone picks the right one — for `turm` the shorter term is
+  right, for `fernseh` the longer `fernsehturm` beats the fuzzy `ernsehturm` — so it would take an
+  edit distance against the query, which was weighed and passed over for the word. The marks are
+  `<mark>` in Primer's `--highlight-neutral-bgColor`, github.com's own search highlight, with the
+  text in `--fgColor-default`: the excerpt's muted grey is about 3.4:1 on the dark theme's
+  highlight, short of WCAG's 4.5:1. `finds a word inside a compound` asserts the marked word.
 - **Three characters minimum.** `MIN_QUERY_LENGTH` is one constant for both the query minimum and
   the shortest indexed suffix, because a query shorter than the shortest suffix could never match.
 - **The search is driven by an `$effect`, not `oninput`.** With `bind:value` the two would race on
