@@ -323,7 +323,8 @@ Consequences worth knowing before changing any of this:
   `@layer utilities` they once needed, to beat the typography plugin's own layer, went with the
   plugin.
   Public-domain and CC0 images get no line, since none is owed. Note the credit is rendered text, so
-  the photographer's name joins the search index like any other word in the fact.
+  the photographer's name joins the search index, at the weight of an alt text (see "The search" in
+  [src/routes/CLAUDE.md](src/routes/CLAUDE.md)).
 - **That same line also carries a rights-holder's _required declaration_, which is a third case
   and not a credit.** 2026-09-28 is the first: Genshin Impact screenshots exist under no free
   licence at all, but HoYoverse's

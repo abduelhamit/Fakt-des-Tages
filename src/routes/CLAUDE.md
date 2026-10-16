@@ -373,8 +373,9 @@ first keystroke, so a visitor who never searches never downloads it — the firs
 [page.e2e.ts](page.e2e.ts) asserts that. It is a plain `fetch`, which a browser does retry.
 
 - **The text is taken from the Markdown at build time,** by `factText` in
-  [src/lib/server/facts.ts](../lib/server/facts.ts), and `search.json` maps each date to it. The same
-  text gives each fact page its `description` and `og:description`. It used to be recovered in the
+  [src/lib/server/facts.ts](../lib/server/facts.ts), and `search.json` maps each date to it, split
+  into `[text, picture]` (see the alt texts below). The same text, unsplit, gives each fact page its
+  `description` and `og:description`. It used to be recovered in the
   browser from the HTML every page carried, with `DOMParser` — but a page carries one fact now, and
   a separate download of HTML would cost more than text for nothing. A walk over marked's tokens
   rather than its `TextRenderer`: that one returns an emphasis as raw Markdown, so the credit line
@@ -388,6 +389,19 @@ first keystroke, so a visitor who never searches never downloads it — the firs
   the last word of one description welds onto the first of the next. Both verified by mutation in
   the unit test. The probe fixture carries one image for this, whose alt text is the only place the
   word `Wasserspeier` appears.
+- **A picture's words count half: its alt text and its credit line.** They describe the picture,
+  not what the fact says, and before they were weighed apart `zahn` ranked three facts whose only
+  `Zähne` or `Zahnrad` sat in an alt text above the fact about a `Zahnarzt`. So `factText` sets them
+  aside for `search.json`, and the worker indexes them in fields of their own with a boost of 0.5:
+  measured on the real archive in October 2026, a word in the prose then ranks first, the same word
+  in a picture next and a typo last, where 0.25 put a real `Zähne` below the typo `zehn`. Credits
+  stay in at all because a few name what someone might search for — `Steven Spielberg` on the
+  Indiana Jones scene, `Bloomsbury`, `Paramount` — among Commons user names and licences nobody
+  will. A credit is recognised by its place, an emphasis straight after an image, which is the
+  structure the credit spacing in layout.css matches; the one note in that slot that is not a
+  credit, „Schrift auf dem Bildschirm nachträglich hervorgehoben“, describes the picture too.
+  `weighs a word in a picture below the same word in the prose` fails with the boost removed, and
+  `sets the alt texts and the credit aside when asked` with the credit left in the text.
 - **Every substring of every word is indexed, and matched exactly.** MiniSearch matches whole
   terms — exactly, by prefix or by edit distance — never substrings, and German welds its nouns
   into compounds. `indexTerms` in [facts.ts](../lib/facts.ts) emits every substring down to

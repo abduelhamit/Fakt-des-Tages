@@ -105,4 +105,17 @@ describe('factText', () => {
 		expect(text).toContain('Co. Erstes');
 		expect(text).toContain('Vor 35\u00a0Jahren, 25\u202fMio.');
 	});
+
+	// For the search, which weighs a picture's words lower. The credit is found by sitting straight
+	// after an image, so the same emphasis elsewhere stays in the text.
+	it('sets the alt texts and the credit aside when asked', () => {
+		const aside: string[] = [];
+		const prose = factText(
+			'Ein _betontes_ Wort.\n\n![Erstes Bild](fakten/a.avif)![Zweites Bild](fakten/b.avif)\n' +
+				'_Foto: [Name](https://commons.wikimedia.org/wiki/File:A.avif)_\n\nDanach.',
+			aside
+		);
+		expect(prose).toBe('Ein betontes Wort. Danach.');
+		expect(aside).toEqual(['Erstes Bild', 'Zweites Bild', 'Foto: Name']);
+	});
 });

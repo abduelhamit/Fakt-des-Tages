@@ -116,12 +116,29 @@ const BLOCKS = new Set(['paragraph', 'heading', 'list_item', 'blockquote', 'code
  * descriptions would otherwise weld into one word. Block-level tokens are padded for the same
  * reason. Only ordinary whitespace is collapsed: U+00A0 and U+202F stay, since the description is
  * read by people and the search splits on them anyway.
+ *
+ * Given `aside`, the alt texts and credit lines go there instead, so the search can weigh what
+ * describes a picture below what the fact says. A credit is an emphasis straight after an image,
+ * the structure the credit spacing in layout.css matches too, so it is found by its place rather
+ * than its wording.
  */
-export function factText(text: string): string {
+export function factText(text: string, aside?: string[]): string {
+	const tidy = (read: string) => read.replace(/[\t\n\r ]+/g, ' ').trim();
 	const walk = (tokens: Token[]): string =>
 		tokens
-			.map((t) => {
-				if (t.type === 'image') return ` ${t.text} `;
+			.map((t, i) => {
+				let before = i - 1;
+				while (tokens[before]?.type === 'text' && !tokens[before].raw.trim()) before--;
+				const about =
+					t.type === 'image'
+						? t.text
+						: t.type === 'em' && tokens[before]?.type === 'image'
+							? walk(t.tokens ?? [])
+							: undefined;
+				if (about !== undefined) {
+					aside?.push(tidy(about));
+					return aside ? ' ' : ` ${about} `;
+				}
 				if (t.type === 'html') return '';
 				if (t.type === 'list') return walk(t.items);
 				const inner =
@@ -129,7 +146,5 @@ export function factText(text: string): string {
 				return BLOCKS.has(t.type) ? ` ${inner} ` : inner;
 			})
 			.join('');
-	return walk(markdown.lexer(text))
-		.replace(/[\t\n\r ]+/g, ' ')
-		.trim();
+	return tidy(walk(markdown.lexer(text)));
 }
