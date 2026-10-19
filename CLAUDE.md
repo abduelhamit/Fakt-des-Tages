@@ -93,7 +93,8 @@ applied in and what is checked, so nothing depends on remembering a past session
      one — CC BY-NC-ND on the Bayerisches Nationalmuseum's photos, `NoC-NC` on the BSB's Google
      scans — therefore restricts nothing as copyright, and no line is owed. Only a creative
      photograph keeps a right (§ 2 UrhG, untouched by § 68), and only terms someone actually agreed
-     to bind them as a contract.
+     to bind them as a contract — or a rule outside copyright, such as the CRPA behind Gallica's
+     mention.
    - **Credit line:** CC → credit linked to the file page, § 51 quotation or US-only PD → source
      line with the author, rights-holder declaration → verbatim, PD/CC0 → none, per the credit
      rules under the content pipeline.
@@ -344,8 +345,9 @@ Consequences worth knowing before changing any of this:
   wording is the condition rather than a courtesy. It sits in the same slot as a CC credit, so the
   `:has(+ em)` spacing rule picks it up for free. Note what this does _not_ do: the permission is
   non-commercial only and revocable, so it would lapse if this site ever took money. The BnF's
-  `gallica.bnf.fr / BnF` under 2026-08-31 is the same case: Gallica's terms make that mention the
-  condition of free non-commercial reuse.
+  `gallica.bnf.fr / BnF` under 2026-08-31 is the same case on a different footing: the BnF treats
+  its scans as French public information, and CRPA Art. L322-1 makes naming the source a condition
+  of reusing it. That is not copyright, so § 68 leaves it standing.
 - **An image quoted under § 51 UrhG carries a source line too, naming its author.** § 63 Abs. 2
   UrhG asks for "die Quelle einschließlich des Namens des Urhebers" on every public use of a
   quotation, unless that is impossible — so `_Cover: Kirk Weddle (Foto), Robert Fisher
