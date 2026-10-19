@@ -83,11 +83,17 @@ applied in and what is checked, so nothing depends on remembering a past session
    - **Non-free images:** look for a rights holder's own permission first — press kits, legal FAQs;
      those pages are often JavaScript-walled and answer a plain fetch with a bare title or a 403,
      which means "read it with Playwright", not "not there" — and fall back to a
-     § 51 UrhG quotation at the smallest useful size. **Flag two German-law caveats whenever they
-     apply**, because Commons reasons from US law: a `PD-textlogo` may still reach the ordinary
-     threshold for applied art since BGH _Geburtstagszug_ (2013), and a photograph of a
-     public-domain two-dimensional work carries its own § 72 UrhG protection under BGH
-     _Reiss-Engelhorn_ (2018), whatever the Commons tag says.
+     § 51 UrhG quotation at the smallest useful size. **Flag the German-law caveat whenever it
+     applies**, because Commons reasons from US law: a `PD-textlogo` may still reach the ordinary
+     threshold for applied art since BGH _Geburtstagszug_ (2013).
+   - **A photo or scan of a public-domain two-dimensional work is public domain too.** BGH
+     _Museumsfotos_ (2018, the Reiss-Engelhorn case) gave such a reproduction its own § 72 UrhG
+     protection, but § 68 UrhG, in force since 7 June 2021, takes it away again, including for
+     reproductions made before then (BT-Drs. 19/27426, p. 105). A licence an institution puts on
+     one — CC BY-NC-ND on the Bayerisches Nationalmuseum's photos, `NoC-NC` on the BSB's Google
+     scans — therefore restricts nothing as copyright, and no line is owed. Only a creative
+     photograph keeps a right (§ 2 UrhG, untouched by § 68), and only terms someone actually agreed
+     to bind them as a contract.
    - **Credit line:** CC → credit linked to the file page, § 51 quotation or US-only PD → source
      line with the author, rights-holder declaration → verbatim, PD/CC0 → none, per the credit
      rules under the content pipeline.
