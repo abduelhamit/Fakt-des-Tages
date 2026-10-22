@@ -83,7 +83,10 @@ applied in and what is checked, so nothing depends on remembering a past session
    - **Non-free images:** look for a rights holder's own permission first — press kits, legal FAQs;
      those pages are often JavaScript-walled and answer a plain fetch with a bare title or a 403,
      which means "read it with Playwright", not "not there" — and fall back to a
-     § 51 UrhG quotation at the smallest useful size. **Flag the German-law caveat whenever it
+     § 51 UrhG quotation at the smallest useful size. For a cover, that size is **300 px wide**,
+     like every other cover in the archive and en.wikipedia's own fair-use copies. Scale it down
+     from the largest clean source you can find rather than re-encoding a 300 px file that someone
+     else already compressed. **Flag the German-law caveat whenever it
      applies**, because Commons reasons from US law: a `PD-textlogo` may still reach the ordinary
      threshold for applied art since BGH _Geburtstagszug_ (2013).
    - **A photo or scan of a public-domain two-dimensional work is public domain too.** BGH
@@ -99,8 +102,9 @@ applied in and what is checked, so nothing depends on remembering a past session
      line with the author, rights-holder declaration → verbatim, PD/CC0 → none, per the credit
      rules under the content pipeline.
    - **Format and size: AVIF 4:4:4, the smallest file that still scores SSIMULACRA2 80.** 1000–1280
-     px wide covers 2× screens. Build the reference first — the original with its embedded profile
-     converted (`magick … -profile "/System/Library/ColorSync/Profiles/sRGB Profile.icc"`), resized
+     px wide covers 2× screens, except for a § 51 quotation, which is kept small (see above).
+     Build the reference first — the original with its embedded profile converted
+     (`magick … -profile "/System/Library/ColorSync/Profiles/sRGB Profile.icc"`), resized
      to the shipped size, alpha per the transparency rule, `-strip` — then binary-search
      `avifenc -s 3 -y 444 -q N` for the lowest `N` whose decode still scores 80 in
      `ssimulacra2 ref.png decoded.png`. An animation is the same search over its frames, scored one
