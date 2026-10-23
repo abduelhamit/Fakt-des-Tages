@@ -72,7 +72,7 @@ describe('renderFact', () => {
 
 	it('links every image to its own file, which is how it opens at 100 %', () => {
 		expect(renderFact('![Ein Bild](fakten/2026-03-06-1.avif)')).toContain(
-			'<a href="fakten/2026-03-06-1.avif"><img src="fakten/2026-03-06-1.avif" alt="Ein Bild" width="1600" height="745"></a>'
+			'<a href="fakten/2026-03-06-1.avif"><img src="fakten/2026-03-06-1.avif" alt="Ein Bild" width="1280" height="596"></a>'
 		);
 	});
 

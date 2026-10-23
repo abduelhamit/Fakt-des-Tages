@@ -108,7 +108,7 @@ applied in and what is checked, so nothing depends on remembering a past session
      to the shipped size, alpha per the transparency rule, `-strip` — then binary-search
      `avifenc -s 3 -y 444 -q N` for the lowest `N` whose decode still scores 80 in
      `ssimulacra2 ref.png decoded.png`. An animation is the same search over its frames, scored one
-     by one against the GIF's own and averaged. Most images land under 250 KB — say the size, and
+     by one against the GIF's own and averaged. Most images land under 280 KB — say the size, and
      why when it is more.
    - **File** `static/fakten/YYYY-MM-DD-N.avif`.
    - **Alt text in German**, describing what is visible — subject, colours, layout, any lettering
