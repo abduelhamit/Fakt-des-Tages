@@ -67,8 +67,8 @@ applied in and what is checked, so nothing depends on remembering a past session
    `en.wikipedia.org` (`action=query&prop=extracts&explaintext=1`), and confirm against the source
    before calling something wrong — a figure that only looks implausible is not an error.
 4. **Typography.** No-break spaces per the rules under the content pipeline: cardinals, ordinals,
-   units, spaced abbreviations, and never a number that ends a sentence. No soft hyphens; strip any
-   that arrived. Count the characters in the entry rather than trusting the eye.
+   units, spaced abbreviations, and never a number that ends a sentence; a word joiner after an en
+   dash between numerals. No soft hyphens; strip any that arrived. Count the characters in the entry rather than trusting the eye.
 5. **The image.**
    - **Licence.** `curl -s -G --data-urlencode` against the API
      (`action=query&prop=imageinfo&iiprop=url|size|mime|extmetadata&titles=File:…`) with a
@@ -116,7 +116,7 @@ applied in and what is checked, so nothing depends on remembering a past session
      must not claim what the file lacks: a transparent image has no `weißer Grund`.
 6. **The gate.** `git check-attr filter -- static/fakten/<file>` must say `lfs`; then `pnpm lint`,
    `pnpm vitest run`, `pnpm build`. Then read the entry back out of `build/YYYY-MM-DD.html`: the
-   invisible characters literal, no `&nbsp;`, `&#8239;` or `&shy;` anywhere, and the image in
+   invisible characters literal, no `&nbsp;`, `&#8239;`, `&#8288;` or `&shy;` anywhere, and the image in
    `build/fakten/` a real file according to `file`, not a pointer.
 7. **Report:** what changed, what was left and why, the licence verdict and its caveats, and the
    image's format, size and reasoning.
@@ -269,6 +269,15 @@ Consequences worth knowing before changing any of this:
 - **`ca.` binds to the number after it with U+00A0, numeral or word alike:** `ca. 16 Stunden`,
   `ca. drei Monate`. It is the title's failure again, a line ending in a bare `ca.`, and the
   normal width because `ca.` qualifies the number rather than labelling it the way `Nr.` does.
+- **An en dash between numerals is followed by U+2060, the word joiner:** `3–5 Metern`,
+  `1893–1896`, `1,1–1,3 Mrd.`, the score `2–1`. Unicode's line breaking allows a break after an
+  unspaced en dash, though never before one, so without it `3–` can end a line and leave `5 Metern`
+  on the next. Measured in Chromium, Firefox and WebKit in October 2026 at 1 px wide: `xx 3–5 Metern`
+  broke after the dash, the joined one did not, and the joiner added no width in Mona Sans — it is
+  default-ignorable, so no font needs a glyph for it. Only between numerals: a dash between words may break like a hyphenated compound, and
+  a spaced dash is the no-break space's business. The search is unaffected, since `words` splits on
+  the joiner exactly as it already split on the dash. It is as invisible as the spaces, so the
+  examples here use the bare dash; the archive was swept once to match.
 - **The facts are not hyphenated, by choice, and a soft hyphen is never to be typed into one.**
   The fact column carried `hyphens-auto` until the move to Primer in October 2026. It was taken
   out knowing what it costs, as GitHub's own Markdown does: measured across the whole archive at
