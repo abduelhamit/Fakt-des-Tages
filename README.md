@@ -79,8 +79,8 @@ Zum Pflegen der Inhalte genügt trotzdem der Webeditor — der Build läuft ja a
 
 ## Entwicklung
 
-Voraussetzungen: **Node ≥ 24** und pnpm (die Version ist in `package.json` unter `packageManager`
-festgelegt). Mit einer älteren Node-Version bricht `pnpm install` mit `Expected version: >=24` ab —
+Voraussetzungen: **Node ≥ 26** und pnpm (die Version ist in `package.json` unter `packageManager`
+festgelegt). Mit einer älteren Node-Version bricht `pnpm install` mit `Expected version: >=26` ab —
 `nvm use --lts` hilft.
 
 ```sh

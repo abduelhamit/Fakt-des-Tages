@@ -475,9 +475,9 @@ anywhere but the repo; add sanitising then.
 ## Commands
 
 Package manager is **pnpm**, pinned by `packageManager` in [package.json](package.json).
-`engines.node` is `>=24` and `engineStrict: true` in
+`engines.node` is `>=26` and `engineStrict: true` in
 [pnpm-workspace.yaml](pnpm-workspace.yaml) makes that a **hard install failure**, not a warning —
-`pnpm install` on an older Node exits with `Expected version: >=24`. Note pnpm 10+ reads its own
+`pnpm install` on an older Node exits with `Expected version: >=26`. Note pnpm 10+ reads its own
 settings from `pnpm-workspace.yaml`; the same key in a `.npmrc` is silently ignored, which is why
 there is no `.npmrc` here. Use `nvm use --lts` before running anything.
 

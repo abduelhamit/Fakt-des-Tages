@@ -90,6 +90,7 @@
 			>{@render octicon(icon)}</button
 		>
 	{:else}
+		<!-- eslint-disable svelte/no-navigation-without-resolve -- callers pass `resolve()`'s output -->
 		<a
 			bind:this={element}
 			href={action}
@@ -100,6 +101,7 @@
 			class="flex size-8 items-center justify-center rounded-md text-(--fgColor-muted) not-aria-disabled:hover:bg-(--control-transparent-bgColor-hover) not-aria-disabled:active:bg-(--control-transparent-bgColor-active) aria-disabled:cursor-default aria-disabled:text-(--fgColor-disabled)"
 			>{@render octicon(icon)}</a
 		>
+		<!-- eslint-enable svelte/no-navigation-without-resolve -->
 	{/if}
 	<span bind:this={tip} popover="hint" aria-hidden="true" class="tooltip">{label}</span>
 </span>
