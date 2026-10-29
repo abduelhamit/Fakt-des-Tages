@@ -248,7 +248,7 @@
 		<IconButton
 			icon="chevron-left"
 			label="Vorheriger Fakt"
-			action={neighbours.previous && resolve('/[date]', { date: neighbours.previous })}
+			action={neighbours.previous ? resolve('/[date]', { date: neighbours.previous }) : undefined}
 		/>
 		<!-- A client-side step fetches the next fact before the address changes, and the browser shows
 		     no load for it. Primer's Spinner says so beside the date, out of flow so nothing moves, and
@@ -283,7 +283,7 @@
 		<IconButton
 			icon="chevron-right"
 			label="Nächster Fakt"
-			action={neighbours.next && resolve('/[date]', { date: neighbours.next })}
+			action={neighbours.next ? resolve('/[date]', { date: neighbours.next }) : undefined}
 		/>
 	</nav>
 

@@ -16,6 +16,7 @@
 </script>
 
 <script lang="ts">
+	import type { ResolvedPathname } from '$app/types';
 	import type { ClassValue } from 'svelte/elements';
 	import { clock } from '#lib/today.svelte.ts';
 
@@ -40,7 +41,7 @@
 	}: {
 		icon: Icon;
 		label: string;
-		action: string | undefined | (() => void);
+		action: ResolvedPathname | undefined | (() => void);
 		/** Buttons only: a link is bounded by having no `action`. */
 		disabled?: boolean;
 		element?: HTMLElement;
@@ -78,19 +79,7 @@
 	onfocusin={() => element?.matches(':focus-visible') && show()}
 	onfocusout={hide}
 >
-	{#if typeof action === 'function'}
-		{@const inert = disabled || !clock.today}
-		<button
-			bind:this={element}
-			type="button"
-			onclick={inert ? undefined : action}
-			aria-disabled={inert}
-			aria-label={label}
-			class="flex size-8 items-center justify-center rounded-md text-(--fgColor-muted) not-aria-disabled:hover:bg-(--control-transparent-bgColor-hover) not-aria-disabled:active:bg-(--control-transparent-bgColor-active) aria-disabled:cursor-default aria-disabled:text-(--fgColor-disabled)"
-			>{@render octicon(icon)}</button
-		>
-	{:else}
-		<!-- eslint-disable svelte/no-navigation-without-resolve -- callers pass `resolve()`'s output -->
+	{#if typeof action !== 'function'}
 		<a
 			bind:this={element}
 			href={action}
@@ -101,7 +90,17 @@
 			class="flex size-8 items-center justify-center rounded-md text-(--fgColor-muted) not-aria-disabled:hover:bg-(--control-transparent-bgColor-hover) not-aria-disabled:active:bg-(--control-transparent-bgColor-active) aria-disabled:cursor-default aria-disabled:text-(--fgColor-disabled)"
 			>{@render octicon(icon)}</a
 		>
-		<!-- eslint-enable svelte/no-navigation-without-resolve -->
+	{:else}
+		{@const inert = disabled || !clock.today}
+		<button
+			bind:this={element}
+			type="button"
+			onclick={inert ? undefined : action}
+			aria-disabled={inert}
+			aria-label={label}
+			class="flex size-8 items-center justify-center rounded-md text-(--fgColor-muted) not-aria-disabled:hover:bg-(--control-transparent-bgColor-hover) not-aria-disabled:active:bg-(--control-transparent-bgColor-active) aria-disabled:cursor-default aria-disabled:text-(--fgColor-disabled)"
+			>{@render octicon(icon)}</button
+		>
 	{/if}
 	<span bind:this={tip} popover="hint" aria-hidden="true" class="tooltip">{label}</span>
 </span>
