@@ -20,7 +20,7 @@ that runs before the page paints:
 - **Today has a fact:** `location.replace` to its page. Back then leaves the site rather than
   landing on `/` and being sent forward again — though a navigation that starts before the page has
   loaded replaces the entry whichever way it is written, which is why the e2e test pins the
-  behaviour and not the call.
+  behavior and not the call.
 - **Today has none:** `history.replaceState` puts the date in the address bar and the page stays —
   `/` already _is_ the calendar, rendered with the latest month that has a fact, and hydration
   corrects it from the address bar. SvelteKit starts cleanly after the address has changed under
@@ -52,7 +52,7 @@ prerendered [/404](404/+page.svelte) route: the same `FactPage` as `/`, told onl
 served for a miss, so without JavaScript it says „Für diesen Tag gibt es keinen Fakt.“ where `/`
 says „Wähle im Kalender einen Tag.“ — `/` never learns a date then, so it claims none. Hydration
 reads the last path segment with `isIsoDate`: a date gets its month, its date line
-and arrows to its neighbours, anything else „Diese Seite gibt es nicht.“ Accepted limitation:
+and arrows to its neighbors, anything else „Diese Seite gibt es nicht.“ Accepted limitation:
 without JavaScript a mistyped address reads as a day without a fact.
 
 Stepping to such a day client-side — Back to the address `/` rewrote, or today's cell — asks for a
@@ -95,7 +95,7 @@ script fails it, and dropping the unhide fails every test of such a page.
 The browser stops parsing at the head script's `location.replace`, so `/` never gets a `<body>`,
 its hiding script never runs and nothing hydrates. Measured in October 2026 in Chromium, Firefox
 and WebKit, with a cold and a warm cache, by holding back the response for today's fact page: the
-document stayed at its head while WebKit cancelled every app chunk. So `onMount` there never reads
+document stayed at its head while WebKit canceled every app chunk. So `onMount` there never reads
 the bare root as „Diese Seite gibt es nicht.“, a flash a review predicted from the code.
 
 On a fact page only what depends on today or needs JavaScript waits: the today ring and today's
@@ -163,10 +163,10 @@ on with the date on a page left open` drives a fake clock across midnight and th
   the navigation leaves focus on it. Dropping either the `tabindex` or the attribute fails `keeps focus on
 the arrow that reached the edge`. And the selected day is named in its `aria-label`
   (`… (angezeigt)`) instead of carrying `aria-pressed`, which would claim toggle semantics that a
-  single-select set does not have. Both have e2e tests, both verified to fail when reverted. Note Playwright honours `aria-disabled` in its actionability checks, so a test
+  single-select set does not have. Both have e2e tests, both verified to fail when reverted. Note Playwright honors `aria-disabled` in its actionability checks, so a test
   that clicks a bounded arrow on purpose needs `{ force: true }`.
 
-Watch the muted colours: WCAG AA wants 4.5:1 for text. Primer's `--fgColor-muted` clears it in both
+Watch the muted colors: WCAG AA wants 4.5:1 for text. Primer's `--fgColor-muted` clears it in both
 themes — 6.11:1 on white and 5.74:1 on the header's `bgColor-inset`, 6.50:1 and 7.05:1 in dark —
 and the days with a fact, `--fgColor-accent` on `--bgColor-accent-muted`, only just: 4.56:1 in
 light, 5.47:1 in dark. Only the inactive arrows are allowed to go fainter, in `--fgColor-disabled`
@@ -187,7 +187,7 @@ in view. The bar is a `<nav aria-label="Durch die Fakten blättern">`, a landmar
 the calendar, and the e2e tests reach it by that name rather than through an arrow's parent. It ends in a downward fade (`bg-linear-to-b from-(--bgColor-default) from-60% to-transparent` over a
 `pb-8` tail) rather than a border, because a border only looks right once the bar is pinned and CSS
 alone cannot tell whether it is. Tailwind interpolates the gradient `in oklab`, which is what stops the
-fade greying in the middle, in either theme.
+fade graying in the middle, in either theme.
 
 Stepping to another fact from below the point where the bar pins scrolls back up to it, so the next
 fact opens at its top instead of somewhere in its middle. Upwards only: scrolling unconditionally
@@ -239,8 +239,8 @@ A cached step can then bring back an old version of its own fact's text, never o
 The new list arrives with the next full page load. [+layout.svelte](+layout.svelte) makes the next
 step one once `updated.current` turns true: SvelteKit sets it when the `version.json` it fetches on
 focus, on becoming visible or after a failed step names another build, and every deploy is another
-build. The step is cancelled before `location.href` is set, so the client-side step cannot race the
-load. Back is left client-side, because SvelteKit undoes a cancelled Back with `history.go`.
+build. The step is canceled before `location.href` is set, so the client-side step cannot race the
+load. Back is left client-side, because SvelteKit undoes a canceled Back with `history.go`.
 Reloading at once instead was weighed and passed over: it interrupts a visitor just returning to
 the tab, for no gain in consistency. Accepted limitation: that full load can itself come from the
 browser's cache, and then shows the old calendar — consistently — until a check after that copy
@@ -252,8 +252,8 @@ and a new `version.json`. Verified to fail with either half removed.
 
 `-mx-6 px-6` on the bar cancels `main`'s `p-6`, so its background reaches both edges of the screen
 while the date and arrows stay exactly where the padding put them. It looks like a no-op on a desktop
-— the page's colour on itself — and it is the only reason the bar works on an iPhone. There is an e2e test on it,
-because the behaviour it buys cannot be tested here.
+— the page's color on itself — and it is the only reason the bar works on an iPhone. There is an e2e test on it,
+because the behavior it buys cannot be tested here.
 
 Without it, scrolling on iOS puts one or two lines of the fact _above_ the pinned bar, dimmed, behind
 the status bar, splitting a sentence in half. The cause is not a safe-area inset. Measured on the
@@ -261,28 +261,28 @@ device: `bar.getBoundingClientRect().top` is `0` while the bar renders ~67 px do
 the article reports a negative `top` and paints anyway. The viewport origin simply sits below the
 status bar, and Safari 26 paints page content into the strip above it.
 
-What fixes it is that Safari will instead fill that strip with a **flat colour sampled from the top
+What fixes it is that Safari will instead fill that strip with a **flat color sampled from the top
 row of the viewport** — but only when that row is uniform across the _whole width_. Inside `main`'s
 padding the row is 24 px of canvas, then bar, then 24 px of canvas, so no sample is taken and the
 live pixels show through. Full-bleed, the sample succeeds and the strip goes solid in the page's
-colour — white, or `#0d1117` in the dark theme, both seen on an iPhone in October 2026. The
+color — white, or `#0d1117` in the dark theme, both seen on an iPhone in October 2026. The
 gradient is fine as it is; a solid `background-color` on the bar is _not_ required — both were tried.
 
 Two things the same iPhone showed in October 2026, both accepted:
 
-- **At the very top of a page the strip does not take the header's colour.** It stays the page's —
+- **At the very top of a page the strip does not take the header's color.** It stays the page's —
   white over the header's `#f6f8fa`, `#0d1117` over its `#010409` — a thin band above the header.
   Until Safari has taken its first sample from the top row it paints the strip, the
-  pull-to-refresh area and the strip behind its bottom toolbar in the `body`'s background colour —
+  pull-to-refresh area and the strip behind its bottom toolbar in the `body`'s background color —
   not `html`'s, which changed nothing — and once it has sampled, the sample sticks for the life of
-  the page, back at the top included. A `body` in the header's colour, with the page on a layer of
+  the page, back at the top included. A `body` in the header's color, with the page on a layer of
   its own, showed both on the device in October 2026: the top matched the header until the date bar
-  first pinned and stayed white from then on, while the strip behind the URL bar went grey under
+  first pinned and stayed white from then on, while the strip behind the URL bar went gray under
   white content without any overscroll. A band at the top beats one at the bottom, so the body
-  keeps the page's colour.
+  keeps the page's color.
 - **On the legal pages scrolled text shows behind the status bar,** exactly as the facts did before
   the bar went full-bleed: they have no pinned row at all, so the top row is a line of text. It
-  predates the Primer header. The fix would be the date bar's — a full-width row in one colour,
+  predates the Primer header. The fix would be the date bar's — a full-width row in one color,
   pinned at the top while the page scrolls, such as the title in a sticky full-bleed bar — and was
   passed over for two pages read rarely and straight through.
 
@@ -293,11 +293,11 @@ Tried, and observed on-device to do nothing. Do not spend an evening on these ag
 - `<meta name="theme-color">`, which Safari 26 ignores for Liquid Glass tinting.
 - An explicit `background-color` on `html` and `body` — the sample comes from the top row, not the
   root. Tried twice more in October 2026 for the band above the header: `html` in the header's
-  colour changed nothing, and `body` in it traded the band for one behind the URL bar (see above).
+  color changed nothing, and `body` in it traded the band for one behind the URL bar (see above).
 - A `fixed` mask at a negative `top`. Safari clips fixed subtrees to the inner viewport even at a
   negative offset; sticky subtrees are _not_ clipped, which is why the bar itself can be seen up
   there. Same bug as [react-spectrum#8888](https://github.com/adobe/react-spectrum/pull/8888).
-- A 1 px sticky strip carrying the colour. The sample needs area; at 1 px it only lands if you scroll
+- A 1 px sticky strip carrying the color. The sample needs area; at 1 px it only lands if you scroll
   through the moment slowly enough, and then it sticks until reload.
 
 Accepted limitation: on a viewport wider than `max-w-2xl` plus its padding — an iPad in portrait —
@@ -396,8 +396,8 @@ first keystroke, so a visitor who never searches never downloads it — the firs
   measured on the real archive in October 2026, a word in the prose then ranks first, the same word
   in a picture next and a typo last, where 0.25 put a real `Zähne` below the typo `zehn`. Credits
   stay in at all because a few name what someone might search for — `Steven Spielberg` on the
-  Indiana Jones scene, `Bloomsbury`, `Paramount` — among Commons user names and licences nobody
-  will. A credit is recognised by its place, an emphasis straight after an image, which is the
+  Indiana Jones scene, `Bloomsbury`, `Paramount` — among Commons user names and licenses nobody
+  will. A credit is recognized by its place, an emphasis straight after an image, which is the
   structure the credit spacing in layout.css matches; the one note in that slot that is not a
   credit, „Schrift auf dem Bildschirm nachträglich hervorgehoben“, describes the picture too.
   `weighs a word in a picture below the same word in the prose` fails with the boost removed, and
@@ -414,7 +414,7 @@ in the word` and `never adds a typo to a part found in the same fact` in
   to fail with the fallback turned into a plain OR. Nothing pins typos staying off `part`, on
   purpose: a typo match there would still rank below the real hits, and what it costs is noise
   across the archive, not order, so a test asserting it away would only pin the limitation that a
-  typo inside a compound — `turn` for `Fernsehturm` — is not forgiven. A query is tokenised
+  typo inside a compound — `turn` for `Fernsehturm` — is not forgiven. A query is tokenized
   without a field, so by `words`: typing `turm` never also asks for `urm`.
 
   This replaced a suffix index queried with `prefix: true`, which ranked `Zahnarzt` below every
@@ -449,11 +449,11 @@ in the word` and `never adds a typo to a part found in the same fact` in
   every keystroke and a part-word is the state a visitor is in for all but the last one.
 - **A hit marks the whole words that matched, not the matched part.** `matchRanges` in
   [facts.ts](../lib/facts.ts) finds MiniSearch's matched terms in the folded text — so `Munchen`
-  marks `München` and the excerpt window centres on it — and widens each to its word, so `turm`
+  marks `München` and the excerpt window centers on it — and widens each to its word, so `turm`
   marks `Fernsehturm` and `Turmspitze`. Accepted limitation: a typo's term is a whole word but is
   found like a part, so `zahn` matching the word `Bahn` also marks `Straßenbahn` in that fact. The
   marks are `<mark>` in Primer's `--highlight-neutral-bgColor`, github.com's own search highlight,
-  with the text in `--fgColor-default`: the excerpt's muted grey is about 3.4:1 on the dark theme's
+  with the text in `--fgColor-default`: the excerpt's muted gray is about 3.4:1 on the dark theme's
   highlight, short of WCAG's 4.5:1. `finds a word inside a compound` asserts the marked word.
 - **Three characters minimum.** `MIN_QUERY_LENGTH` is one constant for both the query minimum and
   the shortest indexed part, because a query shorter than the shortest part could never match.
@@ -514,7 +514,7 @@ steps aside while the search is unfolded.
 - **The `dice` Octicon, because Primer has no shuffle icon.** Before Primer the button carried `🔀`,
   chosen over U+2684 `⚄` because at 14 px the Unicode die's five pips each fell under a pixel and it
   read as an empty box. The Octicon is drawn for 16 px and reads; it also renders in the current
-  colour, so the emoji's exception to that is gone.
+  color, so the emoji's exception to that is gone.
 
 ## Impressum and Datenschutz
 

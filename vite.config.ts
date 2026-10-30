@@ -61,7 +61,7 @@ export default defineConfig({
 	],
 	test: {
 		expect: { requireAssertions: true },
-		// Node only. Browser behaviour is covered by the Playwright e2e layer instead. A vitest
+		// Node only. Browser behavior is covered by the Playwright e2e layer instead. A vitest
 		// browser project would force `paths.base` to be blanked here, because SvelteKit mirrors it
 		// onto Vite's `base`, which then 404s the runner's own /__vitest__/ assets.
 		include: ['src/**/*.{test,spec}.{js,ts}']

@@ -97,7 +97,7 @@ describe('factText', () => {
 		expect(text).toContain('Foto: Name, CC BY 4.0');
 	});
 
-	it('reads images as their alt text without welding neighbours together', () => {
+	it('reads images as their alt text without welding neighbors together', () => {
 		expect(text).toContain('Erstes Bild Zweites Bild Foto:');
 	});
 

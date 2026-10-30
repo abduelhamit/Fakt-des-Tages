@@ -151,7 +151,7 @@
 				open && 'max-sm:hidden'
 			]}
 		>
-			<!-- The favicon, drawn in the theme's colours. -->
+			<!-- The favicon, drawn in the theme's colors. -->
 			<svg
 				viewBox="0 0 32 32"
 				aria-hidden="true"
@@ -224,7 +224,7 @@
 										class="block rounded-md px-2 py-1.5 hover:bg-(--control-transparent-bgColor-hover)"
 									>
 										<span class="block text-sm">{longFormat.format(fromIsoDate(t.date))}</span>
-										<!-- The default text colour on the highlight: the muted one is 3.4:1 on it in
+										<!-- The default text color on the highlight: the muted one is 3.4:1 on it in
 										     dark mode, short of WCAG's 4.5:1. -->
 										<span class="block text-xs text-(--fgColor-muted)"
 											>{#each t.excerpt as piece, i (i)}{#if piece.mark}<mark

@@ -32,14 +32,14 @@
 		sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji';
 	--font-mono:
 		ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
-	/* Primer's colours only, through the variables below: with Tailwind's palette gone, a leftover
-	   `sky-*` or `gray-*` class generates nothing rather than a colour from another design system. */
+	/* Primer's colors only, through the variables below: with Tailwind's palette gone, a leftover
+	   `sky-*` or `gray-*` class generates nothing rather than a color from another design system. */
 	--color-*: initial;
 	/* Primer's small breakpoint, 544 px: below it the search folds into a button in the header. */
 	--breakpoint-sm: 34rem;
 }
 
-/* Primer's colour tokens under Primer's own names, light and dark, used as
+/* Primer's color tokens under Primer's own names, light and dark, used as
    `text-(--fgColor-muted)`. Copied from @primer/primitives 11.10.0
    (dist/css/functional/themes/light.css and dark.css), only
    the ones this site uses: each theme file holds about 960 and cannot be trimmed. Known limitation:
@@ -99,8 +99,8 @@
 		}
 	}
 
-	/* The page's colour, and keep it: Safari on an iPhone paints the strips behind its status bar
-	   and its toolbar in the body's colour. The header's was tried — see the iOS section of
+	/* The page's color, and keep it: Safari on an iPhone paints the strips behind its status bar
+	   and its toolbar in the body's color. The header's was tried — see the iOS section of
 	   src/routes/CLAUDE.md. */
 	body {
 		background-color: var(--bgColor-default);
@@ -108,7 +108,7 @@
 	}
 
 	/* Primer's focus ring, once for every control — `--focus-outlineColor` there, an alias of this
-	   colour. Inset, so it never collides with a neighbour; a link in running text gets it outside
+	   color. Inset, so it never collides with a neighbor; a link in running text gets it outside
 	   instead, where it does not cover the words. */
 	:focus-visible {
 		outline: 2px solid var(--borderColor-accent-emphasis);
@@ -134,7 +134,7 @@
 	/* GitHub's Markdown look, after github-markdown-css 5.9.0, covering what the facts and the legal
 	   pages use. Known limitation: CommonMark beyond this — tables, code blocks, h1 and h3 to h6 —
 	   renders unstyled; the upgrade path is that package. Links are always underlined, as Primer
-	   asks of a link in running text: the accent alone is too close to the text colour to tell them
+	   asks of a link in running text: the accent alone is too close to the text color to tell them
 	   apart. */
 	.markdown-body {
 		overflow-wrap: break-word;

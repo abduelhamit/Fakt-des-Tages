@@ -38,7 +38,7 @@ test.describe('legal pages', () => {
 			await expect(noJsPage.getByRole('heading', { level: 1 })).toHaveText(heading);
 			// The footer is in the layout, so each legal page also reaches the other one — and the
 			// header, also in the layout, is the way back to the facts. None of the three needs
-			// JavaScript. Named rather than counted: the footer also carries the Wikipedia and licence
+			// JavaScript. Named rather than counted: the footer also carries the Wikipedia and license
 			// links of the attribution notice, so a count would fail on an unrelated edit to that
 			// sentence.
 			await expect(
@@ -115,10 +115,10 @@ test.describe('legal pages', () => {
 });
 
 // Nearly every fact is reworked Wikipedia prose, and Wikipedia is CC BY-SA 4.0 — which wants the
-// source named, the licence named and the fact that something was changed disclosed. All three live
-// in one static sentence in the layout, so deleting it breaks a licence condition while every other
+// source named, the license named and the fact that something was changed disclosed. All three live
+// in one static sentence in the layout, so deleting it breaks a license condition while every other
 // check stays green. Same shape as the `AUSFÜLLEN` guard on the Impressum: assert the obligation.
-test("names the facts' source and licence in the footer", async ({ page }) => {
+test("names the facts' source and license in the footer", async ({ page }) => {
 	await page.goto('/Fakt-des-Tages/');
 	const footer = page.getByRole('contentinfo');
 
@@ -140,7 +140,7 @@ test("names the facts' source and licence in the footer", async ({ page }) => {
 });
 
 // The Datenschutz page states that the site loads no external fonts, maps, videos or scripts. That
-// is a claim about the build, not about the page, and the build is what can quietly stop honouring
+// is a claim about the build, not about the page, and the build is what can quietly stop honoring
 // it — one external web font or one embedded video and the page becomes a false statement with
 // every check still green. So assert the property itself rather than the sentence describing it.
 test('loads nothing from third-party servers', async ({ page, baseURL }) => {

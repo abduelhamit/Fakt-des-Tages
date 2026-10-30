@@ -60,7 +60,7 @@ test.describe('home page', () => {
 		await expect(page.getByRole('article')).toContainText('fetter');
 
 		// Back must leave the site, not land on `/` and be sent straight forward again. This pins the
-		// behaviour rather than the call: a navigation that starts before the page has finished
+		// behavior rather than the call: a navigation that starts before the page has finished
 		// loading replaces the entry whichever way it is written, so `location.assign` passes too.
 		await page.goBack();
 		expect(page.url()).toBe('about:blank');
@@ -191,7 +191,7 @@ test.describe('calendar', () => {
 	test('makes days without a fact unclickable', async ({ page }) => {
 		await page.goto('/Fakt-des-Tages/2026-08-22');
 
-		// 21 August 2026 has no entry and is not today, so it renders as plain text.
+		// August 21, 2026, has no entry and is not today, so it renders as plain text.
 		await expect(page.getByRole('link', { name: 'Freitag, 21. August 2026' })).toHaveCount(0);
 		await expect(page.getByRole('link', { name: 'Samstag, 22. August 2026' })).toBeVisible();
 	});
@@ -268,7 +268,7 @@ test.describe('calendar', () => {
 		await expect(forward).toHaveAttribute('aria-disabled', 'true');
 		// Still focused, which is what `aria-disabled` buys over the native attribute — see `shiftMonth`.
 		await expect(forward).toBeFocused();
-		// Focusable but inert. `force` is needed because Playwright honours `aria-disabled` in its
+		// Focusable but inert. `force` is needed because Playwright honors `aria-disabled` in its
 		// actionability check and would otherwise refuse the click — which is itself the assertion
 		// that the attribute reaches tooling. What is under test here is the guard in `shiftMonth`.
 		await forward.click({ force: true });
@@ -304,7 +304,7 @@ test.describe('fact arrows', () => {
 		await expect(page.getByRole('article')).toContainText('Zwischenüberschrift');
 	});
 
-	test('takes the calendar along into the neighbouring month', async ({ page }) => {
+	test('takes the calendar along into the neighboring month', async ({ page }) => {
 		await page.goto('/Fakt-des-Tages/2026-08-20');
 
 		await page.getByRole('link', { name: 'Vorheriger Fakt' }).click();
@@ -412,7 +412,7 @@ test.describe('fact arrows', () => {
 	});
 
 	// The bar has to reach the edges of the viewport, not just the text column — see the iOS section
-	// in CLAUDE.md. Chromium cannot see the Safari behaviour that depends on it, so this pins the
+	// in CLAUDE.md. Chromium cannot see the Safari behavior that depends on it, so this pins the
 	// geometry instead: the bar's `-mx-6` cancels `main`'s `p-6`, making it exactly as wide as
 	// `main`'s border box. Drop `-mx-6` and it comes out 48px narrower.
 	test('stretches the date bar across the full width', async ({ page }) => {
@@ -745,7 +745,7 @@ for (const [scheme, canvas] of [
 	['light', 'rgb(255, 255, 255)'],
 	['dark', 'rgb(13, 17, 23)']
 ] as const) {
-	test(`follows a ${scheme} colour scheme`, async ({ page }) => {
+	test(`follows a ${scheme} color scheme`, async ({ page }) => {
 		await page.emulateMedia({ colorScheme: scheme });
 		await page.goto('/Fakt-des-Tages/2026-08-22');
 

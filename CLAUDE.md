@@ -70,10 +70,10 @@ applied in and what is checked, so nothing depends on remembering a past session
    units, spaced abbreviations, and never a number that ends a sentence; a word joiner after an en
    dash between numerals. No soft hyphens; strip any that arrived. Count the characters in the entry rather than trusting the eye.
 5. **The image.**
-   - **Licence.** `curl -s -G --data-urlencode` against the API
+   - **License.** `curl -s -G --data-urlencode` against the API
      (`action=query&prop=imageinfo&iiprop=url|size|mime|extmetadata&titles=File:…`) with a
      User-Agent naming the site and the Impressum address. Query `commons.wikimedia.org`, except
-     for non-free files: Commons accepts free licences only, so a fair-use cover or poster lives on
+     for non-free files: Commons accepts free licenses only, so a fair-use cover or poster lives on
      `en.wikipedia.org` and has to be asked there, as the Nevermind cover was. Not on
      `de.wikipedia.org`, which hosts no non-free files at all — German law has no fair use. Read
      `LicenseShortName`, `AttributionRequired`, `NonFree`, `Restrictions` and `Credit`. A
@@ -91,8 +91,8 @@ applied in and what is checked, so nothing depends on remembering a past session
      threshold for applied art since BGH _Geburtstagszug_ (2013).
    - **A photo or scan of a public-domain two-dimensional work is public domain too.** BGH
      _Museumsfotos_ (2018, the Reiss-Engelhorn case) gave such a reproduction its own § 72 UrhG
-     protection, but § 68 UrhG, in force since 7 June 2021, takes it away again, including for
-     reproductions made before then (BT-Drs. 19/27426, p. 105). A licence an institution puts on
+     protection, but § 68 UrhG, in force since June 7, 2021, takes it away again, including for
+     reproductions made before then (BT-Drs. 19/27426, p. 105). A license an institution puts on
      one — CC BY-NC-ND on the Bayerisches Nationalmuseum's photos, `NoC-NC` on the BSB's Google
      scans — therefore restricts nothing as copyright, and no line is owed. Only a creative
      photograph keeps a right (§ 2 UrhG, untouched by § 68), and only terms someone actually agreed
@@ -111,18 +111,18 @@ applied in and what is checked, so nothing depends on remembering a past session
      by one against the GIF's own and averaged. Most images land under 280 KB — say the size, and
      why when it is more.
    - **File** `static/fakten/YYYY-MM-DD-N.avif`.
-   - **Alt text in German**, describing what is visible — subject, colours, layout, any lettering
+   - **Alt text in German**, describing what is visible — subject, colors, layout, any lettering
      quoted in „…“. It is the only description a screen reader gets and it feeds the search. It
      must not claim what the file lacks: a transparent image has no `weißer Grund`.
 6. **The gate.** `git check-attr filter -- static/fakten/<file>` must say `lfs`; then `pnpm lint`,
    `pnpm vitest run`, `pnpm build`. Then read the entry back out of `build/YYYY-MM-DD.html`: the
    invisible characters literal, no `&nbsp;`, `&#8239;`, `&#8288;` or `&shy;` anywhere, and the image in
    `build/fakten/` a real file according to `file`, not a pointer.
-7. **Report:** what changed, what was left and why, the licence verdict and its caveats, and the
+7. **Report:** what changed, what was left and why, the license verdict and its caveats, and the
    image's format, size and reasoning.
 8. **Commit only when asked.** Stage explicit paths rather than everything. Subject
    `Add <subject> as the fact for YYYY-MM-DD`; the body says what the entry and image are and the
-   decisions behind them, in a few sentences: the image's licence basis, its format and size, a
+   decisions behind them, in a few sentences: the image's license basis, its format and size, a
    clarification the entry needs. Not how they got there — text fixes, wording rounds and checks
    belong in the report of step 7, not the commit. A later correction to the same day is amended
    into that commit when the user asks, message unchanged.
@@ -189,7 +189,7 @@ Consequences worth knowing before changing any of this:
   it, and each fails alone: [[date]/+page.server.ts](src/routes/[date]/+page.server.ts) pins the
   output type as `PageServerLoad<{ date: string; html: FactHtml; description: string }>`, and the
   page hands `data` to the `fact` prop of [FactPage.svelte](src/lib/FactPage.svelte), typed with
-  `html: FactHtml`. A bare `PageServerLoad` accepts any serialisable shape, so without the prop the
+  `html: FactHtml`. A bare `PageServerLoad` accepts any serializable shape, so without the prop the
   page would infer whatever load returned. Keep both: the type argument fails where the mistake is,
   and still holds should a page ever render `{@html data.html}` without `FactPage`.
 - **A malformed facts file fails `pnpm build`,** so broken content never deploys and the previous
@@ -232,7 +232,7 @@ Consequences worth knowing before changing any of this:
   search index is unaffected because `words` splits on `[^\p{L}\p{N}]+` — neither is a letter or a
   digit, so both separate tokens exactly like an ordinary space. U+202F is a real glyph, not a
   tofu box: 1.84 px against 15.69 px for one. It is not Mona Sans's, though, which has none — the
-  browser takes it from the next font in the stack, and the no-break behaviour belongs to the
+  browser takes it from the next font in the stack, and the no-break behavior belongs to the
   character, so it holds whichever font draws it. The archive was
   swept once to match, so a plain space beside a numeral is now a defect to fix rather than a
   backlog item.
@@ -268,7 +268,7 @@ Consequences worth knowing before changing any of this:
   sentence would not, and keeps its ordinary space.
 - **`ca.` binds to the number after it with U+00A0, numeral or word alike:** `ca. 16 Stunden`,
   `ca. drei Monate`. It is the title's failure again, a line ending in a bare `ca.`, and the
-  normal width because `ca.` qualifies the number rather than labelling it the way `Nr.` does.
+  normal width because `ca.` qualifies the number rather than labeling it the way `Nr.` does.
 - **An en dash between numerals is followed by U+2060, the word joiner:** `3–5 Metern`,
   `1893–1896`, `1,1–1,3 Mrd.`, the score `2–1`. Unicode's line breaking allows a break after an
   unspaced en dash, though never before one, so without it `3–` can end a line and leave `5 Metern`
@@ -328,7 +328,7 @@ Consequences worth knowing before changing any of this:
   `_Foto: [Name](https://commons.wikimedia.org/wiki/File:…), [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/)_`.
   The name links to the file page because every CC version in the archive — 2.0, 3.0 and 4.0 —
   asks for a link to the work where that is practicable, and the file page carries author, title
-  and licence in one place. The name is the file page's `Artist`, minus any `©` or user-page markup.
+  and license in one place. The name is the file page's `Artist`, minus any `©` or user-page markup.
   Two images on one line each get their own credit straight after them, which splits the line. Same paragraph as
   the image, and **no hard break** between them: Preflight makes `img` a block, so the credit starts
   on its own line regardless, and a `<br>` there buys nothing but an extra empty line — measured, it
@@ -347,7 +347,7 @@ Consequences worth knowing before changing any of this:
   [src/routes/CLAUDE.md](src/routes/CLAUDE.md)).
 - **That same line also carries a rights-holder's _required declaration_, which is a third case
   and not a credit.** 2026-09-28 is the first: Genshin Impact screenshots exist under no free
-  licence at all, but HoYoverse's
+  license at all, but HoYoverse's
   [Legal FAQ](https://www.hoyolab.com/article/143107) (item 2) says of posting game imagery on a
   personal or any other website that "We do not prohibit non-commercial personal use" — while
   stating outright that this is not a transfer of rights and "nor should it be regarded as an
@@ -373,16 +373,16 @@ Consequences worth knowing before changing any of this:
   holder has asked for one". That reading gets § 63 backwards: the line is what the quotation
   right itself requires.
 - **The fact texts are reworked Wikipedia prose, and one sentence in the footer carries what that
-  licence requires.** Nearly every entry leans on the German or English Wikipedia; 2026-10-01 is the
+  license requires.** Nearly every entry leans on the German or English Wikipedia; 2026-10-01 is the
   extreme, where both of the last two paragraphs are word for word from `Zeitball` and
   `Zeitball (Bremerhaven)`. Wikipedia is
   CC BY-SA 4.0, which unlike the public-domain images here genuinely obliges: name the source, name
-  the licence, disclose that something was changed, and licence the result alike.
+  the license, disclose that something was changed, and license the result alike.
   [+layout.svelte](src/routes/+layout.svelte) does that in the footer rather than under each fact on
   purpose — a per-entry credit would be the stricter reading, but it would need maintaining per
   entry, and the credit nobody remembers to add is the one that is missing. Accepted limitation: the
   notice names Wikipedia rather than the individual article behind each fact.
-  `names the facts' source and licence in the footer` in
+  `names the facts' source and license in the footer` in
   [legal-pages.e2e.ts](src/routes/legal-pages.e2e.ts) asserts all three, and pins each
   language edition to its own host, after being verified to
   fail with the sentence deleted; without it the notice is static markup whose removal nothing would
@@ -409,11 +409,11 @@ Consequences worth knowing before changing any of this:
   - **4:4:4, never 4:2:0 or 4:0:0.** Safari decodes AVIF through ImageIO, whose 4:2:0 chroma
     upsampling is not libavif's. Two 4:2:0 encodes that scored 80 in libavif dropped to 75.6 and
     77.3 through `sips`, while every 4:4:4 encode stayed within 0.6 of its libavif score. 4:2:0 was
-    never more than 11 KB smaller. Monochrome 4:0:0 saved at most 1 KB on the greyscale images, too
+    never more than 11 KB smaller. Monochrome 4:0:0 saved at most 1 KB on the grayscale images, too
     little to justify a decoder path nothing else in the archive uses.
   - **Convert the embedded profile before stripping.** `-strip` alone throws an Adobe RGB, Display
     P3 or camera profile away without converting the pixels, and six originals had shipped that
-    way: the LEGO box's black came out grey, and the photo of the Lego Himeji on 2026-03-27 washed out.
+    way: the LEGO box's black came out gray, and the photo of the Lego Himeji on 2026-03-27 washed out.
 
   **Animations are animated AVIF in a plain `<img>`, which behaves exactly like a GIF:** it plays at
   once, loops forever (libavif writes an infinite repeat count) and needs no code. Verified looping
@@ -444,10 +444,10 @@ Consequences worth knowing before changing any of this:
     black.
 
   Check the interior holes before shipping one. The counters inside the Cheers letters are genuine
-  gaps in the SVG, so a coloured ground shows through them — correct for a wordmark, wrong for a
+  gaps in the SVG, so a colored ground shows through them — correct for a wordmark, wrong for a
   logo meant to sit on its own white tile. Nothing tests any of this, and the dark theme is the
   ground that shows a wrong call: the flattened flag and tughra sit there as white tiles, which is
-  right for them, while a transparent mark without a colour of its own would vanish. Look at a new
+  right for them, while a transparent mark without a color of its own would vanish. Look at a new
   one in both themes.
 
 ### YAML gotchas that bite silently
@@ -467,10 +467,10 @@ Consequences worth knowing before changing any of this:
   containing prose instead of entries, for instance.
 
 Rendering goes through `{@html}` on the already-rendered HTML, wrapped in `.markdown-body`, GitHub's
-Markdown look (see "The look is GitHub's Primer"). No sanitiser is warranted: the YAML is a file in
+Markdown look (see "The look is GitHub's Primer"). No sanitizer is warranted: the YAML is a file in
 this repo compiled into the build, so anyone who can write a fact can already write the app's
 JavaScript — it is not a trust boundary. That reasoning stops holding the moment facts come from
-anywhere but the repo; add sanitising then.
+anywhere but the repo; add sanitizing then.
 
 ## Commands
 
@@ -586,7 +586,7 @@ There is **no vitest browser project**, and re-adding one is not free. SvelteKit
 `paths.base` onto Vite's `base`, which also prefixes vitest's own `/__vitest__/` runner assets — the
 browser project then 404s, hangs for about a minute and errors. The only workaround is blanking
 `paths.base` under `process.env.VITEST`, which in turn blinds _every_ vitest test to the real base
-path. That trade was not worth it for component tests, so component and interaction behaviour is
+path. That trade was not worth it for component tests, so component and interaction behavior is
 covered by the Playwright layer instead. If you do re-add a browser project, expect to pay that cost
 again.
 
@@ -645,18 +645,18 @@ is installed, and that was decided, not overlooked: `@primer/css` is in maintena
 README sends everyone to Primer React or the Rails components, neither of which a Svelte site can
 use.
 
-- **The colours are Primer's variables under Primer's names, copied into
+- **The colors are Primer's variables under Primer's names, copied into
   [layout.css](src/routes/layout.css)** from `@primer/primitives` 11.10.0, light and dark, and used
   as `text-(--fgColor-muted)`. Importing the package's theme files instead would have shipped about
   28 KB of gzipped CSS to every first visit for the few dozen values the site uses, because a theme
   file holds about 960 and cannot be trimmed. Accepted limitation: they change only when someone
   copies them again; the comment above them names the two source files. Tailwind's palette is
-  switched off (`--color-*: initial`), so a leftover `sky-600` generates nothing rather than a colour
+  switched off (`--color-*: initial`), so a leftover `sky-600` generates nothing rather than a color
   from another design system.
 - **Dark mode follows the visitor's setting** through `prefers-color-scheme`, with
   `color-scheme: light dark` on `:root` so form controls and scrollbars follow too. Nothing offers a
   switch: remembering the choice would need storage, which the Datenschutz page rules out. `follows
-a … colour scheme` checks the canvas in both.
+a … color scheme` checks the canvas in both.
 - **Fact and legal text get GitHub's Markdown look**, `.markdown-body` in layout.css, after
   `github-markdown-css` 5.9.0 but only for what the entries and the legal pages use — paragraphs,
   links, emphasis, images, blockquotes and `h2` — plus lists and inline code, which nothing uses
@@ -664,9 +664,9 @@ a … colour scheme` checks the canvas in both.
   CommonMark can produce renders unstyled, and the upgrade path is that package. It replaced
   `@tailwindcss/typography`, and `@tailwindcss/forms` went with it, since the one input is styled by
   hand. Links in it are always underlined, as Primer asks of a link in running text: the accent is
-  too close to the text colour to tell the two apart by colour alone.
+  too close to the text color to tell the two apart by color alone.
 - **The font is Mona Sans, self-hosted** from [src/lib/assets/fonts/](src/lib/assets/fonts/) with
-  its OFL licence beside it: Google Fonts' latin and latin-ext variable subsets, split by
+  its OFL license beside it: Google Fonts' latin and latin-ext variable subsets, split by
   `unicode-range` exactly as Google serves them, so a German page downloads only the 40 KB latin
   file, which the layout preloads. Same-origin, so the Datenschutz page's „keine externen
   Schriftarten“ still holds. It has no U+202F and no U+2009, so those come from the next font in the
@@ -691,7 +691,7 @@ a … colour scheme` checks the canvas in both.
   itself.
 - **Two departures from Primer's defaults, both for accessibility.** The search box's border is
   `--borderColor-emphasis` rather than Primer's `#d1d9e0`, which is 1.43:1 against white where WCAG
-  wants 3:1 for the edge of a control; the emphasis colour is 3.45:1 on white and 3.24:1 on the header,
+  wants 3:1 for the edge of a control; the emphasis color is 3.45:1 on white and 3.24:1 on the header,
   3.57:1 and 3.87:1 in dark. And github.com's `/` shortcut to the search is left out: a single-key
   shortcut fails WCAG 2.1.4 unless it can be switched off, and the switch would need storage.
 - **`<svelte:element>` costs 2.8 KB of runtime, gzipped.** Measured in October 2026, on a header

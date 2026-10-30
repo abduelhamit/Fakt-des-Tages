@@ -33,7 +33,7 @@ describe('search', () => {
 		expect(zahn['2026-01-01']).toBe(zahn['2026-01-02']);
 	});
 
-	// The same fact twice over, with the word and its neighbour swapped between the prose and the
+	// The same fact twice over, with the word and its neighbor swapped between the prose and the
 	// picture: everything BM25 counts is the same, so only the picture's weight can tell them apart.
 	it('weighs a word in a picture below the same word in the prose', () => {
 		const zahn = scores('Zahn', {

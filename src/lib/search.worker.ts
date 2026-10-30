@@ -31,7 +31,7 @@ export function createIndex(texts: Record<string, [string, string]>): MiniSearch
 					: field === 'text'
 						? `${doc.prose} ${doc.picture}`
 						: doc.date,
-		// A query is tokenised without a field, so by `words`: typing `turm` never also asks for `urm`.
+		// A query is tokenized without a field, so by `words`: typing `turm` never also asks for `urm`.
 		tokenize: (text, field) => (field?.endsWith('Part') ? indexTerms(text) : words(text)),
 		// Applied to the stored terms and the query alike, so both sides fold the same way.
 		processTerm: foldTerm

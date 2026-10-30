@@ -10,8 +10,8 @@
 	let { children } = $props();
 
 	// After a deploy, the next step is a full page load, which brings the new date list that
-	// +layout.ts otherwise keeps out. Cancelled first, so the client-side step cannot race it. Back
-	// is left alone: SvelteKit undoes a cancelled one with `history.go`, and the step after it reloads.
+	// +layout.ts otherwise keeps out. Canceled first, so the client-side step cannot race it. Back
+	// is left alone: SvelteKit undoes a canceled one with `history.go`, and the step after it reloads.
 	beforeNavigate(({ type, to, willUnload, cancel }) => {
 		if (!updated.current || willUnload || !to || type === 'popstate') return;
 		cancel();
@@ -46,11 +46,11 @@
 			>Datenschutz</a
 		>
 	</p>
-	<!-- CC BY-SA 4.0 requires the source, the licence and a note that the text was changed. The
+	<!-- CC BY-SA 4.0 requires the source, the license and a note that the text was changed. The
 	     note sits here rather than under each fact because it applies to nearly all of them: one
 	     per entry would be more precise, but it would have to be maintained per entry, and the
 	     note nobody adds is the one that is missing. See CLAUDE.md. Underlined, unlike the two links
-	     above, because these sit in running text in the text's own colour. -->
+	     above, because these sit in running text in the text's own color. -->
 	<p class="mt-2">
 		Die Fakten beruhen überwiegend auf Artikeln der
 		<a

@@ -37,7 +37,7 @@ describe('isIsoDate', () => {
 
 describe('monthGrid', () => {
 	it('indents the 1st to its weekday column, counting from Monday', () => {
-		// 1 August 2026 is a Saturday: sixth column, so five blanks before it.
+		// August 1, 2026, is a Saturday: sixth column, so five blanks before it.
 		expect(monthGrid(2026, 7).offset).toBe(5);
 		// A month starting on Sunday is the case a bare `getDay()` gets wrong — it would say 0.
 		expect(monthGrid(2026, 1).offset).toBe(6);

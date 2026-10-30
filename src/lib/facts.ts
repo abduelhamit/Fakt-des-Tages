@@ -34,7 +34,7 @@ export function fromIsoDate(iso: string): Date {
 
 /**
  * Shape *and* calendar validity in one round-trip: anything malformed either fails to parse (and
- * formats as `NaN-NaN-NaN`) or normalises to a different string, so `2026-3-15`, `2026-02-31` and
+ * formats as `NaN-NaN-NaN`) or normalizes to a different string, so `2026-3-15`, `2026-02-31` and
  * `2026-02-29` are all rejected.
  */
 export function isIsoDate(value: string): boolean {
@@ -138,8 +138,8 @@ export function highlight(text: string, terms: string[]): { text: string; mark: 
 }
 
 /**
- * A window around the first term that matched, so a hit is recognisable without opening it. Found
- * by {@link matchRanges}, so `Munchen` centres on `München` and the window holds what
+ * A window around the first term that matched, so a hit is recognizable without opening it. Found
+ * by {@link matchRanges}, so `Munchen` centers on `München` and the window holds what
  * {@link highlight} marks. With no terms at all it is simply the opening of the fact, which is
  * what the page description uses it for.
  */

@@ -1,5 +1,5 @@
 <script module lang="ts">
-	// Octicons by GitHub, MIT licence: the 16 px paths from @primer/octicons 19.40.0, copied rather
+	// Octicons by GitHub, MIT license: the 16 px paths from @primer/octicons 19.40.0, copied rather
 	// than installed — five icons do not need a dependency. The dice's two paths are joined into one.
 	const ICONS = {
 		'chevron-left':

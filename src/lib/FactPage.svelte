@@ -91,7 +91,7 @@
 	});
 
 	const hasFact = $derived(new Set(dates));
-	const neighbours = $derived.by((): { previous?: string; next?: string } => {
+	const neighbors = $derived.by((): { previous?: string; next?: string } => {
 		// The local `day` is not ceremony: TypeScript drops the narrowing inside the callbacks
 		// without it.
 		const day = selected;
@@ -199,9 +199,9 @@
 					<!-- Today stays clickable even with no fact of its own: it is the ring the visitor
 					     navigates back to, so it has to be pressable. It has no page, so it is a real
 					     load of 404.html rather than a client-side step that would fail first. Today's
-					     ring and the selected day's fill are both in the focus colour, so the focus ring
+					     ring and the selected day's fill are both in the focus color, so the focus ring
 					     sits outside the cell, in the grid's gap, where it shows against the page. On the
-					     selected day a second, inner ring in the page's colour keeps today's visible. -->
+					     selected day a second, inner ring in the page's color keeps today's visible. -->
 					<a
 						href={resolve('/[date]', { date })}
 						data-sveltekit-reload={!hasFact.has(date) || undefined}
@@ -237,7 +237,7 @@
 
 	     `-mx-6 px-6` cancels `main`'s padding to make the bar full-bleed. It looks like a no-op
 	     on a desktop and is the only reason the bar works on an iPhone — Safari fills the strip
-	     behind the status bar with a colour sampled from the top row of the viewport, and only
+	     behind the status bar with a color sampled from the top row of the viewport, and only
 	     samples when that row is uniform across the whole width. See CLAUDE.md, under "The bar
 	     is full-bleed because of iOS", for the five alternatives already ruled out on-device. -->
 	<nav
@@ -248,7 +248,7 @@
 		<IconButton
 			icon="chevron-left"
 			label="Vorheriger Fakt"
-			action={neighbours.previous ? resolve('/[date]', { date: neighbours.previous }) : undefined}
+			action={neighbors.previous ? resolve('/[date]', { date: neighbors.previous }) : undefined}
 		/>
 		<!-- A client-side step fetches the next fact before the address changes, and the browser shows
 		     no load for it. Primer's Spinner says so beside the date, out of flow so nothing moves, and
@@ -283,14 +283,14 @@
 		<IconButton
 			icon="chevron-right"
 			label="Nächster Fakt"
-			action={neighbours.next ? resolve('/[date]', { date: neighbours.next }) : undefined}
+			action={neighbors.next ? resolve('/[date]', { date: neighbors.next }) : undefined}
 		/>
 	</nav>
 
 	{#if fact}
 		<!-- The YAML is a same-origin file in this repo, rendered at build time, so whoever can
 		     author a fact can already author this app's JavaScript — it is not a trust boundary
-		     and needs no sanitiser. Add one the moment facts come from anywhere but the repo. -->
+		     and needs no sanitizer. Add one the moment facts come from anywhere but the repo. -->
 		<!-- eslint-disable-next-line svelte/no-at-html-tags -->
 		<article bind:this={factText} class="markdown-body">{@html fact.html}</article>
 	{:else}
