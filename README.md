@@ -63,6 +63,21 @@ Bilder liegen in [`static/fakten/`](static/fakten/) und werden relativ eingebund
   im Webeditor bearbeitbar.
 - Fehlt eine Bilddatei oder stimmt der Pfad nicht, schlägt der Build fehl. Auch hier geht also
   nichts Kaputtes online.
+- **Ein Bild kann es in einer hellen und einer dunklen Fassung geben.** Die Seite zeigt dann nur
+  die, die zum Farbschema des Geräts passt. Beide stehen im selben Absatz, jede mit eigener
+  Bildbeschreibung und, falls nötig, eigenem Bildnachweis direkt darunter:
+
+  ```yaml
+  2026-11-16: |
+    Ein Fakt mit einem Bild in zwei Fassungen.
+
+    ![Beschreibung der hellen Fassung](fakten/2026-11-16-1.avif#light-mode-only)
+    _Grafik: …_
+    ![Beschreibung der dunklen Fassung](fakten/2026-11-16-2.avif#dark-mode-only)
+    _Grafik: …_
+  ```
+
+  Fehlt einer hellen Fassung die dunkle oder umgekehrt, schlägt der Build fehl.
 
 Bitte beachten:
 

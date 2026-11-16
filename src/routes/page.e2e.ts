@@ -561,7 +561,7 @@ test.describe('search', () => {
 		await expect(hit.locator('mark')).toHaveText(['Bildschirmhöhe']);
 	});
 
-	// An image is only an alt text to the search — see `factText`. The fixture's only image carries
+	// An image is only an alt text to the search — see `factText`. The fixture's first image carries
 	// this word and nothing else does.
 	test("searches the images' alt texts too", async ({ page }) => {
 		await page.getByLabel('Fakt suchen').fill('Wasserspeier');
@@ -750,6 +750,33 @@ for (const [scheme, canvas] of [
 		await page.goto('/Fakt-des-Tages/2026-08-22');
 
 		expect(await page.evaluate(() => getComputedStyle(document.body).backgroundColor)).toBe(canvas);
+	});
+}
+
+// A `#light-mode-only` / `#dark-mode-only` pair shows one picture and its credit, and the
+// other file is never fetched, because `renderFact` loads both lazily. The fixture's pair uses two
+// files nothing else on the page does, or the second half would prove nothing.
+for (const [scheme, shown, hidden] of [
+	['light', '2026-02-05-1', '2026-02-06-1'],
+	['dark', '2026-02-06-1', '2026-02-05-1']
+] as const) {
+	test(`shows only the ${scheme} image of a pair, with its credit`, async ({ page }) => {
+		const requests: string[] = [];
+		page.on('request', (req) => requests.push(req.url()));
+		await page.emulateMedia({ colorScheme: scheme });
+		await page.goto('/Fakt-des-Tages/2026-08-31');
+
+		const link = (file: string) => page.locator(`article a[href="fakten/${file}.avif"]`);
+		const credit = (file: string) => page.locator(`article a[href="fakten/${file}.avif"] + em`);
+		await expect(link(hidden)).toBeHidden();
+		await expect(credit(hidden)).toBeHidden();
+		await expect(credit(shown)).toBeVisible();
+		await link(shown).scrollIntoViewIfNeeded();
+		const fetched = (file: string) => requests.filter((url) => url.endsWith(`/${file}.avif`));
+		await expect.poll(() => fetched(shown)).toHaveLength(1);
+		await page.waitForLoadState('networkidle');
+
+		expect(fetched(hidden)).toEqual([]);
 	});
 }
 

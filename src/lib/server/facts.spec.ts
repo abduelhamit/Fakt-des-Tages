@@ -76,6 +76,27 @@ describe('renderFact', () => {
 		);
 	});
 
+	it('marks a light/dark pair for the stylesheet, lazy, and measures it without the fragment', () => {
+		const html = renderFact(
+			'![Hell](fakten/2026-03-06-1.avif#light-mode-only)\n' +
+				'![Dunkel](fakten/2026-03-06-1.avif#dark-mode-only)'
+		);
+		expect(html).toContain(
+			'<a href="fakten/2026-03-06-1.avif" data-theme-only="light"><img src="fakten/2026-03-06-1.avif" alt="Hell" loading="lazy" width="1280" height="596"></a>'
+		);
+		expect(html).toContain('<a href="fakten/2026-03-06-1.avif" data-theme-only="dark">');
+	});
+
+	it('fails on a theme image without its partner, even inside a link, naming the path', () => {
+		expect(() =>
+			renderFact(
+				'![Hell](fakten/2026-03-06-1.avif#light-mode-only)\n' +
+					'[![Hell](fakten/2026-03-06-1.avif#light-mode-only)](https://example.com)\n' +
+					'![Dunkel](fakten/2026-03-06-1.avif#dark-mode-only)'
+			)
+		).toThrow(/paarweise.*fakten\/2026-03-06-1\.avif#light-mode-only/);
+	});
+
 	it('fails on an image it cannot measure, naming the path', () => {
 		expect(() => renderFact('![Fehlt](fakten/1999-01-01-1.jpg)')).toThrow(
 			/fakten\/1999-01-01-1\.jpg/

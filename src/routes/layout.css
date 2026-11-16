@@ -203,6 +203,19 @@
 		margin-bottom: 0.25rem;
 	}
 
+	/* Of a light/dark image pair only the one for the visitor's color scheme shows — see
+	   `renderFact`. Each has its credit straight after its link, so `+ em` hides that with it. */
+	@media not (prefers-color-scheme: dark) {
+		.markdown-body :is(a[data-theme-only='dark'], a[data-theme-only='dark'] + em) {
+			display: none;
+		}
+	}
+	@media (prefers-color-scheme: dark) {
+		.markdown-body :is(a[data-theme-only='light'], a[data-theme-only='light'] + em) {
+			display: none;
+		}
+	}
+
 	/* Primer's tooltip, on a `hint` popover — see `tooltip` in IconButton.svelte. In the top layer,
 	   so the header cannot clip it; anchored below its button, or above where there is no room. The
 	   `::before` bridges the gap to the button, so a pointer can move onto the tooltip without losing

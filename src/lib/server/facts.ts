@@ -61,6 +61,8 @@ export function facts(): Map<string, string> {
 	return (archive ??= parseFacts(process.env.FACTS_PROBE === '1' ? probe : source));
 }
 
+const THEME = /#(light|dark)-mode-only$/;
+
 /**
  * Every image links to its own file, which is the whole zoom feature: the browser's image viewer
  * already toggles between fit-to-window and 100 % on click, pinches on a phone and zooms with the
@@ -75,30 +77,54 @@ export function facts(): Map<string, string> {
  * directory, which is the project root under both `vite build` and vitest. An image that cannot be
  * measured — a mistyped path, an LFS pointer, a remote URL, a header declaring an impossible size
  * — fails the build, naming the path.
+ *
+ * The fragments `#light-mode-only` and `#dark-mode-only` mark an image pair of which only the one
+ * for the visitor's color scheme shows. The fragment is the entry's way of saying so, not part of
+ * the file's URL, so it is cut off before rendering and measuring, and the link carries a
+ * `data-theme-only` for layout.css instead: a class would drop it out of `a:not([class])` and move
+ * its focus ring. Lazy, because a lazy image under `display: none` is never fetched.
  */
 const markdown = new Marked({
 	renderer: {
 		image(token) {
-			const img = Renderer.prototype.image.call(this, token);
+			const theme = THEME.exec(token.href);
+			const href = token.href.replace(THEME, '');
+			const img = Renderer.prototype.image.call(this, { ...token, href });
 			const src = /^<img src="([^"]*)"/.exec(img)?.[1];
 			if (!src) return img;
 			let size;
 			try {
-				size = imageMeta(readFileSync(`static/${token.href}`));
+				size = imageMeta(readFileSync(`static/${href}`));
 			} catch (cause) {
 				const detail = cause instanceof Error ? cause.message : String(cause);
-				throw new Error(`Das Bild „${token.href}“ lässt sich nicht vermessen: ${detail}`, {
+				throw new Error(`Das Bild „${href}“ lässt sich nicht vermessen: ${detail}`, {
 					cause
 				});
 			}
-			const dimensions = ` width="${size.width}" height="${size.height}">`;
-			return `<a href="${src}">${img.replace(/>$/, dimensions)}</a>`;
+			const lazy = theme ? ' loading="lazy"' : '';
+			const only = theme ? ` data-theme-only="${theme[1]}"` : '';
+			const dimensions = `${lazy} width="${size.width}" height="${size.height}">`;
+			return `<a href="${src}"${only}>${img.replace(/>$/, dimensions)}</a>`;
 		}
 	}
 });
 
-/** CommonMark → HTML. `async: false` picks marked's synchronous overload, which returns `string`. */
+/**
+ * CommonMark → HTML. `async: false` picks marked's synchronous overload, which returns `string`.
+ * An unpaired theme image would leave the other color scheme with no picture at all, so it fails
+ * the build; `walkTokens` reaches images inside links and list items too.
+ */
 export function renderFact(text: string): FactHtml {
+	const themed: string[] = [];
+	markdown.walkTokens(markdown.lexer(text), (t) => {
+		if (t.type === 'image' && THEME.test(t.href)) themed.push(t.href);
+	});
+	if (themed.filter((href) => href.endsWith('#light-mode-only')).length * 2 !== themed.length) {
+		const paths = themed.map((href) => `„${href}“`).join(', ');
+		throw new Error(
+			`Bilder für das helle und das dunkle Farbschema kommen nur paarweise vor: ${paths}`
+		);
+	}
 	return markdown.parse(text, { async: false }) as FactHtml;
 }
 

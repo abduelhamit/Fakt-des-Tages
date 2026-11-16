@@ -324,6 +324,25 @@ Consequences worth knowing before changing any of this:
   failing anything, while `image-meta` throws. `@carboneio/image-size`, a security fork that also
   throws, was passed over for its tiny user base, and `sharp` because it is async-only, which the
   synchronous renderer cannot use, and ships native binaries to read a header.
+- **An image can come as a light/dark pair, and only the one for the visitor's color scheme
+  shows.** The entry marks the two with the fragments `![…](fakten/….avif#light-mode-only)`
+  and `#dark-mode-only`, each with its own alt text, since the two palettes need describing
+  apart, and its own credit straight after it. Deliberately not GitHub's `#gh-…` spelling of the same
+  idea: the content should carry no association with GitHub. `renderFact` cuts the fragment off before rendering
+  and measuring, so no URL a visitor sees carries it, and marks the link with
+  `data-theme-only="light"` or `"dark"`, which [layout.css](src/routes/layout.css) hides, together
+  with the `<em>` after it, under the other scheme. A data attribute rather than a class, because
+  `a:not([class])` decides where the focus ring sits. Each picture keeps its own zoom link, so a
+  click opens the file that is showing, and nothing needs JavaScript. Both get `loading="lazy"`:
+  a lazy image under `display: none` is never fetched, so a visit costs one file and the other
+  loads only if the scheme flips. Measured in Chromium, Firefox and WebKit in November 2026: under
+  either scheme only the shown file was requested. Without the attribute Chromium fetches both, and
+  the e2e test `shows only the … image of a pair` fails. An entry whose light and dark images do
+  not pair up fails `pnpm build`, since one scheme would otherwise show no picture at all; the count
+  runs over every token, so an image inside a link or a list item counts too.
+  `<picture>` with a `media` source was the first choice and was given up for the zoom link, whose
+  `href` cannot follow the scheme without a script. The search indexes both alt texts and both
+  credits, so a word from either palette finds the day.
 - **A CC-licensed image carries its credit in the entry**, on the line after it, as
   `_Foto: [Name](https://commons.wikimedia.org/wiki/File:…), [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/)_`.
   The name links to the file page because every CC version in the archive — 2.0, 3.0 and 4.0 —
