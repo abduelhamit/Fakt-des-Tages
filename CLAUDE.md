@@ -691,10 +691,10 @@ a … color scheme` checks the canvas in both.
   Schriftarten“ still holds. It has no U+202F and no U+2009, so those come from the next font in the
   stack (see the no-break spaces above), as do the few Cyrillic, Hebrew and Japanese words in the
   archive — the same fallback github.com relies on.
-- **Every icon is an Octicon, inline** in [IconButton.svelte](src/lib/IconButton.svelte): five 16 px
+- **Every icon is an Octicon, inline** in [IconButton.svelte](src/lib/IconButton.svelte): 16 px
   paths copied from `@primer/octicons` 19.40.0, which is MIT. Primer has no shuffle icon, so the
   random fact is the `dice`.
-- **Every icon-only control is an IconButton** — the four arrows, the search button and the dice —
+- **Every icon-only control is an IconButton** — the four arrows, the search button, the dice and the GitHub link —
   and names itself in a tooltip: a `popover="hint"` in the top layer, anchored to its control by
   `togglePopover({ source })` and `position-area`. Checked in October 2026: `hint` is complete from
   Chrome 151 and Firefox 153 and exists only in Safari's Technology Preview, so Safari treats it as

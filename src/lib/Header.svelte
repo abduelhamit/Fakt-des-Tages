@@ -9,8 +9,9 @@
 	import { clock, startClock } from '#lib/today.svelte.ts';
 
 	/**
-	 * The header along the top of every page, like github.com's: the way back to today, the search
-	 * and the random fact. In the layout, so the legal pages and the error page have all three too.
+	 * The header along the top of every page, like github.com's: the way back to today, the search,
+	 * the random fact and the source code. In the layout, so the legal pages and the error page have
+	 * them too.
 	 * Below Primer's small breakpoint the search folds into a button that opens it over the header.
 	 */
 
@@ -255,6 +256,12 @@
 			label="Zufälliger Fakt"
 			action={randomFact}
 			disabled={otherFacts.length === 0}
+			class={[open && 'max-sm:hidden']}
+		/>
+		<IconButton
+			icon="mark-github"
+			label="Quellcode auf GitHub"
+			action="https://github.com/abduelhamit/Fakt-des-Tages"
 			class={[open && 'max-sm:hidden']}
 		/>
 	</div>

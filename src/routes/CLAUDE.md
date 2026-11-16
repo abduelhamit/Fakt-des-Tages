@@ -304,9 +304,9 @@ Accepted limitation: on a viewport wider than `max-w-2xl` plus its padding — a
 `main` no longer reaches the edges, the row stops being uniform, and the strip shows content again.
 Only phones are covered, which is where the bar is pinned often enough to matter.
 
-All four arrows on the page, and the header's two buttons, are
+All four arrows on the page, and the header's two buttons and its GitHub link, are
 [IconButton.svelte](../lib/IconButton.svelte): a button when given a function, a link when given a
-path. Its class list sits in a `class="..."` attribute, where Prettier's Tailwind plugin still sorts
+path or an external address. Its class list sits in a `class="..."` attribute, where Prettier's Tailwind plugin still sorts
 it — a hoisted `const` is silently skipped by the sorter, verified both ways while the arrows were
 still a snippet here. The two branches repeat the list, so keep them in step.
 
