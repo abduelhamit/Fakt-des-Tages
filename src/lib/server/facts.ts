@@ -83,8 +83,16 @@ const THEME = /#(light|dark)-mode-only$/;
  * the file's URL, so it is cut off before rendering and measuring, and the link carries a
  * `data-theme-only` for layout.css instead: a class would drop it out of `a:not([class])` and move
  * its focus ring. Lazy, because a lazy image under `display: none` is never fetched.
+ *
+ * An image that sits inside a link of the entry's own, such as a video's thumbnail, opens that
+ * link instead and gets no zoom link, since one `<a>` inside another is invalid HTML.
  */
+const linked = new WeakSet<Token>();
 const markdown = new Marked({
+	walkTokens(t) {
+		if (t.type === 'link')
+			for (const inner of t.tokens ?? []) if (inner.type === 'image') linked.add(inner);
+	},
 	renderer: {
 		image(token) {
 			const theme = THEME.exec(token.href);
@@ -103,8 +111,12 @@ const markdown = new Marked({
 			}
 			const lazy = theme ? ' loading="lazy"' : '';
 			const only = theme ? ` data-theme-only="${theme[1]}"` : '';
-			const dimensions = `${lazy} width="${size.width}" height="${size.height}">`;
-			return `<a href="${src}"${only}>${img.replace(/>$/, dimensions)}</a>`;
+			const sized = img.replace(/>$/, `${lazy} width="${size.width}" height="${size.height}">`);
+			if (!linked.has(token)) return `<a href="${src}"${only}>${sized}</a>`;
+			// layout.css hides a theme image by its zoom link, which a linked image does not have.
+			if (theme)
+				throw new Error(`Ein Bild für nur ein Farbschema lässt sich nicht verlinken: „${href}“`);
+			return sized;
 		}
 	}
 });
@@ -155,10 +167,13 @@ export function factText(text: string, aside?: string[]): string {
 			.map((t, i) => {
 				let before = i - 1;
 				while (tokens[before]?.type === 'text' && !tokens[before].raw.trim()) before--;
+				const picture = tokens[before];
 				const about =
 					t.type === 'image'
 						? t.text
-						: t.type === 'em' && tokens[before]?.type === 'image'
+						: t.type === 'em' &&
+							  (picture?.type === 'image' ||
+									(picture?.type === 'link' && picture.tokens?.at(-1)?.type === 'image'))
 							? walk(t.tokens ?? [])
 							: undefined;
 				if (about !== undefined) {

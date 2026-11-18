@@ -124,8 +124,9 @@
 		cursor: pointer;
 	}
 
-	/* Every fact image links to its own file, which the browser opens at up to 100 %. */
-	.markdown-body a:has(> img) {
+	/* Every fact image links to its own file, which the browser opens at up to 100 %, unless the
+	   entry links it somewhere else itself. */
+	.markdown-body a[href^='fakten/']:has(> img) {
 		cursor: zoom-in;
 	}
 }

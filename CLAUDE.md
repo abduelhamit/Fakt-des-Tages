@@ -307,8 +307,11 @@ Consequences worth knowing before changing any of this:
   50 lines doing what the browser already does. The wrapper changes no layout: every image and
   credit across every illustrated entry measured identically at 375 and 1024 px, before and
   after. Two things depend on it: the credit selector below, and the `zoom-in` cursor in
-  [layout.css](src/routes/layout.css). A fact that puts an image inside its own link would nest
-  one `<a>` in another, which is invalid HTML, so no entry does.
+  [layout.css](src/routes/layout.css). An image the entry puts inside a link of its own — the video
+  thumbnail on 2026-11-18 — opens that link instead and gets no zoom link, since one `<a>` inside
+  another is invalid HTML; the cursor rule therefore matches only links into `fakten/`, and
+  `factText` takes an emphasis after such a link for a credit too. A light/dark image cannot be
+  linked like that, because its zoom link is what layout.css hides, so it fails `pnpm build`.
 - **`renderFact` also writes each image's own `width` and `height`,** read from the file under
   `static/` with `image-meta`, so the browser reserves the box before the bytes arrive and the text
   below does not jump when a day is picked. Preflight's `height: auto` keeps the displayed size what

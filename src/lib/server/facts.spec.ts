@@ -97,6 +97,18 @@ describe('renderFact', () => {
 		).toThrow(/paarweise.*fakten\/2026-03-06-1\.avif#light-mode-only/);
 	});
 
+	it('lets an image inside a link open that link, without a zoom link of its own', () => {
+		expect(renderFact('[![Vorschau](fakten/2026-03-06-1.avif)](https://example.com)')).toBe(
+			'<p><a href="https://example.com"><img src="fakten/2026-03-06-1.avif" alt="Vorschau" width="1280" height="596"></a></p>\n'
+		);
+		expect(() =>
+			renderFact(
+				'[![Hell](fakten/2026-03-06-1.avif#light-mode-only)](https://example.com)\n' +
+					'![Dunkel](fakten/2026-03-06-1.avif#dark-mode-only)'
+			)
+		).toThrow(/nicht verlinken.*fakten\/2026-03-06-1\.avif/);
+	});
+
 	it('fails on an image it cannot measure, naming the path', () => {
 		expect(() => renderFact('![Fehlt](fakten/1999-01-01-1.jpg)')).toThrow(
 			/fakten\/1999-01-01-1\.jpg/
@@ -133,10 +145,11 @@ describe('factText', () => {
 		const aside: string[] = [];
 		const prose = factText(
 			'Ein _betontes_ Wort.\n\n![Erstes Bild](fakten/a.avif)![Zweites Bild](fakten/b.avif)\n' +
-				'_Foto: [Name](https://commons.wikimedia.org/wiki/File:A.avif)_\n\nDanach.',
+				'_Foto: [Name](https://commons.wikimedia.org/wiki/File:A.avif)_\n\n' +
+				'[![Vorschau](fakten/c.avif)](https://example.com)\n_Szene: Name_\n\nDanach.',
 			aside
 		);
 		expect(prose).toBe('Ein betontes Wort. Danach.');
-		expect(aside).toEqual(['Erstes Bild', 'Zweites Bild', 'Foto: Name']);
+		expect(aside).toEqual(['Erstes Bild', 'Zweites Bild', 'Foto: Name', 'Vorschau', 'Szene: Name']);
 	});
 });
